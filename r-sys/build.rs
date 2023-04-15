@@ -1,42 +1,118 @@
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // let out_dir = std::env::var("OUT_DIR")?;
-    let bindings = bindgen::builder()
-        .layout_tests(true)
-        .clang_arg(format!("-I{}", "r/include/"))
+use anyhow::{Context, Result};
+use std::{env, fs, path::Path};
+
+// TODO
+/* rust
+
+fn main() {
+    if let Err(e) = try_main() {
+        eprintln!("{}", e);
+        std::process::exit(-1);
+    }
+}
+
+fn try_main() -> Result<(), DynError> {
+    let task = env::args().nth(1);
+    match task.as_deref() {
+        Some("dist") => dist()?,
+        _ => print_help(),
+    }
+    Ok(())
+}
+
+*/
+
+fn main() -> Result<()> {
+    let meta = rustc_version::version_meta().expect("Failed to get Rust version info");
+    match meta.channel {
+        rustc_version::Channel::Dev => println!("cargo:rustc-cfg=dev"),
+        rustc_version::Channel::Nightly => println!("cargo:rustc-cfg=nightly"),
+        rustc_version::Channel::Beta => println!("cargo:rustc-cfg=beta"),
+        rustc_version::Channel::Stable => println!("cargo:rustc-cfg=stable"),
+    }
+    // let out_dir = env::var("OUT_DIR")?;
+    let libgcc_var =
+        env::var("LIBRARY_PATH").context("Set `LIBRARY_PATH` on your System / User")?;
+    if libgcc_var.is_empty() {
+        anyhow::bail!("Environment variable `LIBRARY_PATH` cannot be empty.")
+    }
+    // create a directory in an arbitrary location (e.g. libgcc_mock)
+    let libgcc_mock_path = Path::new(&libgcc_var);
+    if !libgcc_mock_path.exists() {
+        fs::create_dir(libgcc_mock_path)?
+    }
+    if !libgcc_mock_path.join("libgcc_eh.a").exists() {
+        fs::File::create(libgcc_mock_path.join("libgcc_eh.a"))?;
+        fs::File::create(libgcc_mock_path.join("libgcc_s.a"))?;
+    }
+
+    let target = env::var("TARGET").expect("Could not get the target triple");
+    let bindings_builder = bindgen::builder()
+        // .layout_tests(true)
         .clang_arg(format!(
             "-I{}",
-            "C:\\rtools42\\x86_64-w64-mingw32.static.posix\\include"
+            "C:\\rtools42\\x86_64-w64-mingw32.static.posix\\include" // r#"C:\Users\minin\scoop\apps\llvm\current\include"#
         ))
+        // Blocklist some types on i686
+        // https://github.com/rust-lang/rust-bindgen/issues/1823
+        // https://github.com/rust-lang/rust/issues/54341
+        // https://github.com/extendr/libR-sys/issues/39
+        // .blocklist_item("max_align_t")
+        .blocklist_item("__mingw_ldbl_type_t")
+        // .clang_arg(format!(
+        //     "-I{}",
+        //     r#"C:\Users\minin\scoop\apps\llvm\current\include"#
+        // ))
+        .blocklist_item("M_E")
+        .blocklist_item("M_LOG2E")
+        .blocklist_item("M_LOG10E")
+        .blocklist_item("M_LN2")
+        .blocklist_item("M_LN10")
+        .blocklist_item("M_PI")
+        .blocklist_item("M_PI_2")
+        .blocklist_item("M_PI_4")
+        .blocklist_item("M_1_PI")
+        .blocklist_item("M_2_PI")
+        .blocklist_item("M_2_SQRTPI")
+        .blocklist_item("M_SQRT2")
+        .blocklist_item("M_SQRT1_2")
+        .clang_arg(format!("--target={target}"))
+        .clang_arg(format!("-I{}", "r/include/"))
         // .enable_cxx_namespaces() // yields only a `root` module.
         .enable_function_attribute_detection()
         .generate_block(true)
-        .generate_comments(true)
         // .generate_inline_functions(true)   // a lot of stuff generated
         // .array_pointers_in_arguments(true) // does nothing
         // .bindgen_wrapper_union(".*")       // does nothing
         // enum?
-        .rustified_enum(".*")
+        // .rustified_enum(".*")
         // bitfield?
         // .bitfield_enum(".*")
         // comments
+        .translate_enum_integer_types(true)
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
-        .parse_callbacks(Box::new(TrimCommentsCallback))
+        .generate_comments(true)
         .clang_arg("-fparse-all-comments")
-        .rustfmt_bindings(true)
-        .header("wrapper.h")
+        .parse_callbacks(Box::new(TrimCommentsCallback))
+        // .formatter(bindgen::Formatter::Rustfmt)
+        .header("wrapper.h");
+    let bindings = bindings_builder
+        // .rust_target(bindgen::RustTarget::Stable_1_64)
         .generate()?;
-    // bindings.emit_warnings();
     // let path_to_r_bindings = format!("{}/r-bindings.rs", out_dir);
-    let path_to_r_bindings = format!("r-bindings.rs");
-    bindings.write_to_file(&path_to_r_bindings)?;
+    let path_to_r_bindings = "r-bindings.rs";
+    bindings.write_to_file(path_to_r_bindings)?;
 
     // make sure cargo links properly against library
-    println!("cargo:rustc-link-search={}", "r/bin/x64/");
+    let rlib_path = Path::new("r/bin/x64").canonicalize().unwrap();
+    let rlib_path = rlib_path.display();
+    println!("cargo:rustc-link-search={rlib_path}");
     println!("cargo:rustc-link-lib=dylib=R");
 
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=wrapper.h");
-    Ok(()).into()
+
+    Ok(())
 }
 
 #[derive(Debug)]
@@ -47,4 +123,52 @@ impl bindgen::callbacks::ParseCallbacks for TrimCommentsCallback {
     fn process_comment(&self, comment: &str) -> Option<String> {
         comment.trim().to_string().into()
     }
+    fn item_name(&self, original_item_name: &str) -> Option<String> {
+        // if all uppercase, assume constant
+        let all_is_uppercase = original_item_name.chars().all(|x| match x {
+            '_' => true,
+            a if a.is_alphabetic() => a.is_uppercase(),
+            _ => true,
+        });
+        if all_is_uppercase {
+            return None;
+        }
+        // assume camel case
+        let new_item_name = original_item_name
+            .char_indices()
+            .flat_map(|(x, a)| {
+                [
+                    (x != 0 && a.is_uppercase()).then_some('_'),
+                    Some(a.to_ascii_lowercase()),
+                ]
+            })
+            .flatten()
+            .collect();
+        Some(new_item_name)
+    }
+
+    // fn generated_name_override(
+    //     &self,
+    //     item_info: bindgen::callbacks::ItemInfo<'_>,
+    // ) -> Option<String> {
+    //     match item_info.kind {
+    //         bindgen::callbacks::ItemKind::Function => None,
+    //         bindgen::callbacks::ItemKind::Var => {
+    //             // assume camel case
+    //             let original_item_name = item_info.name;
+    //             let new_item_name = original_item_name
+    //                 .char_indices()
+    //                 .flat_map(|(x, a)| {
+    //                     [
+    //                         (x != 0 && a.is_uppercase()).then_some('_'),
+    //                         Some(a.to_ascii_lowercase()),
+    //                     ]
+    //                 })
+    //                 .flatten()
+    //                 .collect();
+    //             Some(new_item_name)
+    //         }
+    //         _ => todo!(),
+    //     }
+    // }
 }

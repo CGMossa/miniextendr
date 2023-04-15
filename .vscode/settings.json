@@ -1,0 +1,13 @@
+{
+    // "terminal.integrated.scrollback": 100000,
+    "rust-analyzer.checkOnSave": false,
+    "rust-analyzer.cargo.buildScripts.enable": true,
+    "rust-analyzer.cargo.buildScripts.invocationLocation": "workspace",
+    "rust-analyzer.cargo.buildScripts.useRustcWrapper": true,
+    // "rust-analyzer.check.command": "check",
+    "rust-analyzer.check.command": "clippy",
+    "rust-analyzer.cargo.features": [],
+    "rust-analyzer.check.features": [],
+    // The target needs to be GNU
+    "rust-analyzer.cargo.target": "x86_64-pc-windows-gnu",
+}

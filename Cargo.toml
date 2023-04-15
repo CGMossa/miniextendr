@@ -1,12 +1,7 @@
-[package]
-name = "miniextendr"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+members = ["r-sys", "xtask"]
 resolver = "2"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-
-[workspace]
-members = ["r-sys"]
+[workspace.package]
+edition = "2021"
+version = "0.1.0"

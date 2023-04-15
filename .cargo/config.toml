@@ -4,3 +4,7 @@ target = "x86_64-pc-windows-gnu"
 
 [target.x86_64-pc-windows-gnu]
 linker = "x86_64-w64-mingw32.static.posix-gcc.exe"
+
+
+[alias]
+xtask = "run --package xtask --"
