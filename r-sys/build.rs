@@ -23,7 +23,7 @@ fn try_main() -> Result<(), DynError> {
 */
 
 fn main() -> Result<()> {
-    let meta = rustc_version::version_meta().expect("Failed to get Rust version info");
+    let meta = rustc_version::version_meta().context("Failed to get Rust version info")?;
     match meta.channel {
         rustc_version::Channel::Dev => println!("cargo:rustc-cfg=dev"),
         rustc_version::Channel::Nightly => println!("cargo:rustc-cfg=nightly"),
@@ -46,7 +46,7 @@ fn main() -> Result<()> {
         fs::File::create(libgcc_mock_path.join("libgcc_s.a"))?;
     }
 
-    let target = env::var("TARGET").expect("Could not get the target triple");
+    let target = env::var("TARGET").context("Could not get the target triple")?;
     let bindings_builder = bindgen::builder()
         // .layout_tests(true)
         .clang_arg(format!(
@@ -63,6 +63,7 @@ fn main() -> Result<()> {
         //     "-I{}",
         //     r#"C:\Users\minin\scoop\apps\llvm\current\include"#
         // ))
+        // redefined in `lib.rs`.
         .blocklist_item("M_E")
         .blocklist_item("M_LOG2E")
         .blocklist_item("M_LOG10E")
@@ -96,15 +97,20 @@ fn main() -> Result<()> {
         .parse_callbacks(Box::new(TrimCommentsCallback))
         // .formatter(bindgen::Formatter::Rustfmt)
         .header("wrapper.h");
+
+    //TODO: add nonAPI.txt
+    // Rscript -e 'cat(tools:::nonAPI, "\n")' | uniq | sort
+
     let bindings = bindings_builder
         // .rust_target(bindgen::RustTarget::Stable_1_64)
         .generate()?;
     // let path_to_r_bindings = format!("{}/r-bindings.rs", out_dir);
     let path_to_r_bindings = "r-bindings.rs";
+    println!("cargo:rerun-if-changed={path_to_r_bindings}");
     bindings.write_to_file(path_to_r_bindings)?;
 
     // make sure cargo links properly against library
-    let rlib_path = Path::new("r/bin/x64").canonicalize().unwrap();
+    let rlib_path = Path::new("r/bin/x64").canonicalize()?;
     let rlib_path = rlib_path.display();
     println!("cargo:rustc-link-search={rlib_path}");
     println!("cargo:rustc-link-lib=dylib=R");
@@ -121,7 +127,15 @@ struct TrimCommentsCallback;
 impl bindgen::callbacks::ParseCallbacks for TrimCommentsCallback {
     /// Trims the comments found by clang.
     fn process_comment(&self, comment: &str) -> Option<String> {
-        comment.trim().to_string().into()
+        let mut comment = comment.trim().to_string();
+
+        let finder = linkify::LinkFinder::new();
+        let comment_links = comment.clone();
+        let links = finder.links(comment_links.as_str()).collect::<Vec<_>>();
+        for link in &links {
+            comment.replace_range(link.start()..link.end(), &format!("<{}>", link.as_str()));
+        }
+        Some(comment)
     }
     fn item_name(&self, original_item_name: &str) -> Option<String> {
         // if all uppercase, assume constant

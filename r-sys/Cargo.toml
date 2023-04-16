@@ -1,11 +1,25 @@
 [package]
 name = "r-sys"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-bindgen = "0.64"
+bindgen = "0.65"
+fs_extra = { version = "*" }
+rustc_version = "0.4"
+clang = { version = "2.0.0", features = ["runtime", "clang_10_0"] }
+linkify = "0.9.0"
+anyhow = { version = "1" }
 
 [dependencies]
+anyhow = { version = "1" }
+clang = { version = "2.0.0", features = ["runtime", "clang_10_0"] }
+indexmap = "1.9.3"
+itertools = "0.10.5"
+
+[features]
+stable = ["anyhow/backtrace"]
+serde = ["indexmap/serde", "indexmap/serde-1"]
+rayon = ["indexmap/rayon"]
