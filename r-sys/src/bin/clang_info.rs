@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use anyhow::Result;
 use clang::EntityKind::*;
 use indexmap::IndexSet;
@@ -16,15 +14,24 @@ fn try_main() -> Result<()> {
     let clang = clang::Clang::new().unwrap();
     let index = clang::Index::new(&clang, true, true);
     // println!("{:?}", current_dir()?);
-    //FIXME:
-    let mut parser = index.parser("r-sys/wrapper.h");
-    //FIXME
-    let parser = parser.arguments(&["-Ir-sys/r/include"]);
+    let crate_root = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+    let crate_root = std::path::PathBuf::try_from(crate_root).unwrap();
+    let mut parser = index.parser(crate_root.join("wrapper.h"));
+    let parser = parser.arguments(&[format!(
+        "-I{}",
+        crate_root.join("r").join("include").display()
+    )]);
     let tu = parser
         // .briefs_in_completion_results(true)
         .detailed_preprocessing_record(true)
         // .skip_function_bodies(true)
         .parse()?;
+    let entities = tu
+        .get_entity()
+        .get_children()
+        .into_iter()
+        .filter(|x| !x.is_in_system_header());
+
     let skipped_ranges = tu
         .get_skipped_ranges()
         .into_iter()
@@ -34,8 +41,16 @@ fn try_main() -> Result<()> {
     // - [ ] print skipped ranges
     // - [ ] then use it to check if the found macros are within them,
     //   if so, don't print them
-    let skipped_ranges: IndexSet<_> = skipped_ranges
+    let ranges: IndexSet<_> = skipped_ranges
         .into_iter()
+        .chain(
+            entities
+                .filter(|e| match e.get_kind() {
+                    MacroDefinition | MacroExpansion => false,
+                    _ => true,
+                })
+                .flat_map(|x| x.get_range()),
+        )
         .map(|ele| {
             assert_eq!(
                 ele.get_start().get_file_location(),
@@ -61,14 +76,14 @@ fn try_main() -> Result<()> {
             (
                 ele.get_start().get_file_location().file.unwrap().get_path(),
                 // ele.get_start().get_file_location().line..=ele.get_end().get_file_location().line,
-                line_start..=line_end,
+                line_start..=line_end + 1,
                 source,
             )
         })
         // does nothing
         // .unique_by(|x| (x.0.clone(), x.1.clone()))
         .collect();
-    dbg!(skipped_ranges.len());
+    dbg!(ranges.len());
 
     // this doesn't include skipped ranges
     let all_entities = tu.get_entity().get_children();
@@ -97,7 +112,7 @@ fn try_main() -> Result<()> {
 
         // check if the macro is in a skipped range
         let source_location = rmacro_entity.get_location().unwrap();
-        let macro_matching_skipped_ranges = skipped_ranges
+        let macro_matching_skipped_ranges = ranges
             .iter()
             .filter(|(file, range, _source)| {
                 (*file == source_location.get_file_location().file.unwrap().get_path())
@@ -126,18 +141,17 @@ fn try_main() -> Result<()> {
             .join("\n");
         let source_location_path = source_file.get_path();
         macros_and_ranges.insert((source_location_path, line_start..=line_end, source));
-        // todo!()
     }
     let macros_and_ranges = macros_and_ranges;
 
     // this prints all ranges
     std::fs::write(
-        "macros_and_skipped_ranges.txt",
+        crate_root.join("macros_and_skipped_ranges.txt"),
         macros_and_ranges
             .iter()
             .map(|(file, _range, source)| {
                 let source_location_path = file
-                    .strip_prefix("r-sys/r")
+                    .strip_prefix(crate_root.join("r"))
                     .map(|x| x.display().to_string())
                     .unwrap_or(format!("unable to strip r-include: {:}", file.display()));
                 //FIXME
@@ -180,7 +194,7 @@ fn try_main() -> Result<()> {
         })
         .flat_map(|x| x.get_name())
         .collect_vec();
-    std::fs::write("r-sys/allowlist.txt", allowlist.join("\n"))?;
+    std::fs::write(crate_root.join("allowlist.txt"), allowlist.join("\n"))?;
 
     Ok(())
 }
