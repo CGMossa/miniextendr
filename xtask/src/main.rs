@@ -12,8 +12,11 @@ struct Args {
 
 #[derive(Debug, Clone, Subcommand)]
 enum Command {
-    LibraryGccMock,
-    CopyRHeaders,
+    LibraryGccMock {},
+    CopyRHeaders {
+        //TODO: optional R_HOME
+        //TODO: optional target-directory ~> default to r-sys-root
+    },
 }
 
 fn main() -> Result<()> {
@@ -21,12 +24,15 @@ fn main() -> Result<()> {
     // println!("CARGO_MANIFEST_DIR: {}", std::env::var("CARGO_MANIFEST_DIR").unwrap());
     let xtask_directory = std::env::var("CARGO_MANIFEST_DIR").unwrap();
     let xtask_directory: PathBuf = xtask_directory.into();
-    let workspace_root = xtask_directory.parent().unwrap();
+    let workspace_root: &Path = xtask_directory.parent().unwrap();
 
     let args = Args::parse();
     match args.command {
-        Command::LibraryGccMock => libgcc_mock()?,
-        Command::CopyRHeaders => copy_r_headers(workspace_root),
+        Command::LibraryGccMock {} => libgcc_mock()?,
+        Command::CopyRHeaders {} => {
+            let r_sys_root = workspace_root.join("r-sys");
+            copy_r_headers(r_sys_root.as_path())
+        }
         _ => {
             todo!()
         }
@@ -56,7 +62,7 @@ fn libgcc_mock() -> Result<()> {
     Ok(())
 }
 
-fn copy_r_headers(workspace_root: &Path) {
+fn copy_r_headers(r_sys_root: &Path) {
     /*
 
     // copy R headers and binaries over to the repository
