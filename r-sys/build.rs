@@ -79,6 +79,7 @@ fn main() -> Result<()> {
         .blocklist_item("M_SQRT1_2")
         .clang_arg(format!("--target={target}"))
         .clang_arg(format!("-I{}", "r/include/"))
+        .clang_arg("-std=c11")
         //https://cran.r-project.org/doc/manuals/R-exts.html#Portable-C-and-C_002b_002b-code
         .blocklist_function("finite")
         // .enable_cxx_namespaces() // yields only a `root` module.
