@@ -1,8 +1,4 @@
-use std::{
-    collections::HashMap,
-    env::current_dir,
-    fmt::{format, Debug},
-};
+use std::collections::HashMap;
 
 use anyhow::Result;
 use clang::EntityKind::*;
@@ -75,7 +71,7 @@ fn try_main() -> Result<()> {
     dbg!(skipped_ranges.len());
 
     // this doesn't include skipped ranges
-    let mut all_entities = tu.get_entity().get_children();
+    let all_entities = tu.get_entity().get_children();
     let r_entities = all_entities
         .into_iter()
         .filter(|x| !x.is_in_system_header())
@@ -84,12 +80,9 @@ fn try_main() -> Result<()> {
     dbg!(r_entities.len());
     // extract all macros
     // dbg!(&r_entities.iter().filter(|x| !x.is_builtin_macro()).count()); // does nothing
-    let mut r_macro_entities: Vec<_> = r_entities
+    let r_macro_entities: Vec<_> = r_entities
         .iter()
-        .filter(|x| match x.get_kind() {
-            MacroDefinition | MacroExpansion => true,
-            _ => false,
-        })
+        .filter(|x| matches!(x.get_kind(), MacroDefinition | MacroExpansion))
         .collect();
     dbg!(r_macro_entities.len());
 
@@ -106,7 +99,7 @@ fn try_main() -> Result<()> {
         let source_location = rmacro_entity.get_location().unwrap();
         let macro_matching_skipped_ranges = skipped_ranges
             .iter()
-            .filter(|(file, range, source)| {
+            .filter(|(file, range, _source)| {
                 (*file == source_location.get_file_location().file.unwrap().get_path())
                     && range.contains(&(source_location.get_file_location().line as _))
             })
@@ -142,7 +135,7 @@ fn try_main() -> Result<()> {
         "macros_and_skipped_ranges.txt",
         macros_and_ranges
             .iter()
-            .map(|(file, range, source)| {
+            .map(|(file, _range, source)| {
                 let source_location_path = file
                     .strip_prefix("r-sys/r")
                     .map(|x| x.display().to_string())
@@ -156,28 +149,34 @@ fn try_main() -> Result<()> {
 
     let preprocessing_entities = r_entities
         .iter()
-        .filter(|x| match x.get_kind() {
-            PreprocessingDirective => true,
-            _ => false,
-        })
+        .filter(|x| matches!(x.get_kind(), PreprocessingDirective))
         .collect_vec();
     dbg!(preprocessing_entities.len());
     // if this changes, the stuff in here has to be processed as well.
     assert_eq!(preprocessing_entities.len(), 0);
 
-    // r_entities;
-    let name_and_kind: HashMap<_, _> = r_entities
-        .iter()
-        .map(|x| (x.get_name().unwrap(), x.get_kind()))
-        .collect();
+    //TODO: use this for adjusting the syntax of things
+    //TODO: check if same name has multiple kinds
+    // let name_and_kind: HashMap<_, _> = r_entities
+    //     .iter()
+    //     .map(|x| (x.get_name().unwrap(), x.get_kind()))
+    //     .collect();
 
     let allowlist = r_entities
         .iter()
         .filter(|x| !x.is_anonymous())
-        .filter(|x| match x.get_kind() {
-            EnumDecl | FunctionDecl | StructDecl | TypedefDecl | VarDecl | UnionDecl => true,
-            MacroDefinition | MacroExpansion => true,
-            _ => false,
+        .filter(|x| {
+            matches!(
+                x.get_kind(),
+                EnumDecl
+                    | FunctionDecl
+                    | StructDecl
+                    | TypedefDecl
+                    | VarDecl
+                    | UnionDecl
+                    | MacroDefinition
+                    | MacroExpansion
+            )
         })
         .flat_map(|x| x.get_name())
         .collect_vec();

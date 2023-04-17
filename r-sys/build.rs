@@ -79,8 +79,12 @@ fn main() -> Result<()> {
         .blocklist_item("M_SQRT1_2")
         .clang_arg(format!("--target={target}"))
         .clang_arg(format!("-I{}", "r/include/"))
+        //https://cran.r-project.org/doc/manuals/R-exts.html#Portable-C-and-C_002b_002b-code
+        .blocklist_function("finite")
         // .enable_cxx_namespaces() // yields only a `root` module.
-        .enable_function_attribute_detection()
+        // .enable_function_attribute_detection()
+        .constified_enum_module(".*")
+        // .conservative_inline_namespaces()
         .generate_block(true)
         // .generate_inline_functions(true)   // a lot of stuff generated
         // .array_pointers_in_arguments(true) // does nothing
@@ -135,31 +139,36 @@ impl bindgen::callbacks::ParseCallbacks for TrimCommentsCallback {
         for link in &links {
             comment.replace_range(link.start()..link.end(), &format!("<{}>", link.as_str()));
         }
+        // let comment = comment.replace("\\n", "\n");
+        // let comment = comment.replace("[", r"`[");
+        // let comment = comment.replace("]", r"]`");
         Some(comment)
     }
-    fn item_name(&self, original_item_name: &str) -> Option<String> {
-        // if all uppercase, assume constant
-        let all_is_uppercase = original_item_name.chars().all(|x| match x {
-            '_' => true,
-            a if a.is_alphabetic() => a.is_uppercase(),
-            _ => true,
-        });
-        if all_is_uppercase {
-            return None;
-        }
-        // assume camel case
-        let new_item_name = original_item_name
-            .char_indices()
-            .flat_map(|(x, a)| {
-                [
-                    (x != 0 && a.is_uppercase()).then_some('_'),
-                    Some(a.to_ascii_lowercase()),
-                ]
-            })
-            .flatten()
-            .collect();
-        Some(new_item_name)
-    }
+
+    //TODO: this needs more information before it can be useful
+    // fn item_name(&self, original_item_name: &str) -> Option<String> {
+    //     // if all uppercase, assume constant
+    //     let all_is_uppercase = original_item_name.chars().all(|x| match x {
+    //         '_' => true,
+    //         a if a.is_alphabetic() => a.is_uppercase(),
+    //         _ => true,
+    //     });
+    //     if all_is_uppercase {
+    //         return None;
+    //     }
+    //     // assume camel case
+    //     let new_item_name = original_item_name
+    //         .char_indices()
+    //         .flat_map(|(x, a)| {
+    //             [
+    //                 (x != 0 && a.is_uppercase()).then_some('_'),
+    //                 Some(a.to_ascii_lowercase()),
+    //             ]
+    //         })
+    //         .flatten()
+    //         .collect();
+    //     Some(new_item_name)
+    // }
 
     // fn generated_name_override(
     //     &self,

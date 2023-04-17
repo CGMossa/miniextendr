@@ -24,6 +24,7 @@
 // Rinternals.h	definitions for using R’s internal structures
 // [x] Rdefines.h	macros for an S-like interface to the above (no longer maintained)
 #define R_NO_REMAP_RMATH
+// #include "Rconfig.h"
 // Rmath.h	standalone math library
 // Rversion.h	R version information
 // Rinterface.h	for add-on front-ends (Unix-alikes only)
