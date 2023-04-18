@@ -63,20 +63,8 @@ fn main() -> Result<()> {
         //     "-I{}",
         //     r#"C:\Users\minin\scoop\apps\llvm\current\include"#
         // ))
-        // redefined in `lib.rs`.
-        .blocklist_item("M_E")
-        .blocklist_item("M_LOG2E")
-        .blocklist_item("M_LOG10E")
-        .blocklist_item("M_LN2")
-        .blocklist_item("M_LN10")
-        .blocklist_item("M_PI")
-        .blocklist_item("M_PI_2")
-        .blocklist_item("M_PI_4")
-        .blocklist_item("M_1_PI")
-        .blocklist_item("M_2_PI")
-        .blocklist_item("M_2_SQRTPI")
-        .blocklist_item("M_SQRT2")
-        .blocklist_item("M_SQRT1_2")
+        // Remove constants
+        .blocklist_item("^M_.*")
         .clang_arg(format!("--target={target}"))
         .clang_arg(format!("-I{}", "r/include/"))
         .clang_arg("-std=c11")

@@ -1,12 +1,19 @@
 #define R_NO_REMAP
 #define STRICT_R_HEADERS
+
 #include <R.h>
 #include <Rinternals.h>
 
-//TODO: don't include Rdefines.h ever.
+//TODO: figure out how this is passed as cfg in rust
+#ifdef SWITCH_TO_REFCOUNT
+#define SWITCH_TO_REFCOUNT_RUST_MACROS
+#else
+#define SWITCH_TO_NAMED_RUST_MACROS
+#endif
 
 // Included by R.h:
 //
+// TODO: don't include Rdefines.h ever.
 // Rconfig.h	configuration info that is made available
 // R_ext/Arith.h	handling for NAs, NaNs, Inf/-Inf
 // R_ext/Boolean.h	TRUE/FALSE type
