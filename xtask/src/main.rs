@@ -30,7 +30,7 @@ fn main() -> Result<()> {
     match args.command {
         Command::LibraryGccMock {} => libgcc_mock()?,
         Command::CopyRHeaders {} => {
-            let r_sys_root = workspace_root.join("r-sys");
+            let r_sys_root = workspace_root.join("rsys");
             copy_r_headers(r_sys_root.as_path())
         }
         _ => {
