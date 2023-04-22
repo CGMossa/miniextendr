@@ -5,6 +5,11 @@ edition.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[profile.dev.build-override]
+debug = false
+[profile.release.build-override]
+debug = false
+
 [build-dependencies]
 bindgen = "0.65"
 rustc_version = "0.4"
