@@ -70,9 +70,14 @@ fn main() -> Result<()> {
         .clang_arg("-std=c11")
         //https://cran.r-project.org/doc/manuals/R-exts.html#Portable-C-and-C_002b_002b-code
         .blocklist_function("finite")
+        // .fit_macro_constants(true)
+        .default_enum_style(bindgen::EnumVariation::NewType {
+            is_bitfield: false,
+            is_global: false,
+        })
         // .enable_cxx_namespaces() // yields only a `root` module.
         // .enable_function_attribute_detection()
-        .constified_enum_module(".*")
+        // .constified_enum_module(".*")
         // .conservative_inline_namespaces()
         .generate_block(true)
         // .generate_inline_functions(true)   // a lot of stuff generated

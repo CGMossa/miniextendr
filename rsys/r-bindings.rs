@@ -4273,13 +4273,17 @@ extern "C" {
 extern "C" {
     pub fn R_finite(arg1: f64) -> ::std::os::raw::c_int;
 }
-pub mod Rboolean {
-    pub type Type = u32;
+impl Rboolean {
     #[doc = ", MAYBE"]
-    pub const FALSE: Type = 0;
-    #[doc = ", MAYBE"]
-    pub const TRUE: Type = 1;
+    pub const FALSE: Rboolean = Rboolean(0);
 }
+impl Rboolean {
+    #[doc = ", MAYBE"]
+    pub const TRUE: Rboolean = Rboolean(1);
+}
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub struct Rboolean(pub u32);
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct Rcomplex {
@@ -4442,35 +4446,67 @@ extern "C" {
 extern "C" {
     pub fn REvprintf(arg1: *const ::std::os::raw::c_char, arg2: va_list);
 }
-pub mod RNGtype {
-    pub type Type = u32;
-    pub const WICHMANN_HILL: Type = 0;
-    pub const MARSAGLIA_MULTICARRY: Type = 1;
-    pub const SUPER_DUPER: Type = 2;
-    pub const MERSENNE_TWISTER: Type = 3;
-    pub const KNUTH_TAOCP: Type = 4;
-    pub const USER_UNIF: Type = 5;
-    pub const KNUTH_TAOCP2: Type = 6;
-    pub const LECUYER_CMRG: Type = 7;
+impl RNGtype {
+    pub const WICHMANN_HILL: RNGtype = RNGtype(0);
 }
-pub mod N01type {
-    #[doc = "Different kinds of \"N(0,1)\" generators :"]
-    pub type Type = u32;
-    pub const BUGGY_KINDERMAN_RAMAGE: Type = 0;
-    pub const AHRENS_DIETER: Type = 1;
-    pub const BOX_MULLER: Type = 2;
-    pub const USER_NORM: Type = 3;
-    pub const INVERSION: Type = 4;
-    pub const KINDERMAN_RAMAGE: Type = 5;
+impl RNGtype {
+    pub const MARSAGLIA_MULTICARRY: RNGtype = RNGtype(1);
 }
-pub mod Sampletype {
-    #[doc = "Different ways to generate discrete uniform samples"]
-    pub type Type = u32;
-    pub const ROUNDING: Type = 0;
-    pub const REJECTION: Type = 1;
+impl RNGtype {
+    pub const SUPER_DUPER: RNGtype = RNGtype(2);
 }
+impl RNGtype {
+    pub const MERSENNE_TWISTER: RNGtype = RNGtype(3);
+}
+impl RNGtype {
+    pub const KNUTH_TAOCP: RNGtype = RNGtype(4);
+}
+impl RNGtype {
+    pub const USER_UNIF: RNGtype = RNGtype(5);
+}
+impl RNGtype {
+    pub const KNUTH_TAOCP2: RNGtype = RNGtype(6);
+}
+impl RNGtype {
+    pub const LECUYER_CMRG: RNGtype = RNGtype(7);
+}
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub struct RNGtype(pub u32);
+impl N01type {
+    pub const BUGGY_KINDERMAN_RAMAGE: N01type = N01type(0);
+}
+impl N01type {
+    pub const AHRENS_DIETER: N01type = N01type(1);
+}
+impl N01type {
+    pub const BOX_MULLER: N01type = N01type(2);
+}
+impl N01type {
+    pub const USER_NORM: N01type = N01type(3);
+}
+impl N01type {
+    pub const INVERSION: N01type = N01type(4);
+}
+impl N01type {
+    pub const KINDERMAN_RAMAGE: N01type = N01type(5);
+}
+#[repr(transparent)]
+#[doc = "Different kinds of \"N(0,1)\" generators :"]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub struct N01type(pub u32);
+impl Sampletype {
+    pub const ROUNDING: Sampletype = Sampletype(0);
+}
+impl Sampletype {
+    pub const REJECTION: Sampletype = Sampletype(1);
+}
+#[repr(transparent)]
+#[doc = "Different ways to generate discrete uniform samples"]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub struct Sampletype(pub u32);
 extern "C" {
-    pub fn R_sample_kind() -> Sampletype::Type;
+    pub fn R_sample_kind() -> Sampletype;
 }
 extern "C" {
     pub fn GetRNGstate();
@@ -4582,13 +4618,13 @@ extern "C" {
     pub fn Rf_setRVector(arg1: *mut f64, arg2: ::std::os::raw::c_int, arg3: f64);
 }
 extern "C" {
-    pub fn Rf_StringFalse(arg1: *const ::std::os::raw::c_char) -> Rboolean::Type;
+    pub fn Rf_StringFalse(arg1: *const ::std::os::raw::c_char) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_StringTrue(arg1: *const ::std::os::raw::c_char) -> Rboolean::Type;
+    pub fn Rf_StringTrue(arg1: *const ::std::os::raw::c_char) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isBlankString(arg1: *const ::std::os::raw::c_char) -> Rboolean::Type;
+    pub fn Rf_isBlankString(arg1: *const ::std::os::raw::c_char) -> Rboolean;
 }
 extern "C" {
     #[doc = "These two are guaranteed to use '.' as the decimal point,\nand to accept \"NA\"."]
@@ -4629,8 +4665,8 @@ extern "C" {
         xt: *mut f64,
         n: ::std::os::raw::c_int,
         x: f64,
-        rightmost_closed: Rboolean::Type,
-        all_inside: Rboolean::Type,
+        rightmost_closed: Rboolean,
+        all_inside: Rboolean,
         ilo: ::std::os::raw::c_int,
         mflag: *mut ::std::os::raw::c_int,
     ) -> ::std::os::raw::c_int;
@@ -4640,9 +4676,9 @@ extern "C" {
         xt: *mut f64,
         n: ::std::os::raw::c_int,
         x: f64,
-        rightmost_closed: Rboolean::Type,
-        all_inside: Rboolean::Type,
-        left_open: Rboolean::Type,
+        rightmost_closed: Rboolean,
+        all_inside: Rboolean,
+        left_open: Rboolean,
         ilo: ::std::os::raw::c_int,
         mflag: *mut ::std::os::raw::c_int,
     ) -> ::std::os::raw::c_int;
@@ -5670,10 +5706,10 @@ extern "C" {
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn R_useDynamicSymbols(info: *mut DllInfo, value: Rboolean::Type) -> Rboolean::Type;
+    pub fn R_useDynamicSymbols(info: *mut DllInfo, value: Rboolean) -> Rboolean;
 }
 extern "C" {
-    pub fn R_forceSymbols(info: *mut DllInfo, value: Rboolean::Type) -> Rboolean::Type;
+    pub fn R_forceSymbols(info: *mut DllInfo, value: Rboolean) -> Rboolean;
 }
 extern "C" {
     pub fn R_getDllInfo(name: *const ::std::os::raw::c_char) -> *mut DllInfo;
@@ -5688,14 +5724,24 @@ pub struct Rf_RegisteredNativeSymbol {
     _unused: [u8; 0],
 }
 pub type R_RegisteredNativeSymbol = Rf_RegisteredNativeSymbol;
-pub mod NativeSymbolType {
-    pub type Type = u32;
-    pub const R_ANY_SYM: Type = 0;
-    pub const R_C_SYM: Type = 1;
-    pub const R_CALL_SYM: Type = 2;
-    pub const R_FORTRAN_SYM: Type = 3;
-    pub const R_EXTERNAL_SYM: Type = 4;
+impl NativeSymbolType {
+    pub const R_ANY_SYM: NativeSymbolType = NativeSymbolType(0);
 }
+impl NativeSymbolType {
+    pub const R_C_SYM: NativeSymbolType = NativeSymbolType(1);
+}
+impl NativeSymbolType {
+    pub const R_CALL_SYM: NativeSymbolType = NativeSymbolType(2);
+}
+impl NativeSymbolType {
+    pub const R_FORTRAN_SYM: NativeSymbolType = NativeSymbolType(3);
+}
+impl NativeSymbolType {
+    pub const R_EXTERNAL_SYM: NativeSymbolType = NativeSymbolType(4);
+}
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub struct NativeSymbolType(pub u32);
 extern "C" {
     pub fn R_FindSymbol(
         arg1: *const ::std::os::raw::c_char,
@@ -5734,31 +5780,31 @@ extern "C" {
 }
 extern "C" {
     #[doc = "Various tests with macro versions in the internal headers"]
-    pub fn Rf_isNull(s: SEXP) -> Rboolean::Type;
+    pub fn Rf_isNull(s: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isSymbol(s: SEXP) -> Rboolean::Type;
+    pub fn Rf_isSymbol(s: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isLogical(s: SEXP) -> Rboolean::Type;
+    pub fn Rf_isLogical(s: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isReal(s: SEXP) -> Rboolean::Type;
+    pub fn Rf_isReal(s: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isComplex(s: SEXP) -> Rboolean::Type;
+    pub fn Rf_isComplex(s: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isExpression(s: SEXP) -> Rboolean::Type;
+    pub fn Rf_isExpression(s: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isEnvironment(s: SEXP) -> Rboolean::Type;
+    pub fn Rf_isEnvironment(s: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isString(s: SEXP) -> Rboolean::Type;
+    pub fn Rf_isString(s: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isObject(s: SEXP) -> Rboolean::Type;
+    pub fn Rf_isObject(s: SEXP) -> Rboolean;
 }
 extern "C" {
     #[doc = "General Cons Cell Attributes"]
@@ -6344,10 +6390,10 @@ extern "C" {
     pub fn Rf_allocVector3(arg1: SEXPTYPE, arg2: R_xlen_t, arg3: *mut R_allocator_t) -> SEXP;
 }
 extern "C" {
-    pub fn Rf_any_duplicated(x: SEXP, from_last: Rboolean::Type) -> R_xlen_t;
+    pub fn Rf_any_duplicated(x: SEXP, from_last: Rboolean) -> R_xlen_t;
 }
 extern "C" {
-    pub fn Rf_any_duplicated3(x: SEXP, incomp: SEXP, from_last: Rboolean::Type) -> R_xlen_t;
+    pub fn Rf_any_duplicated3(x: SEXP, incomp: SEXP, from_last: Rboolean) -> R_xlen_t;
 }
 extern "C" {
     pub fn Rf_applyClosure(arg1: SEXP, arg2: SEXP, arg3: SEXP, arg4: SEXP, arg5: SEXP) -> SEXP;
@@ -6359,10 +6405,10 @@ extern "C" {
     pub fn Rf_cons(arg1: SEXP, arg2: SEXP) -> SEXP;
 }
 extern "C" {
-    pub fn Rf_copyMatrix(arg1: SEXP, arg2: SEXP, arg3: Rboolean::Type);
+    pub fn Rf_copyMatrix(arg1: SEXP, arg2: SEXP, arg3: Rboolean);
 }
 extern "C" {
-    pub fn Rf_copyListMatrix(arg1: SEXP, arg2: SEXP, arg3: Rboolean::Type);
+    pub fn Rf_copyListMatrix(arg1: SEXP, arg2: SEXP, arg3: Rboolean);
 }
 extern "C" {
     pub fn Rf_copyMostAttrib(arg1: SEXP, arg2: SEXP);
@@ -6396,7 +6442,7 @@ extern "C" {
 }
 extern "C" {
     #[doc = "the next really should not be here and is also in Defn.h"]
-    pub fn Rf_duplicated(arg1: SEXP, arg2: Rboolean::Type) -> SEXP;
+    pub fn Rf_duplicated(arg1: SEXP, arg2: Rboolean) -> SEXP;
 }
 extern "C" {
     pub fn Rf_eval(arg1: SEXP, arg2: SEXP) -> SEXP;
@@ -6411,10 +6457,10 @@ extern "C" {
     pub fn Rf_findVarInFrame(arg1: SEXP, arg2: SEXP) -> SEXP;
 }
 extern "C" {
-    pub fn Rf_findVarInFrame3(arg1: SEXP, arg2: SEXP, arg3: Rboolean::Type) -> SEXP;
+    pub fn Rf_findVarInFrame3(arg1: SEXP, arg2: SEXP, arg3: Rboolean) -> SEXP;
 }
 extern "C" {
-    pub fn R_existsVarInFrame(arg1: SEXP, arg2: SEXP) -> Rboolean::Type;
+    pub fn R_existsVarInFrame(arg1: SEXP, arg2: SEXP) -> Rboolean;
 }
 extern "C" {
     pub fn R_removeVarFromFrame(arg1: SEXP, arg2: SEXP);
@@ -6468,13 +6514,13 @@ extern "C" {
     pub fn Rf_installTrChar(arg1: SEXP) -> SEXP;
 }
 extern "C" {
-    pub fn Rf_isOrdered(arg1: SEXP) -> Rboolean::Type;
+    pub fn Rf_isOrdered(arg1: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isUnordered(arg1: SEXP) -> Rboolean::Type;
+    pub fn Rf_isUnordered(arg1: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isUnsorted(arg1: SEXP, arg2: Rboolean::Type) -> Rboolean::Type;
+    pub fn Rf_isUnsorted(arg1: SEXP, arg2: Rboolean) -> Rboolean;
 }
 extern "C" {
     pub fn Rf_lengthgets(arg1: SEXP, arg2: R_len_t) -> SEXP;
@@ -6483,10 +6529,10 @@ extern "C" {
     pub fn Rf_xlengthgets(arg1: SEXP, arg2: R_xlen_t) -> SEXP;
 }
 extern "C" {
-    pub fn R_lsInternal(arg1: SEXP, arg2: Rboolean::Type) -> SEXP;
+    pub fn R_lsInternal(arg1: SEXP, arg2: Rboolean) -> SEXP;
 }
 extern "C" {
-    pub fn R_lsInternal3(arg1: SEXP, arg2: Rboolean::Type, arg3: Rboolean::Type) -> SEXP;
+    pub fn R_lsInternal3(arg1: SEXP, arg2: Rboolean, arg3: Rboolean) -> SEXP;
 }
 extern "C" {
     pub fn Rf_match(arg1: SEXP, arg2: SEXP, arg3: ::std::os::raw::c_int) -> SEXP;
@@ -6501,7 +6547,7 @@ extern "C" {
     pub fn Rf_mkCharLen(arg1: *const ::std::os::raw::c_char, arg2: ::std::os::raw::c_int) -> SEXP;
 }
 extern "C" {
-    pub fn Rf_NonNullStringMatch(arg1: SEXP, arg2: SEXP) -> Rboolean::Type;
+    pub fn Rf_NonNullStringMatch(arg1: SEXP, arg2: SEXP) -> Rboolean;
 }
 extern "C" {
     pub fn Rf_ncols(arg1: SEXP) -> ::std::os::raw::c_int;
@@ -6512,19 +6558,25 @@ extern "C" {
 extern "C" {
     pub fn Rf_nthcdr(arg1: SEXP, arg2: ::std::os::raw::c_int) -> SEXP;
 }
-pub mod nchar_type {
-    #[doc = "../main/character.c :"]
-    pub type Type = u32;
-    pub const Bytes: Type = 0;
-    pub const Chars: Type = 1;
-    pub const Width: Type = 2;
+impl nchar_type {
+    pub const Bytes: nchar_type = nchar_type(0);
 }
+impl nchar_type {
+    pub const Chars: nchar_type = nchar_type(1);
+}
+impl nchar_type {
+    pub const Width: nchar_type = nchar_type(2);
+}
+#[repr(transparent)]
+#[doc = "../main/character.c :"]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub struct nchar_type(pub u32);
 extern "C" {
     pub fn R_nchar(
         string: SEXP,
-        type_: nchar_type::Type,
-        allowNA: Rboolean::Type,
-        keepNA: Rboolean::Type,
+        type_: nchar_type,
+        allowNA: Rboolean,
+        keepNA: Rboolean,
         msg_name: *const ::std::os::raw::c_char,
     ) -> ::std::os::raw::c_int;
 }
@@ -6544,7 +6596,7 @@ extern "C" {
     pub fn Rf_str2type(arg1: *const ::std::os::raw::c_char) -> SEXPTYPE;
 }
 extern "C" {
-    pub fn Rf_StringBlank(arg1: SEXP) -> Rboolean::Type;
+    pub fn Rf_StringBlank(arg1: SEXP) -> Rboolean;
 }
 extern "C" {
     pub fn Rf_substitute(arg1: SEXP, arg2: SEXP) -> SEXP;
@@ -6583,10 +6635,10 @@ extern "C" {
     pub fn R_GetCurrentEnv() -> SEXP;
 }
 extern "C" {
-    pub fn Rf_isS4(arg1: SEXP) -> Rboolean::Type;
+    pub fn Rf_isS4(arg1: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_asS4(arg1: SEXP, arg2: Rboolean::Type, arg3: ::std::os::raw::c_int) -> SEXP;
+    pub fn Rf_asS4(arg1: SEXP, arg2: Rboolean, arg3: ::std::os::raw::c_int) -> SEXP;
 }
 extern "C" {
     pub fn Rf_S3Class(arg1: SEXP) -> SEXP;
@@ -6594,34 +6646,46 @@ extern "C" {
 extern "C" {
     pub fn Rf_isBasicClass(arg1: *const ::std::os::raw::c_char) -> ::std::os::raw::c_int;
 }
-pub mod cetype_t {
-    #[doc = "cetype_t is an identifier reseved by POSIX, but it is\nwell established as public.  Could remap by a #define though"]
-    pub type Type = u32;
-    pub const CE_NATIVE: Type = 0;
-    pub const CE_UTF8: Type = 1;
-    pub const CE_LATIN1: Type = 2;
-    pub const CE_BYTES: Type = 3;
-    pub const CE_SYMBOL: Type = 5;
-    pub const CE_ANY: Type = 99;
+impl cetype_t {
+    pub const CE_NATIVE: cetype_t = cetype_t(0);
+}
+impl cetype_t {
+    pub const CE_UTF8: cetype_t = cetype_t(1);
+}
+impl cetype_t {
+    pub const CE_LATIN1: cetype_t = cetype_t(2);
+}
+impl cetype_t {
+    pub const CE_BYTES: cetype_t = cetype_t(3);
+}
+impl cetype_t {
+    pub const CE_SYMBOL: cetype_t = cetype_t(5);
+}
+impl cetype_t {
+    pub const CE_ANY: cetype_t = cetype_t(99);
+}
+#[repr(transparent)]
+#[doc = "cetype_t is an identifier reseved by POSIX, but it is\nwell established as public.  Could remap by a #define though"]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub struct cetype_t(pub u32);
+extern "C" {
+    pub fn Rf_getCharCE(arg1: SEXP) -> cetype_t;
 }
 extern "C" {
-    pub fn Rf_getCharCE(arg1: SEXP) -> cetype_t::Type;
-}
-extern "C" {
-    pub fn Rf_mkCharCE(arg1: *const ::std::os::raw::c_char, arg2: cetype_t::Type) -> SEXP;
+    pub fn Rf_mkCharCE(arg1: *const ::std::os::raw::c_char, arg2: cetype_t) -> SEXP;
 }
 extern "C" {
     pub fn Rf_mkCharLenCE(
         arg1: *const ::std::os::raw::c_char,
         arg2: ::std::os::raw::c_int,
-        arg3: cetype_t::Type,
+        arg3: cetype_t,
     ) -> SEXP;
 }
 extern "C" {
     pub fn Rf_reEnc(
         x: *const ::std::os::raw::c_char,
-        ce_in: cetype_t::Type,
-        ce_out: cetype_t::Type,
+        ce_in: cetype_t,
+        ce_out: cetype_t,
         subst: ::std::os::raw::c_int,
     ) -> *const ::std::os::raw::c_char;
 }
@@ -6670,25 +6734,20 @@ extern "C" {
     pub fn R_RegisterCFinalizer(s: SEXP, fun: R_CFinalizer_t);
 }
 extern "C" {
-    pub fn R_RegisterFinalizerEx(s: SEXP, fun: SEXP, onexit: Rboolean::Type);
+    pub fn R_RegisterFinalizerEx(s: SEXP, fun: SEXP, onexit: Rboolean);
 }
 extern "C" {
-    pub fn R_RegisterCFinalizerEx(s: SEXP, fun: R_CFinalizer_t, onexit: Rboolean::Type);
+    pub fn R_RegisterCFinalizerEx(s: SEXP, fun: R_CFinalizer_t, onexit: Rboolean);
 }
 extern "C" {
     pub fn R_RunPendingFinalizers();
 }
 extern "C" {
     #[doc = "Weak reference interface"]
-    pub fn R_MakeWeakRef(key: SEXP, val: SEXP, fin: SEXP, onexit: Rboolean::Type) -> SEXP;
+    pub fn R_MakeWeakRef(key: SEXP, val: SEXP, fin: SEXP, onexit: Rboolean) -> SEXP;
 }
 extern "C" {
-    pub fn R_MakeWeakRefC(
-        key: SEXP,
-        val: SEXP,
-        fin: R_CFinalizer_t,
-        onexit: Rboolean::Type,
-    ) -> SEXP;
+    pub fn R_MakeWeakRefC(key: SEXP, val: SEXP, fin: R_CFinalizer_t, onexit: Rboolean) -> SEXP;
 }
 extern "C" {
     pub fn R_WeakRefKey(w: SEXP) -> SEXP;
@@ -6713,7 +6772,7 @@ extern "C" {
     pub fn R_ToplevelExec(
         fun: ::std::option::Option<unsafe extern "C" fn(arg1: *mut ::std::os::raw::c_void)>,
         data: *mut ::std::os::raw::c_void,
-    ) -> Rboolean::Type;
+    ) -> Rboolean;
 }
 extern "C" {
     pub fn R_ExecWithCleanup(
@@ -6773,7 +6832,7 @@ extern "C" {
         fun: ::std::option::Option<unsafe extern "C" fn(data: *mut ::std::os::raw::c_void) -> SEXP>,
         data: *mut ::std::os::raw::c_void,
         cleanfun: ::std::option::Option<
-            unsafe extern "C" fn(data: *mut ::std::os::raw::c_void, jump: Rboolean::Type),
+            unsafe extern "C" fn(data: *mut ::std::os::raw::c_void, jump: Rboolean),
         >,
         cleandata: *mut ::std::os::raw::c_void,
         cont: SEXP,
@@ -6784,7 +6843,7 @@ extern "C" {
     pub fn R_NewEnv(arg1: SEXP, arg2: ::std::os::raw::c_int, arg3: ::std::os::raw::c_int) -> SEXP;
 }
 extern "C" {
-    pub fn R_IsPackageEnv(rho: SEXP) -> Rboolean::Type;
+    pub fn R_IsPackageEnv(rho: SEXP) -> Rboolean;
 }
 extern "C" {
     pub fn R_PackageEnvName(rho: SEXP) -> SEXP;
@@ -6793,7 +6852,7 @@ extern "C" {
     pub fn R_FindPackageEnv(info: SEXP) -> SEXP;
 }
 extern "C" {
-    pub fn R_IsNamespaceEnv(rho: SEXP) -> Rboolean::Type;
+    pub fn R_IsNamespaceEnv(rho: SEXP) -> Rboolean;
 }
 extern "C" {
     pub fn R_NamespaceEnvSpec(rho: SEXP) -> SEXP;
@@ -6802,10 +6861,10 @@ extern "C" {
     pub fn R_FindNamespace(info: SEXP) -> SEXP;
 }
 extern "C" {
-    pub fn R_LockEnvironment(env: SEXP, bindings: Rboolean::Type);
+    pub fn R_LockEnvironment(env: SEXP, bindings: Rboolean);
 }
 extern "C" {
-    pub fn R_EnvironmentIsLocked(env: SEXP) -> Rboolean::Type;
+    pub fn R_EnvironmentIsLocked(env: SEXP) -> Rboolean;
 }
 extern "C" {
     pub fn R_LockBinding(sym: SEXP, env: SEXP);
@@ -6817,16 +6876,16 @@ extern "C" {
     pub fn R_MakeActiveBinding(sym: SEXP, fun: SEXP, env: SEXP);
 }
 extern "C" {
-    pub fn R_BindingIsLocked(sym: SEXP, env: SEXP) -> Rboolean::Type;
+    pub fn R_BindingIsLocked(sym: SEXP, env: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn R_BindingIsActive(sym: SEXP, env: SEXP) -> Rboolean::Type;
+    pub fn R_BindingIsActive(sym: SEXP, env: SEXP) -> Rboolean;
 }
 extern "C" {
     pub fn R_ActiveBindingFunction(sym: SEXP, env: SEXP) -> SEXP;
 }
 extern "C" {
-    pub fn R_HasFancyBindings(rho: SEXP) -> Rboolean::Type;
+    pub fn R_HasFancyBindings(rho: SEXP) -> Rboolean;
 }
 extern "C" {
     pub fn Rf_errorcall(arg1: SEXP, arg2: *const ::std::os::raw::c_char, ...) -> !;
@@ -6850,20 +6909,30 @@ extern "C" {
     pub fn R_XDRDecodeInteger(buf: *mut ::std::os::raw::c_void) -> ::std::os::raw::c_int;
 }
 pub type R_pstream_data_t = *mut ::std::os::raw::c_void;
-pub mod R_pstream_format_t {
-    pub type Type = u32;
-    pub const R_pstream_any_format: Type = 0;
-    pub const R_pstream_ascii_format: Type = 1;
-    pub const R_pstream_binary_format: Type = 2;
-    pub const R_pstream_xdr_format: Type = 3;
-    pub const R_pstream_asciihex_format: Type = 4;
+impl R_pstream_format_t {
+    pub const R_pstream_any_format: R_pstream_format_t = R_pstream_format_t(0);
 }
+impl R_pstream_format_t {
+    pub const R_pstream_ascii_format: R_pstream_format_t = R_pstream_format_t(1);
+}
+impl R_pstream_format_t {
+    pub const R_pstream_binary_format: R_pstream_format_t = R_pstream_format_t(2);
+}
+impl R_pstream_format_t {
+    pub const R_pstream_xdr_format: R_pstream_format_t = R_pstream_format_t(3);
+}
+impl R_pstream_format_t {
+    pub const R_pstream_asciihex_format: R_pstream_format_t = R_pstream_format_t(4);
+}
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub struct R_pstream_format_t(pub u32);
 pub type R_outpstream_t = *mut R_outpstream_st;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct R_outpstream_st {
     pub data: R_pstream_data_t,
-    pub type_: R_pstream_format_t::Type,
+    pub type_: R_pstream_format_t,
     pub version: ::std::os::raw::c_int,
     pub OutChar: ::std::option::Option<
         unsafe extern "C" fn(arg1: R_outpstream_t, arg2: ::std::os::raw::c_int),
@@ -6969,7 +7038,7 @@ pub type R_inpstream_t = *mut R_inpstream_st;
 #[derive(Debug, Copy, Clone)]
 pub struct R_inpstream_st {
     pub data: R_pstream_data_t,
-    pub type_: R_pstream_format_t::Type,
+    pub type_: R_pstream_format_t,
     pub InChar:
         ::std::option::Option<unsafe extern "C" fn(arg1: R_inpstream_t) -> ::std::os::raw::c_int>,
     pub InBytes: ::std::option::Option<
@@ -7095,7 +7164,7 @@ extern "C" {
     pub fn R_InitInPStream(
         stream: R_inpstream_t,
         data: R_pstream_data_t,
-        type_: R_pstream_format_t::Type,
+        type_: R_pstream_format_t,
         inchar: ::std::option::Option<
             unsafe extern "C" fn(arg1: R_inpstream_t) -> ::std::os::raw::c_int,
         >,
@@ -7114,7 +7183,7 @@ extern "C" {
     pub fn R_InitOutPStream(
         stream: R_outpstream_t,
         data: R_pstream_data_t,
-        type_: R_pstream_format_t::Type,
+        type_: R_pstream_format_t,
         version: ::std::os::raw::c_int,
         outchar: ::std::option::Option<
             unsafe extern "C" fn(arg1: R_outpstream_t, arg2: ::std::os::raw::c_int),
@@ -7134,7 +7203,7 @@ extern "C" {
     pub fn R_InitFileInPStream(
         stream: R_inpstream_t,
         fp: *mut FILE,
-        type_: R_pstream_format_t::Type,
+        type_: R_pstream_format_t,
         phook: ::std::option::Option<unsafe extern "C" fn(arg1: SEXP, arg2: SEXP) -> SEXP>,
         pdata: SEXP,
     );
@@ -7143,7 +7212,7 @@ extern "C" {
     pub fn R_InitFileOutPStream(
         stream: R_outpstream_t,
         fp: *mut FILE,
-        type_: R_pstream_format_t::Type,
+        type_: R_pstream_format_t,
         version: ::std::os::raw::c_int,
         phook: ::std::option::Option<unsafe extern "C" fn(arg1: SEXP, arg2: SEXP) -> SEXP>,
         pdata: SEXP,
@@ -7183,13 +7252,13 @@ extern "C" {
     pub fn R_getClassDef_R(what: SEXP) -> SEXP;
 }
 extern "C" {
-    pub fn R_has_methods_attached() -> Rboolean::Type;
+    pub fn R_has_methods_attached() -> Rboolean;
 }
 extern "C" {
-    pub fn R_isVirtualClass(class_def: SEXP, env: SEXP) -> Rboolean::Type;
+    pub fn R_isVirtualClass(class_def: SEXP, env: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn R_extends(class1: SEXP, class2: SEXP, env: SEXP) -> Rboolean::Type;
+    pub fn R_extends(class1: SEXP, class2: SEXP, env: SEXP) -> Rboolean;
 }
 extern "C" {
     pub fn R_do_new_object(class_def: SEXP) -> SEXP;
@@ -7238,11 +7307,7 @@ extern "C" {
     pub fn R_system(arg1: *const ::std::os::raw::c_char) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn R_compute_identical(
-        arg1: SEXP,
-        arg2: SEXP,
-        arg3: ::std::os::raw::c_int,
-    ) -> Rboolean::Type;
+    pub fn R_compute_identical(arg1: SEXP, arg2: SEXP, arg3: ::std::os::raw::c_int) -> Rboolean;
 }
 extern "C" {
     pub fn R_body_no_src(x: SEXP) -> SEXP;
@@ -7253,8 +7318,8 @@ extern "C" {
         indx: *mut ::std::os::raw::c_int,
         n: ::std::os::raw::c_int,
         arglist: SEXP,
-        nalast: Rboolean::Type,
-        decreasing: Rboolean::Type,
+        nalast: Rboolean,
+        decreasing: Rboolean,
     );
 }
 extern "C" {
@@ -7263,8 +7328,8 @@ extern "C" {
         indx: *mut ::std::os::raw::c_int,
         n: ::std::os::raw::c_int,
         x: SEXP,
-        nalast: Rboolean::Type,
-        decreasing: Rboolean::Type,
+        nalast: Rboolean,
+        decreasing: Rboolean,
     );
 }
 extern "C" {
@@ -7272,76 +7337,76 @@ extern "C" {
     pub fn Rf_allocVector(arg1: SEXPTYPE, arg2: R_xlen_t) -> SEXP;
 }
 extern "C" {
-    pub fn Rf_conformable(arg1: SEXP, arg2: SEXP) -> Rboolean::Type;
+    pub fn Rf_conformable(arg1: SEXP, arg2: SEXP) -> Rboolean;
 }
 extern "C" {
     pub fn Rf_elt(arg1: SEXP, arg2: ::std::os::raw::c_int) -> SEXP;
 }
 extern "C" {
-    pub fn Rf_inherits(arg1: SEXP, arg2: *const ::std::os::raw::c_char) -> Rboolean::Type;
+    pub fn Rf_inherits(arg1: SEXP, arg2: *const ::std::os::raw::c_char) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isArray(arg1: SEXP) -> Rboolean::Type;
+    pub fn Rf_isArray(arg1: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isFactor(arg1: SEXP) -> Rboolean::Type;
+    pub fn Rf_isFactor(arg1: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isFrame(arg1: SEXP) -> Rboolean::Type;
+    pub fn Rf_isFrame(arg1: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isFunction(arg1: SEXP) -> Rboolean::Type;
+    pub fn Rf_isFunction(arg1: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isInteger(arg1: SEXP) -> Rboolean::Type;
+    pub fn Rf_isInteger(arg1: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isLanguage(arg1: SEXP) -> Rboolean::Type;
+    pub fn Rf_isLanguage(arg1: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isList(arg1: SEXP) -> Rboolean::Type;
+    pub fn Rf_isList(arg1: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isMatrix(arg1: SEXP) -> Rboolean::Type;
+    pub fn Rf_isMatrix(arg1: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isNewList(arg1: SEXP) -> Rboolean::Type;
+    pub fn Rf_isNewList(arg1: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isNumber(arg1: SEXP) -> Rboolean::Type;
+    pub fn Rf_isNumber(arg1: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isNumeric(arg1: SEXP) -> Rboolean::Type;
+    pub fn Rf_isNumeric(arg1: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isPairList(arg1: SEXP) -> Rboolean::Type;
+    pub fn Rf_isPairList(arg1: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isPrimitive(arg1: SEXP) -> Rboolean::Type;
+    pub fn Rf_isPrimitive(arg1: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isTs(arg1: SEXP) -> Rboolean::Type;
+    pub fn Rf_isTs(arg1: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isUserBinop(arg1: SEXP) -> Rboolean::Type;
+    pub fn Rf_isUserBinop(arg1: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isValidString(arg1: SEXP) -> Rboolean::Type;
+    pub fn Rf_isValidString(arg1: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isValidStringF(arg1: SEXP) -> Rboolean::Type;
+    pub fn Rf_isValidStringF(arg1: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isVector(arg1: SEXP) -> Rboolean::Type;
+    pub fn Rf_isVector(arg1: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isVectorAtomic(arg1: SEXP) -> Rboolean::Type;
+    pub fn Rf_isVectorAtomic(arg1: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isVectorList(arg1: SEXP) -> Rboolean::Type;
+    pub fn Rf_isVectorList(arg1: SEXP) -> Rboolean;
 }
 extern "C" {
-    pub fn Rf_isVectorizable(arg1: SEXP) -> Rboolean::Type;
+    pub fn Rf_isVectorizable(arg1: SEXP) -> Rboolean;
 }
 extern "C" {
     pub fn Rf_lang1(arg1: SEXP) -> SEXP;
@@ -7548,17 +7613,17 @@ extern "C" {
 extern "C" {
     pub fn ALTREP(x: SEXP) -> ::std::os::raw::c_int;
 }
-pub mod _bindgen_ty_1 {
-    #[doc = "ALTREP sorting support"]
-    pub type Type = i32;
-    pub const SORTED_DECR_NA_1ST: Type = -2;
-    pub const SORTED_DECR: Type = -1;
-    #[doc = "INT_MIN is NA_INTEGER!"]
-    pub const UNKNOWN_SORTEDNESS: Type = -2147483648;
-    pub const SORTED_INCR: Type = 1;
-    pub const SORTED_INCR_NA_1ST: Type = 2;
-    pub const KNOWN_UNSORTED: Type = 0;
-}
+pub const SORTED_DECR_NA_1ST: _bindgen_ty_1 = _bindgen_ty_1(-2);
+pub const SORTED_DECR: _bindgen_ty_1 = _bindgen_ty_1(-1);
+#[doc = "INT_MIN is NA_INTEGER!"]
+pub const UNKNOWN_SORTEDNESS: _bindgen_ty_1 = _bindgen_ty_1(-2147483648);
+pub const SORTED_INCR: _bindgen_ty_1 = _bindgen_ty_1(1);
+pub const SORTED_INCR_NA_1ST: _bindgen_ty_1 = _bindgen_ty_1(2);
+pub const KNOWN_UNSORTED: _bindgen_ty_1 = _bindgen_ty_1(0);
+#[repr(transparent)]
+#[doc = "ALTREP sorting support"]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub struct _bindgen_ty_1(pub i32);
 #[doc = "try to allow some type checking"]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -7657,8 +7722,8 @@ extern "C" {
     pub fn Rf_psmatch(
         arg1: *const ::std::os::raw::c_char,
         arg2: *const ::std::os::raw::c_char,
-        arg3: Rboolean::Type,
-    ) -> Rboolean::Type;
+        arg3: Rboolean,
+    ) -> Rboolean;
 }
 extern "C" {
     pub fn SETLENGTH(x: SEXP, v: R_xlen_t);

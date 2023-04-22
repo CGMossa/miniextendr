@@ -1,5 +1,5 @@
 [package]
-name = "r-sys"
+name = "rsys"
 version.workspace = true
 edition.workspace = true
 
