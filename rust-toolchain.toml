@@ -1,3 +1,5 @@
 [toolchain]
 targets = ["x86_64-pc-windows-gnu"]
-channel = "stable-x86_64-pc-windows-msvc"
+# channel = "stable-x86_64-pc-windows-msvc"
+channel = "nightly-x86_64-pc-windows-msvc"
+components = ["rustfmt"]
