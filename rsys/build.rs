@@ -94,7 +94,7 @@ fn main() -> Result<()> {
         .generate_comments(true)
         .clang_arg("-fparse-all-comments")
         .parse_callbacks(Box::new(TrimCommentsCallback))
-        // .formatter(bindgen::Formatter::Rustfmt)
+        .formatter(bindgen::Formatter::Rustfmt)
         .header("wrapper.h");
 
   //TODO: add nonAPI.txt
