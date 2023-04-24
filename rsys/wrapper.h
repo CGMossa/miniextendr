@@ -1,5 +1,6 @@
 #define R_NO_REMAP
 #define STRICT_R_HEADERS
+#define Win32
 
 #include <stddef.h> // for ptrdiff_t
 

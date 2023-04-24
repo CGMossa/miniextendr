@@ -78,6 +78,12 @@ where
     }
   }
 }
+#[derive(PartialEq, Copy, Clone, Hash, Debug, Default)]
+#[repr(C)]
+pub struct __BindgenComplex<T> {
+  pub re: T,
+  pub im: T,
+}
 pub const __MINGW64_VERSION_MAJOR: u32 = 9;
 pub const __MINGW64_VERSION_MINOR: u32 = 0;
 pub const __MINGW64_VERSION_BUGFIX: u32 = 0;
@@ -230,35 +236,8 @@ pub const _OVERFLOW: u32 = 3;
 pub const _UNDERFLOW: u32 = 4;
 pub const _TLOSS: u32 = 5;
 pub const _PLOSS: u32 = 6;
-pub const DOMAIN: u32 = 1;
-pub const SING: u32 = 2;
-pub const OVERFLOW: u32 = 3;
-pub const UNDERFLOW: u32 = 4;
-pub const TLOSS: u32 = 5;
-pub const PLOSS: u32 = 6;
-pub const __MINGW_FPCLASS_DEFINED: u32 = 1;
-pub const _FPCLASS_SNAN: u32 = 1;
-pub const _FPCLASS_QNAN: u32 = 2;
-pub const _FPCLASS_NINF: u32 = 4;
-pub const _FPCLASS_NN: u32 = 8;
-pub const _FPCLASS_ND: u32 = 16;
-pub const _FPCLASS_NZ: u32 = 32;
-pub const _FPCLASS_PZ: u32 = 64;
-pub const _FPCLASS_PD: u32 = 128;
-pub const _FPCLASS_PN: u32 = 256;
-pub const _FPCLASS_PINF: u32 = 512;
 pub const EDOM: u32 = 33;
 pub const ERANGE: u32 = 34;
-pub const FP_SNAN: u32 = 1;
-pub const FP_QNAN: u32 = 2;
-pub const FP_NINF: u32 = 4;
-pub const FP_PINF: u32 = 512;
-pub const FP_NDENORM: u32 = 16;
-pub const FP_PDENORM: u32 = 128;
-pub const FP_NZERO: u32 = 32;
-pub const FP_PZERO: u32 = 64;
-pub const FP_NNORM: u32 = 8;
-pub const FP_PNORM: u32 = 256;
 pub const FP_NAN: u32 = 256;
 pub const FP_NORMAL: u32 = 1024;
 pub const FP_INFINITE: u32 = 1280;
@@ -272,8 +251,6 @@ pub const ENABLE_NLS: u32 = 1;
 pub const SIZEOF_SIZE_T: u32 = 8;
 pub const HAVE_UINTPTR_T: u32 = 1;
 pub const _NLSCMPERROR: u32 = 2147483647;
-pub const SINT_MAX: u32 = 2147483647;
-pub const SINT_MIN: i32 = -2147483648;
 pub const SINGLESXP: u32 = 302;
 pub const R_LEN_T_MAX: u32 = 2147483647;
 pub const R_XLEN_T_MAX: u64 = 4503599627370496;
@@ -1751,33 +1728,6 @@ extern "C" {
   pub fn atoll(
     arg1: *const ::std::os::raw::c_char,
   ) -> ::std::os::raw::c_longlong;
-}
-extern "C" {
-  pub fn wtoll(arg1: *const wchar_t) -> ::std::os::raw::c_longlong;
-}
-extern "C" {
-  pub fn lltoa(
-    arg1: ::std::os::raw::c_longlong, arg2: *mut ::std::os::raw::c_char,
-    arg3: ::std::os::raw::c_int,
-  ) -> *mut ::std::os::raw::c_char;
-}
-extern "C" {
-  pub fn ulltoa(
-    arg1: ::std::os::raw::c_ulonglong, arg2: *mut ::std::os::raw::c_char,
-    arg3: ::std::os::raw::c_int,
-  ) -> *mut ::std::os::raw::c_char;
-}
-extern "C" {
-  pub fn lltow(
-    arg1: ::std::os::raw::c_longlong, arg2: *mut wchar_t,
-    arg3: ::std::os::raw::c_int,
-  ) -> *mut wchar_t;
-}
-extern "C" {
-  pub fn ulltow(
-    arg1: ::std::os::raw::c_ulonglong, arg2: *mut wchar_t,
-    arg3: ::std::os::raw::c_int,
-  ) -> *mut wchar_t;
 }
 extern "C" {
   pub fn bsearch_s(
@@ -3579,113 +3529,6 @@ extern "C" {
 extern "C" {
   pub fn sincosf(__x: f32, p_sin: *mut f32, p_cos: *mut f32);
 }
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct _complex {
-  pub x: f64,
-  pub y: f64,
-}
-#[test]
-fn bindgen_test_layout__complex() {
-  const UNINIT: ::std::mem::MaybeUninit<_complex> =
-    ::std::mem::MaybeUninit::uninit();
-  let ptr = UNINIT.as_ptr();
-  assert_eq!(
-    ::std::mem::size_of::<_complex>(),
-    16usize,
-    concat!("Size of: ", stringify!(_complex))
-  );
-  assert_eq!(
-    ::std::mem::align_of::<_complex>(),
-    8usize,
-    concat!("Alignment of ", stringify!(_complex))
-  );
-  assert_eq!(
-    unsafe { ::std::ptr::addr_of!((*ptr).x) as usize - ptr as usize },
-    0usize,
-    concat!("Offset of field: ", stringify!(_complex), "::", stringify!(x))
-  );
-  assert_eq!(
-    unsafe { ::std::ptr::addr_of!((*ptr).y) as usize - ptr as usize },
-    8usize,
-    concat!("Offset of field: ", stringify!(_complex), "::", stringify!(y))
-  );
-}
-extern "C" {
-  pub fn _cabs(_ComplexA: _complex) -> f64;
-}
-extern "C" {
-  pub fn _hypot(_X: f64, _Y: f64) -> f64;
-}
-extern "C" {
-  pub fn _j0(_X: f64) -> f64;
-}
-extern "C" {
-  pub fn _j1(_X: f64) -> f64;
-}
-extern "C" {
-  pub fn _jn(_X: ::std::os::raw::c_int, _Y: f64) -> f64;
-}
-extern "C" {
-  pub fn _y0(_X: f64) -> f64;
-}
-extern "C" {
-  pub fn _y1(_X: f64) -> f64;
-}
-extern "C" {
-  pub fn _yn(_X: ::std::os::raw::c_int, _Y: f64) -> f64;
-}
-extern "C" {
-  pub fn _matherr(arg1: *mut _exception) -> ::std::os::raw::c_int;
-}
-extern "C" {
-  pub fn _chgsign(_X: f64) -> f64;
-}
-extern "C" {
-  pub fn _copysign(_Number: f64, _Sign: f64) -> f64;
-}
-extern "C" {
-  pub fn _logb(arg1: f64) -> f64;
-}
-extern "C" {
-  pub fn _nextafter(arg1: f64, arg2: f64) -> f64;
-}
-extern "C" {
-  pub fn _scalb(arg1: f64, arg2: ::std::os::raw::c_long) -> f64;
-}
-extern "C" {
-  pub fn _finite(arg1: f64) -> ::std::os::raw::c_int;
-}
-extern "C" {
-  pub fn _fpclass(arg1: f64) -> ::std::os::raw::c_int;
-}
-extern "C" {
-  pub fn _isnan(arg1: f64) -> ::std::os::raw::c_int;
-}
-extern "C" {
-  pub fn j0(arg1: f64) -> f64;
-}
-extern "C" {
-  pub fn j1(arg1: f64) -> f64;
-}
-extern "C" {
-  pub fn jn(arg1: ::std::os::raw::c_int, arg2: f64) -> f64;
-}
-extern "C" {
-  pub fn y0(arg1: f64) -> f64;
-}
-extern "C" {
-  pub fn y1(arg1: f64) -> f64;
-}
-extern "C" {
-  pub fn yn(arg1: ::std::os::raw::c_int, arg2: f64) -> f64;
-}
-extern "C" {
-  pub fn chgsign(arg1: f64) -> f64;
-}
-extern "C" {
-  pub fn fpclass(arg1: f64) -> ::std::os::raw::c_int;
-}
 pub type float_t = f32;
 pub type double_t = f64;
 extern "C" {
@@ -4184,9 +4027,6 @@ extern "C" {
   pub fn _fpclassf(_X: f32) -> ::std::os::raw::c_int;
 }
 extern "C" {
-  pub fn _chgsignl(arg1: u128) -> u128;
-}
-extern "C" {
   #[doc = "IEEE NaN"]
   pub static mut R_NaN: f64;
 }
@@ -4225,10 +4065,52 @@ pub enum Rboolean {
   TRUE = 1,
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
+pub union Rcomplex {
+  pub __bindgen_anon_1: Rcomplex__bindgen_ty_1,
+  pub private_data_c: __BindgenComplex<f64>,
+}
+#[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct Rcomplex {
+pub struct Rcomplex__bindgen_ty_1 {
   pub r: f64,
   pub i: f64,
+}
+#[test]
+fn bindgen_test_layout_Rcomplex__bindgen_ty_1() {
+  const UNINIT: ::std::mem::MaybeUninit<Rcomplex__bindgen_ty_1> =
+    ::std::mem::MaybeUninit::uninit();
+  let ptr = UNINIT.as_ptr();
+  assert_eq!(
+    ::std::mem::size_of::<Rcomplex__bindgen_ty_1>(),
+    16usize,
+    concat!("Size of: ", stringify!(Rcomplex__bindgen_ty_1))
+  );
+  assert_eq!(
+    ::std::mem::align_of::<Rcomplex__bindgen_ty_1>(),
+    8usize,
+    concat!("Alignment of ", stringify!(Rcomplex__bindgen_ty_1))
+  );
+  assert_eq!(
+    unsafe { ::std::ptr::addr_of!((*ptr).r) as usize - ptr as usize },
+    0usize,
+    concat!(
+      "Offset of field: ",
+      stringify!(Rcomplex__bindgen_ty_1),
+      "::",
+      stringify!(r)
+    )
+  );
+  assert_eq!(
+    unsafe { ::std::ptr::addr_of!((*ptr).i) as usize - ptr as usize },
+    8usize,
+    concat!(
+      "Offset of field: ",
+      stringify!(Rcomplex__bindgen_ty_1),
+      "::",
+      stringify!(i)
+    )
+  );
 }
 #[test]
 fn bindgen_test_layout_Rcomplex() {
@@ -4246,24 +4128,26 @@ fn bindgen_test_layout_Rcomplex() {
     concat!("Alignment of ", stringify!(Rcomplex))
   );
   assert_eq!(
-    unsafe { ::std::ptr::addr_of!((*ptr).r) as usize - ptr as usize },
+    unsafe {
+      ::std::ptr::addr_of!((*ptr).private_data_c) as usize - ptr as usize
+    },
     0usize,
-    concat!("Offset of field: ", stringify!(Rcomplex), "::", stringify!(r))
+    concat!(
+      "Offset of field: ",
+      stringify!(Rcomplex),
+      "::",
+      stringify!(private_data_c)
+    )
   );
-  assert_eq!(
-    unsafe { ::std::ptr::addr_of!((*ptr).i) as usize - ptr as usize },
-    8usize,
-    concat!("Offset of field: ", stringify!(Rcomplex), "::", stringify!(i))
-  );
 }
 extern "C" {
-  pub fn Rf_error(arg1: *const ::std::os::raw::c_char, ...) -> !;
+  pub fn Rf_error(arg1: *const ::std::os::raw::c_char, ...);
 }
 extern "C" {
-  pub fn UNIMPLEMENTED(arg1: *const ::std::os::raw::c_char) -> !;
+  pub fn UNIMPLEMENTED(arg1: *const ::std::os::raw::c_char);
 }
 extern "C" {
-  pub fn WrongArgCount(arg1: *const ::std::os::raw::c_char) -> !;
+  pub fn WrongArgCount(arg1: *const ::std::os::raw::c_char);
 }
 extern "C" {
   pub fn Rf_warning(arg1: *const ::std::os::raw::c_char, ...);
@@ -4458,6 +4342,11 @@ extern "C" {
   ) -> *const ::std::os::raw::c_char;
 }
 extern "C" {
+  pub fn R_ExpandFileNameUTF8(
+    arg1: *const ::std::os::raw::c_char,
+  ) -> *const ::std::os::raw::c_char;
+}
+extern "C" {
   pub fn Rf_setIVector(
     arg1: *mut ::std::os::raw::c_int, arg2: ::std::os::raw::c_int,
     arg3: ::std::os::raw::c_int,
@@ -4585,7 +4474,7 @@ extern "C" {
 extern "C" {
   pub fn mempcpy(
     _Dst: *mut ::std::os::raw::c_void, _Src: *const ::std::os::raw::c_void,
-    _Size: ::std::os::raw::c_ulonglong,
+    _Size: usize,
   ) -> *mut ::std::os::raw::c_void;
 }
 extern "C" {
@@ -4597,7 +4486,7 @@ extern "C" {
 extern "C" {
   pub fn memccpy(
     _Dst: *mut ::std::os::raw::c_void, _Src: *const ::std::os::raw::c_void,
-    _Val: ::std::os::raw::c_int, _Size: ::std::os::raw::c_ulonglong,
+    _Val: ::std::os::raw::c_int, _Size: usize,
   ) -> *mut ::std::os::raw::c_void;
 }
 extern "C" {
@@ -4875,7 +4764,7 @@ extern "C" {
 extern "C" {
   pub fn strncasecmp(
     arg1: *const ::std::os::raw::c_char, arg2: *const ::std::os::raw::c_char,
-    arg3: ::std::os::raw::c_ulonglong,
+    arg3: usize,
   ) -> ::std::os::raw::c_int;
 }
 extern "C" {
@@ -5312,15 +5201,15 @@ extern "C" {
 extern "C" {
   pub fn R_chk_free(arg1: *mut ::std::os::raw::c_void);
 }
-#[doc = "for PROBLEM ... R_Calloc, R_Realloc, R_Free, Memcpy, F77_xxxx"]
-pub type Sfloat = f64;
-pub type Sint = ::std::os::raw::c_int;
 extern "C" {
   pub fn R_FlushConsole();
 }
 extern "C" {
   #[doc = "always declared, but only usable under Win32 and Aqua"]
   pub fn R_ProcessEvents();
+}
+extern "C" {
+  pub fn R_WaitEvent();
 }
 #[doc = "Called with a variable argument set after casting to a compatible\nfunction pointer."]
 pub type DL_FUNC =
@@ -5647,7 +5536,7 @@ extern "C" {
   pub fn STRING_PTR_RO(x: SEXP) -> *const SEXP;
 }
 extern "C" {
-  pub fn VECTOR_PTR(x: SEXP) -> !;
+  pub fn VECTOR_PTR(x: SEXP) -> *mut SEXP;
 }
 extern "C" {
   pub fn INTEGER_GET_REGION(
@@ -5728,6 +5617,9 @@ extern "C" {
 }
 extern "C" {
   pub fn CAD4R(e: SEXP) -> SEXP;
+}
+extern "C" {
+  pub fn CAD5R(e: SEXP) -> SEXP;
 }
 extern "C" {
   pub fn MISSING(x: SEXP) -> ::std::os::raw::c_int;
@@ -6325,6 +6217,9 @@ extern "C" {
   ) -> SEXP;
 }
 extern "C" {
+  pub fn R_ParseString(arg1: *const ::std::os::raw::c_char) -> SEXP;
+}
+extern "C" {
   pub fn Rf_PrintValue(arg1: SEXP);
 }
 extern "C" {
@@ -6424,6 +6319,12 @@ extern "C" {
   pub fn Rf_reEnc(
     x: *const ::std::os::raw::c_char, ce_in: cetype_t, ce_out: cetype_t,
     subst: ::std::os::raw::c_int,
+  ) -> *const ::std::os::raw::c_char;
+}
+extern "C" {
+  pub fn Rf_reEnc3(
+    x: *const ::std::os::raw::c_char, fromcode: *const ::std::os::raw::c_char,
+    tocode: *const ::std::os::raw::c_char, subst: ::std::os::raw::c_int,
   ) -> *const ::std::os::raw::c_char;
 }
 extern "C" {
@@ -6585,7 +6486,7 @@ extern "C" {
   pub fn R_MakeUnwindCont() -> SEXP;
 }
 extern "C" {
-  pub fn R_ContinueUnwind(cont: SEXP) -> !;
+  pub fn R_ContinueUnwind(cont: SEXP);
 }
 extern "C" {
   pub fn R_UnwindProtect(
@@ -6651,9 +6552,8 @@ extern "C" {
   pub fn R_HasFancyBindings(rho: SEXP) -> Rboolean;
 }
 extern "C" {
-  pub fn Rf_errorcall(
-    arg1: SEXP, arg2: *const ::std::os::raw::c_char, ...
-  ) -> !;
+  #[doc = "../main/errors.c : */\n/* needed for R_load/savehistory handling in front ends"]
+  pub fn Rf_errorcall(arg1: SEXP, arg2: *const ::std::os::raw::c_char, ...);
 }
 extern "C" {
   pub fn Rf_warningcall(arg1: SEXP, arg2: *const ::std::os::raw::c_char, ...);
@@ -7614,6 +7514,12 @@ extern "C" {
 }
 extern "C" {
   pub fn get_R_HOME() -> *mut ::std::os::raw::c_char;
+}
+extern "C" {
+  pub fn freeRUser(arg1: *mut ::std::os::raw::c_char);
+}
+extern "C" {
+  pub fn free_R_HOME(arg1: *mut ::std::os::raw::c_char);
 }
 extern "C" {
   pub fn setup_term_ui();

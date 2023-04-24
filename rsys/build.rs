@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use std::{env, fs, path::Path};
+use std::{env, fs, path::{Path, PathBuf}};
 
 // TODO
 /* rust
@@ -31,6 +31,7 @@ fn main() -> Result<()> {
     rustc_version::Channel::Beta => println!("cargo:rustc-cfg=beta"),
     rustc_version::Channel::Stable => println!("cargo:rustc-cfg=stable"),
   }
+  let rsys_dir: PathBuf = env!("CARGO_MANIFEST_DIR").into();
   // let out_dir = env::var("OUT_DIR")?;
   let libgcc_var = env::var("LIBRARY_PATH")
     .context("Set `LIBRARY_PATH` on your System / User")?;
@@ -105,7 +106,7 @@ fn main() -> Result<()> {
   println!("cargo:rerun-if-changed={path_to_r_bindings}");
 
   // make sure cargo links properly against library
-  let rlib_path = Path::new("r/bin/x64").canonicalize()?;
+  let rlib_path = rsys_dir.join("r").join("bin").join("x64").canonicalize()?;
   let rlib_path = rlib_path.display();
   println!("cargo:rustc-link-search={rlib_path}");
   println!("cargo:rustc-link-lib=dylib=R");

@@ -3,7 +3,13 @@
 `_R0` means that it does 0-indexing
 `_EX` means that it takes ALTREP into account.
 
-# Macro parsing through LLVM
+## Defining `WIN32`
+
+- `R_ExpandFileNameUTF8`
+- `R_WaitEvent`
+- 
+
+## Macro parsing through LLVM
 
 - [ ] Cannot detect
 

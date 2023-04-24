@@ -1,0 +1,31 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "rtools 42: build file",
+            "command": "C:\\rtools42\\x86_64-w64-mingw32.static.posix\\bin\\gcc.exe",
+            "args": [
+                "-fdiagnostics-color=always",
+                "-g",
+                "-I${workspaceFolder}/rsys/r/include",
+                "-L${workspaceFolder}/rsys/r/x64",
+                "-lR",
+                "${file}",
+                "-o",
+                "${fileDirname}\\${fileBasenameNoExtension}.exe"
+            ],
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "compiler: C:\\rtools42\\x86_64-w64-mingw32.static.posix\\bin\\gcc.exe"
+        }
+    ]
+}
