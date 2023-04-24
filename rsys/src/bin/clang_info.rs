@@ -180,7 +180,6 @@ fn try_main() -> Result<()> {
   //     .iter()
   //     .map(|x| (x.get_name().unwrap(), x.get_kind()))
   //     .collect();
-
   let allowlist: indexmap::IndexSet<_> = r_entities
     .iter()
     .filter(|x| !x.is_anonymous())

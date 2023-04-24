@@ -1,5 +1,28 @@
 # NOTES
 
+## `allowlist.txt`
+
+Before allowlist: 7548
+After allowlist:  2843
+
+But the allowlist has a problem with annonymous structs.
+They need to be handled separately.
+
+E.g.
+
+```c
+enum {SORTED_DECR_NA_1ST = -2,
+      SORTED_DECR = -1,
+      UNKNOWN_SORTEDNESS = INT_MIN, /*INT_MIN is NA_INTEGER! */
+      SORTED_INCR = 1,
+      SORTED_INCR_NA_1ST = 2,
+      KNOWN_UNSORTED = 0};
+```
+
+from `Rinternals.h`.
+
+## Post and prefix in the C-API
+
 `_R0` means that it does 0-indexing
 `_EX` means that it takes ALTREP into account.
 
@@ -7,7 +30,7 @@
 
 - `R_ExpandFileNameUTF8`
 - `R_WaitEvent`
-- 
+-
 
 ## Macro parsing through LLVM
 

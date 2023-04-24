@@ -23,6 +23,8 @@ enum Command {
     //TODO: optional R_HOME
     //TODO: optional target-directory ~> default to r-sys-root
   },
+  /// Produce a list of the symbols to be ported through bindgen.
+  Allowlist {},
 }
 
 fn main() -> Result<()> {
@@ -36,10 +38,11 @@ fn main() -> Result<()> {
       let r_sys_root = workspace_root.join("rsys");
       copy_r_headers(r_sys_root.as_path())?
     }
-    #[allow(unreachable_patterns)]
-    _ => {
-      todo!()
-    }
+    Command::Allowlist {} => allowlist(
+      &workspace_root.join("rsys").join("wrapper.h"),
+      &workspace_root.join("rsys").join("r").join("include"),
+      &workspace_root.join("rsys"),
+    )?,
   };
   Ok(())
 }
@@ -84,5 +87,88 @@ fn copy_r_headers(r_sys_root: &Path) -> Result<()> {
     &r_copied_binaries,
     &fs_extra::dir::CopyOptions::new(),
   )?;
+  Ok(())
+}
+
+fn allowlist(
+  main_header: &Path, include_path: &Path, rsys_path: &Path,
+) -> Result<()> {
+  use clang::{Clang, Index};
+
+  let clang = Clang::new().unwrap();
+  let index = Index::new(&clang, false, false);
+
+  // Parse wrapper.h
+  let tu = index
+    .parser(main_header)
+    // .parser("wrapper.h")
+    .arguments(&[format!("-I{}", include_path.display()),
+    // format!("--target={target}")
+    "-std=c11".into()])
+    .skip_function_bodies(true)
+    .detailed_preprocessing_record(true)
+    .parse()
+    .unwrap();
+
+  for ele in tu.get_diagnostics() {
+    match ele.get_severity() {
+      clang::diagnostic::Severity::Error => {
+        eprintln!("{}", ele.get_text());
+      }
+      _ => {}
+    }
+  }
+
+  // Extract all the AST entities into `e`, as well as listing up all the
+  // include files in a chain into `include_files`.
+  let r_ast_entities: indexmap::IndexSet<_> = tu
+    .get_entity()
+    .get_children()
+    .into_iter()
+    .filter(|x| !x.is_in_system_header())
+    .collect();
+
+  // Put all the symbols into allowlist
+  let mut allowlist: indexmap::IndexSet<_> = r_ast_entities
+    .into_iter()
+    .filter(|x| {
+      use clang::EntityKind::*;
+      matches!(
+        x.get_kind(),
+        EnumDecl
+          | FunctionDecl
+          | StructDecl
+          | TypedefDecl
+          | VarDecl
+          | UnionDecl
+          | MacroDefinition
+          | MacroExpansion
+      )
+    })
+    //TODO: print annonymous items as well to figure out what to do about them
+    .filter(|e| {
+      // skip unnamed items
+      // this occurs on llvm 16.0.0, see
+      // https://github.com/rust-lang/rust-bindgen/issues/2488
+      // and this is how it is decided to check for this
+      !e.is_anonymous()
+    })
+    .flat_map(|x| x.get_name())
+    .collect();
+
+  // This cannot be detected because the #define-ed constants are aliased in
+  // another #define c.f. https://github.com/wch/r-source/blob/9f284035b7e503aebe4a804579e9e80a541311bb/src/include/R_ext/GraphicsEngine.h#L93
+  allowlist.insert("R_GE_version".to_string());
+
+  //TODO: 
+  // // Join into a regex pattern to supply into bindgen::Builder.
+  // let allowlist_pattern = allowlist
+  //     // Exclude non-API calls
+  //     .difference(&get_non_api())
+  //     .cloned()
+  //     .collect::<Vec<_>>();
+  let allowlist: Vec<_> = allowlist.into_iter().collect();
+  std::fs::remove_file(rsys_path.join("allowlist.txt")).unwrap_or(());
+  std::fs::write(rsys_path.join("allowlist.txt"), allowlist.join("|"))?;
   Ok(())
 }

@@ -1,5 +1,8 @@
 use anyhow::{Context, Result};
-use std::{env, fs, path::{Path, PathBuf}};
+use std::{
+  env, fs,
+  path::{Path, PathBuf},
+};
 
 // TODO
 /* rust
@@ -49,6 +52,9 @@ fn main() -> Result<()> {
   }
 
   let target = env::var("TARGET").context("Could not get the target triple")?;
+  let allowlist_path = rsys_dir.join("allowlist.txt");
+  println!("cargo:rerun-if-changed={}", allowlist_path.display());
+  let allowlist_pattern = std::fs::read_to_string(allowlist_path)?;
   let bindings_builder = bindgen::builder()
         // .layout_tests(true)
         .clang_arg(format!(
@@ -65,6 +71,9 @@ fn main() -> Result<()> {
         //     "-I{}",
         //     r#"C:\Users\minin\scoop\apps\llvm\current\include"#
         // ))
+        .allowlist_function(&allowlist_pattern)
+        .allowlist_type(&allowlist_pattern)
+        .allowlist_var(&allowlist_pattern)
         // Remove constants
         .blocklist_item("^M_.*")
         .clang_arg(format!("--target={target}"))
@@ -139,7 +148,6 @@ impl bindgen::callbacks::ParseCallbacks for TrimCommentsCallback {
     // let comment = comment.replace("]", r"]`");
     Some(comment)
   }
-
   //TODO: this needs more information before it can be useful
   // fn item_name(&self, original_item_name: &str) -> Option<String> {
   //     // if all uppercase, assume constant
