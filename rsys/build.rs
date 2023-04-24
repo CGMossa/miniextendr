@@ -80,15 +80,11 @@ fn main() -> Result<()> {
         // .enable_function_attribute_detection()
         // .constified_enum_module(".*")
         // .conservative_inline_namespaces()
+        .rustified_enum(".*")
         .generate_block(true)
         // .generate_inline_functions(true)   // a lot of stuff generated
         // .array_pointers_in_arguments(true) // does nothing
         // .bindgen_wrapper_union(".*")       // does nothing
-        // enum?
-        // .rustified_enum(".*")
-        // bitfield?
-        // .bitfield_enum(".*")
-        // comments
         .translate_enum_integer_types(true)
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .generate_comments(true)
@@ -105,8 +101,8 @@ fn main() -> Result<()> {
         .generate()?;
   // let path_to_r_bindings = format!("{}/r-bindings.rs", out_dir);
   let path_to_r_bindings = "r-bindings.rs";
-  println!("cargo:rerun-if-changed={path_to_r_bindings}");
   bindings.write_to_file(path_to_r_bindings)?;
+  println!("cargo:rerun-if-changed={path_to_r_bindings}");
 
   // make sure cargo links properly against library
   let rlib_path = Path::new("r/bin/x64").canonicalize()?;

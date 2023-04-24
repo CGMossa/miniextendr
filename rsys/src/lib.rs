@@ -66,7 +66,7 @@ pub enum SEXPTYPE {
   FUNSXP = 99,
 }
 
-pub mod protect_macros;
+// pub mod protect_macros;
 
 //TODO: add support for ref-counts and other function-like macros
 // mod r_function_like_macros;

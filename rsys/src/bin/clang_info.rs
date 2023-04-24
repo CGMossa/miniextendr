@@ -181,7 +181,7 @@ fn try_main() -> Result<()> {
   //     .map(|x| (x.get_name().unwrap(), x.get_kind()))
   //     .collect();
 
-  let allowlist = r_entities
+  let allowlist: indexmap::IndexSet<_> = r_entities
     .iter()
     .filter(|x| !x.is_anonymous())
     .filter(|x| {
@@ -198,8 +198,12 @@ fn try_main() -> Result<()> {
       )
     })
     .flat_map(|x| x.get_name())
-    .collect_vec();
-  std::fs::write(crate_root.join("allowlist.txt"), allowlist.join("\n"))?;
+    .collect();
+
+  std::fs::write(
+    crate_root.join("allowlist.txt"),
+    allowlist.into_iter().join("\n"),
+  )?;
 
   Ok(())
 }

@@ -1,4 +1,4 @@
-use rsys::{protect_macros::*, *};
+// use rsys::{protect_macros::*, *};
 
 /*
 
@@ -11,22 +11,22 @@ SEXP add(SEXP a, SEXP b) {
 }
 */
 
-unsafe fn add(a: SEXP, b: SEXP) -> SEXP {
-  let mut result: SEXP = PROTECT(Rf_allocVector(REALSXP, 1));
-  *REAL(result) = Rf_asReal(a) + Rf_asReal(b);
-  UNPROTECT(1);
-  result
-}
+// unsafe fn add(a: SEXP, b: SEXP) -> SEXP {
+//   let mut result: SEXP = PROTECT(Rf_allocVector(REALSXP, 1));
+//   *REAL(result) = Rf_asReal(a) + Rf_asReal(b);
+//   UNPROTECT(1);
+//   result
+// }
 
-#[cfg(test)]
-mod tests {
-  use super::*;
+// #[cfg(test)]
+// mod tests {
+//   use super::*;
 
-  #[test]
-  fn test_add() {
-    let a = 46;
-    let b = -4;
+//   #[test]
+//   fn test_add() {
+//     let a = 46;
+//     let b = -4;
 
-    // println!("{}", *add(a, b));
-  }
-}
+//     // println!("{}", *add(a, b));
+//   }
+// }

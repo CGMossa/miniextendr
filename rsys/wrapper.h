@@ -1,10 +1,18 @@
 #define R_NO_REMAP
 #define STRICT_R_HEADERS
 
+#include <stddef.h> // for ptrdiff_t
+
+// R_xlen_t is defined as int on 32-bit platforms, and
+// that confuses Rust. Keeping it always as ptrdiff_t works
+// fine even on 32-bit.
+/// <div rustbindgen replaces="R_xlen_t"></div>
+typedef ptrdiff_t R_xlen_t_rust;
+
 #include <R.h>
 #include <Rinternals.h>
 
-//TODO: figure out how this is passed as cfg in rust
+// TODO: figure out how this is passed as cfg in rust
 #ifdef SWITCH_TO_REFCOUNT
 #define SWITCH_TO_REFCOUNT_RUST_MACROS
 #else
@@ -35,7 +43,7 @@
 // Rmath.h	standalone math library
 // Rversion.h	R version information
 // Rinterface.h	for add-on front-ends (Unix-alikes only)
-// Rembedded.h	for add-on front-ends
+#include <Rembedded.h> //	for add-on front-ends
 // R_ext/Applic.h	optimization and integration
 // R_ext/BLAS.h	C definitions for BLAS routines
 // R_ext/Callbacks.h	C (and R function) top-level task handlers
@@ -43,7 +51,7 @@
 // R_ext/Lapack.h	C definitions for some LAPACK routines
 // R_ext/Linpack.h	C definitions for some LINPACK routines, not all of which are included in R
 // R_ext/Parse.h	a small part of R’s parse interface: not part of the stable API.
-// R_ext/RStartup.h	for add-on front-ends
+// #include <R_ext/RStartup.h> // (internal stuff?) for add-on front-ends
 // R_ext/Rdynload.h	needed to register compiled code in packages
 // R_ext/Riconv.h	interface to iconv
 // R_ext/Visibility.h	definitions controlling visibility

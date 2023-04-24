@@ -15,10 +15,10 @@ bindgen = "0.65"
 rustc_version = "0.4"
 clang = { version = "2.0.0", features = ["runtime", "clang_10_0"] }
 linkify = "0.9.0"
-anyhow = { version = "1" }
+anyhow = { workspace = true }
 
 [dependencies]
-anyhow = { version = "1" }
+anyhow = { workspace = true }
 clang = { version = "2.0.0", features = ["runtime", "clang_10_0"] }
 indexmap = "1.9.3"
 itertools = "0.10.5"

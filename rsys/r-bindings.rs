@@ -78,7 +78,6 @@ where
     }
   }
 }
-pub const __STDC_WANT_IEC_60559_FUNCS_EXT__: u32 = 1;
 pub const __MINGW64_VERSION_MAJOR: u32 = 9;
 pub const __MINGW64_VERSION_MINOR: u32 = 0;
 pub const __MINGW64_VERSION_BUGFIX: u32 = 0;
@@ -116,6 +115,7 @@ pub const _CRT_PACKING: u32 = 8;
 pub const _SECURECRT_FILL_BUFFER_PATTERN: u32 = 253;
 pub const _ARGMAX: u32 = 100;
 pub const __USE_MINGW_ANSI_STDIO: u32 = 0;
+pub const __STDC_WANT_IEC_60559_FUNCS_EXT__: u32 = 1;
 pub const PATH_MAX: u32 = 260;
 pub const CHAR_BIT: u32 = 8;
 pub const SCHAR_MIN: i32 = -128;
@@ -230,8 +230,35 @@ pub const _OVERFLOW: u32 = 3;
 pub const _UNDERFLOW: u32 = 4;
 pub const _TLOSS: u32 = 5;
 pub const _PLOSS: u32 = 6;
+pub const DOMAIN: u32 = 1;
+pub const SING: u32 = 2;
+pub const OVERFLOW: u32 = 3;
+pub const UNDERFLOW: u32 = 4;
+pub const TLOSS: u32 = 5;
+pub const PLOSS: u32 = 6;
+pub const __MINGW_FPCLASS_DEFINED: u32 = 1;
+pub const _FPCLASS_SNAN: u32 = 1;
+pub const _FPCLASS_QNAN: u32 = 2;
+pub const _FPCLASS_NINF: u32 = 4;
+pub const _FPCLASS_NN: u32 = 8;
+pub const _FPCLASS_ND: u32 = 16;
+pub const _FPCLASS_NZ: u32 = 32;
+pub const _FPCLASS_PZ: u32 = 64;
+pub const _FPCLASS_PD: u32 = 128;
+pub const _FPCLASS_PN: u32 = 256;
+pub const _FPCLASS_PINF: u32 = 512;
 pub const EDOM: u32 = 33;
 pub const ERANGE: u32 = 34;
+pub const FP_SNAN: u32 = 1;
+pub const FP_QNAN: u32 = 2;
+pub const FP_NINF: u32 = 4;
+pub const FP_PINF: u32 = 512;
+pub const FP_NDENORM: u32 = 16;
+pub const FP_PDENORM: u32 = 128;
+pub const FP_NZERO: u32 = 32;
+pub const FP_PZERO: u32 = 64;
+pub const FP_NNORM: u32 = 8;
+pub const FP_PNORM: u32 = 256;
 pub const FP_NAN: u32 = 256;
 pub const FP_NORMAL: u32 = 1024;
 pub const FP_INFINITE: u32 = 1280;
@@ -478,6 +505,72 @@ fn bindgen_test_layout_threadlocaleinfostruct() {
   );
 }
 pub type threadlocinfo = threadlocaleinfostruct;
+extern "C" {
+  pub fn _errno() -> *mut ::std::os::raw::c_int;
+}
+extern "C" {
+  pub fn _set_errno(_Value: ::std::os::raw::c_int) -> errno_t;
+}
+extern "C" {
+  pub fn _get_errno(_Value: *mut ::std::os::raw::c_int) -> errno_t;
+}
+extern "C" {
+  pub fn __threadid() -> ::std::os::raw::c_ulong;
+}
+extern "C" {
+  pub fn __threadhandle() -> usize;
+}
+#[doc = "Type whose alignment is supported in every context and is at least\nas great as that of any standard type not using alignment\nspecifiers."]
+#[repr(C)]
+#[repr(align(16))]
+#[derive(Debug, Copy, Clone)]
+pub struct max_align_t {
+  pub __max_align_ll: ::std::os::raw::c_longlong,
+  pub __bindgen_padding_0: u64,
+  pub __max_align_ld: u128,
+}
+#[test]
+fn bindgen_test_layout_max_align_t() {
+  const UNINIT: ::std::mem::MaybeUninit<max_align_t> =
+    ::std::mem::MaybeUninit::uninit();
+  let ptr = UNINIT.as_ptr();
+  assert_eq!(
+    ::std::mem::size_of::<max_align_t>(),
+    32usize,
+    concat!("Size of: ", stringify!(max_align_t))
+  );
+  assert_eq!(
+    ::std::mem::align_of::<max_align_t>(),
+    16usize,
+    concat!("Alignment of ", stringify!(max_align_t))
+  );
+  assert_eq!(
+    unsafe {
+      ::std::ptr::addr_of!((*ptr).__max_align_ll) as usize - ptr as usize
+    },
+    0usize,
+    concat!(
+      "Offset of field: ",
+      stringify!(max_align_t),
+      "::",
+      stringify!(__max_align_ll)
+    )
+  );
+  assert_eq!(
+    unsafe {
+      ::std::ptr::addr_of!((*ptr).__max_align_ld) as usize - ptr as usize
+    },
+    16usize,
+    concat!(
+      "Offset of field: ",
+      stringify!(max_align_t),
+      "::",
+      stringify!(__max_align_ld)
+    )
+  );
+}
+#[doc = "R_xlen_t is defined as int on 32-bit platforms, and\n that confuses Rust. Keeping it always as ptrdiff_t works\n fine even on 32-bit.\n <div rustbindgen replaces=\"R_xlen_t\"></div>"]
+pub type R_xlen_t = isize;
 extern "C" {
   pub fn _itow_s(
     _Val: ::std::os::raw::c_int, _DstBuf: *mut wchar_t, _SizeInWords: usize,
@@ -769,15 +862,6 @@ extern "C" {
 }
 extern "C" {
   pub fn _get_invalid_parameter_handler() -> _invalid_parameter_handler;
-}
-extern "C" {
-  pub fn _errno() -> *mut ::std::os::raw::c_int;
-}
-extern "C" {
-  pub fn _set_errno(_Value: ::std::os::raw::c_int) -> errno_t;
-}
-extern "C" {
-  pub fn _get_errno(_Value: *mut ::std::os::raw::c_int) -> errno_t;
 }
 extern "C" {
   pub fn __doserrno() -> *mut ::std::os::raw::c_ulong;
@@ -1667,6 +1751,33 @@ extern "C" {
   pub fn atoll(
     arg1: *const ::std::os::raw::c_char,
   ) -> ::std::os::raw::c_longlong;
+}
+extern "C" {
+  pub fn wtoll(arg1: *const wchar_t) -> ::std::os::raw::c_longlong;
+}
+extern "C" {
+  pub fn lltoa(
+    arg1: ::std::os::raw::c_longlong, arg2: *mut ::std::os::raw::c_char,
+    arg3: ::std::os::raw::c_int,
+  ) -> *mut ::std::os::raw::c_char;
+}
+extern "C" {
+  pub fn ulltoa(
+    arg1: ::std::os::raw::c_ulonglong, arg2: *mut ::std::os::raw::c_char,
+    arg3: ::std::os::raw::c_int,
+  ) -> *mut ::std::os::raw::c_char;
+}
+extern "C" {
+  pub fn lltow(
+    arg1: ::std::os::raw::c_longlong, arg2: *mut wchar_t,
+    arg3: ::std::os::raw::c_int,
+  ) -> *mut wchar_t;
+}
+extern "C" {
+  pub fn ulltow(
+    arg1: ::std::os::raw::c_ulonglong, arg2: *mut wchar_t,
+    arg3: ::std::os::raw::c_int,
+  ) -> *mut wchar_t;
 }
 extern "C" {
   pub fn bsearch_s(
@@ -3468,6 +3579,113 @@ extern "C" {
 extern "C" {
   pub fn sincosf(__x: f32, p_sin: *mut f32, p_cos: *mut f32);
 }
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct _complex {
+  pub x: f64,
+  pub y: f64,
+}
+#[test]
+fn bindgen_test_layout__complex() {
+  const UNINIT: ::std::mem::MaybeUninit<_complex> =
+    ::std::mem::MaybeUninit::uninit();
+  let ptr = UNINIT.as_ptr();
+  assert_eq!(
+    ::std::mem::size_of::<_complex>(),
+    16usize,
+    concat!("Size of: ", stringify!(_complex))
+  );
+  assert_eq!(
+    ::std::mem::align_of::<_complex>(),
+    8usize,
+    concat!("Alignment of ", stringify!(_complex))
+  );
+  assert_eq!(
+    unsafe { ::std::ptr::addr_of!((*ptr).x) as usize - ptr as usize },
+    0usize,
+    concat!("Offset of field: ", stringify!(_complex), "::", stringify!(x))
+  );
+  assert_eq!(
+    unsafe { ::std::ptr::addr_of!((*ptr).y) as usize - ptr as usize },
+    8usize,
+    concat!("Offset of field: ", stringify!(_complex), "::", stringify!(y))
+  );
+}
+extern "C" {
+  pub fn _cabs(_ComplexA: _complex) -> f64;
+}
+extern "C" {
+  pub fn _hypot(_X: f64, _Y: f64) -> f64;
+}
+extern "C" {
+  pub fn _j0(_X: f64) -> f64;
+}
+extern "C" {
+  pub fn _j1(_X: f64) -> f64;
+}
+extern "C" {
+  pub fn _jn(_X: ::std::os::raw::c_int, _Y: f64) -> f64;
+}
+extern "C" {
+  pub fn _y0(_X: f64) -> f64;
+}
+extern "C" {
+  pub fn _y1(_X: f64) -> f64;
+}
+extern "C" {
+  pub fn _yn(_X: ::std::os::raw::c_int, _Y: f64) -> f64;
+}
+extern "C" {
+  pub fn _matherr(arg1: *mut _exception) -> ::std::os::raw::c_int;
+}
+extern "C" {
+  pub fn _chgsign(_X: f64) -> f64;
+}
+extern "C" {
+  pub fn _copysign(_Number: f64, _Sign: f64) -> f64;
+}
+extern "C" {
+  pub fn _logb(arg1: f64) -> f64;
+}
+extern "C" {
+  pub fn _nextafter(arg1: f64, arg2: f64) -> f64;
+}
+extern "C" {
+  pub fn _scalb(arg1: f64, arg2: ::std::os::raw::c_long) -> f64;
+}
+extern "C" {
+  pub fn _finite(arg1: f64) -> ::std::os::raw::c_int;
+}
+extern "C" {
+  pub fn _fpclass(arg1: f64) -> ::std::os::raw::c_int;
+}
+extern "C" {
+  pub fn _isnan(arg1: f64) -> ::std::os::raw::c_int;
+}
+extern "C" {
+  pub fn j0(arg1: f64) -> f64;
+}
+extern "C" {
+  pub fn j1(arg1: f64) -> f64;
+}
+extern "C" {
+  pub fn jn(arg1: ::std::os::raw::c_int, arg2: f64) -> f64;
+}
+extern "C" {
+  pub fn y0(arg1: f64) -> f64;
+}
+extern "C" {
+  pub fn y1(arg1: f64) -> f64;
+}
+extern "C" {
+  pub fn yn(arg1: ::std::os::raw::c_int, arg2: f64) -> f64;
+}
+extern "C" {
+  pub fn chgsign(arg1: f64) -> f64;
+}
+extern "C" {
+  pub fn fpclass(arg1: f64) -> ::std::os::raw::c_int;
+}
 pub type float_t = f32;
 pub type double_t = f64;
 extern "C" {
@@ -3966,6 +4184,9 @@ extern "C" {
   pub fn _fpclassf(_X: f32) -> ::std::os::raw::c_int;
 }
 extern "C" {
+  pub fn _chgsignl(arg1: u128) -> u128;
+}
+extern "C" {
   #[doc = "IEEE NaN"]
   pub static mut R_NaN: f64;
 }
@@ -3995,17 +4216,14 @@ extern "C" {
 extern "C" {
   pub fn R_finite(arg1: f64) -> ::std::os::raw::c_int;
 }
-impl Rboolean {
-  #[doc = ", MAYBE"]
-  pub const FALSE: Rboolean = Rboolean(0);
-}
-impl Rboolean {
-  #[doc = ", MAYBE"]
-  pub const TRUE: Rboolean = Rboolean(1);
-}
-#[repr(transparent)]
+#[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub struct Rboolean(pub u32);
+pub enum Rboolean {
+  #[doc = ", MAYBE"]
+  FALSE = 0,
+  #[doc = ", MAYBE"]
+  TRUE = 1,
+}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct Rcomplex {
@@ -4052,61 +4270,6 @@ extern "C" {
 }
 extern "C" {
   pub fn R_ShowMessage(s: *const ::std::os::raw::c_char);
-}
-extern "C" {
-  pub fn __threadid() -> ::std::os::raw::c_ulong;
-}
-extern "C" {
-  pub fn __threadhandle() -> usize;
-}
-#[doc = "Type whose alignment is supported in every context and is at least\nas great as that of any standard type not using alignment\nspecifiers."]
-#[repr(C)]
-#[repr(align(16))]
-#[derive(Debug, Copy, Clone)]
-pub struct max_align_t {
-  pub __max_align_ll: ::std::os::raw::c_longlong,
-  pub __bindgen_padding_0: u64,
-  pub __max_align_ld: u128,
-}
-#[test]
-fn bindgen_test_layout_max_align_t() {
-  const UNINIT: ::std::mem::MaybeUninit<max_align_t> =
-    ::std::mem::MaybeUninit::uninit();
-  let ptr = UNINIT.as_ptr();
-  assert_eq!(
-    ::std::mem::size_of::<max_align_t>(),
-    32usize,
-    concat!("Size of: ", stringify!(max_align_t))
-  );
-  assert_eq!(
-    ::std::mem::align_of::<max_align_t>(),
-    16usize,
-    concat!("Alignment of ", stringify!(max_align_t))
-  );
-  assert_eq!(
-    unsafe {
-      ::std::ptr::addr_of!((*ptr).__max_align_ll) as usize - ptr as usize
-    },
-    0usize,
-    concat!(
-      "Offset of field: ",
-      stringify!(max_align_t),
-      "::",
-      stringify!(__max_align_ll)
-    )
-  );
-  assert_eq!(
-    unsafe {
-      ::std::ptr::addr_of!((*ptr).__max_align_ld) as usize - ptr as usize
-    },
-    16usize,
-    concat!(
-      "Offset of field: ",
-      stringify!(max_align_t),
-      "::",
-      stringify!(__max_align_ld)
-    )
-  );
 }
 extern "C" {
   pub fn vmaxget() -> *mut ::std::os::raw::c_void;
@@ -4162,65 +4325,36 @@ extern "C" {
 extern "C" {
   pub fn REvprintf(arg1: *const ::std::os::raw::c_char, arg2: va_list);
 }
-impl RNGtype {
-  pub const WICHMANN_HILL: RNGtype = RNGtype(0);
-}
-impl RNGtype {
-  pub const MARSAGLIA_MULTICARRY: RNGtype = RNGtype(1);
-}
-impl RNGtype {
-  pub const SUPER_DUPER: RNGtype = RNGtype(2);
-}
-impl RNGtype {
-  pub const MERSENNE_TWISTER: RNGtype = RNGtype(3);
-}
-impl RNGtype {
-  pub const KNUTH_TAOCP: RNGtype = RNGtype(4);
-}
-impl RNGtype {
-  pub const USER_UNIF: RNGtype = RNGtype(5);
-}
-impl RNGtype {
-  pub const KNUTH_TAOCP2: RNGtype = RNGtype(6);
-}
-impl RNGtype {
-  pub const LECUYER_CMRG: RNGtype = RNGtype(7);
-}
-#[repr(transparent)]
+#[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub struct RNGtype(pub u32);
-impl N01type {
-  pub const BUGGY_KINDERMAN_RAMAGE: N01type = N01type(0);
+pub enum RNGtype {
+  WICHMANN_HILL = 0,
+  MARSAGLIA_MULTICARRY = 1,
+  SUPER_DUPER = 2,
+  MERSENNE_TWISTER = 3,
+  KNUTH_TAOCP = 4,
+  USER_UNIF = 5,
+  KNUTH_TAOCP2 = 6,
+  LECUYER_CMRG = 7,
 }
-impl N01type {
-  pub const AHRENS_DIETER: N01type = N01type(1);
-}
-impl N01type {
-  pub const BOX_MULLER: N01type = N01type(2);
-}
-impl N01type {
-  pub const USER_NORM: N01type = N01type(3);
-}
-impl N01type {
-  pub const INVERSION: N01type = N01type(4);
-}
-impl N01type {
-  pub const KINDERMAN_RAMAGE: N01type = N01type(5);
-}
-#[repr(transparent)]
+#[repr(u32)]
 #[doc = "Different kinds of \"N(0,1)\" generators :"]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub struct N01type(pub u32);
-impl Sampletype {
-  pub const ROUNDING: Sampletype = Sampletype(0);
+pub enum N01type {
+  BUGGY_KINDERMAN_RAMAGE = 0,
+  AHRENS_DIETER = 1,
+  BOX_MULLER = 2,
+  USER_NORM = 3,
+  INVERSION = 4,
+  KINDERMAN_RAMAGE = 5,
 }
-impl Sampletype {
-  pub const REJECTION: Sampletype = Sampletype(1);
-}
-#[repr(transparent)]
+#[repr(u32)]
 #[doc = "Different ways to generate discrete uniform samples"]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub struct Sampletype(pub u32);
+pub enum Sampletype {
+  ROUNDING = 0,
+  REJECTION = 1,
+}
 extern "C" {
   pub fn R_sample_kind() -> Sampletype;
 }
@@ -4451,7 +4585,7 @@ extern "C" {
 extern "C" {
   pub fn mempcpy(
     _Dst: *mut ::std::os::raw::c_void, _Src: *const ::std::os::raw::c_void,
-    _Size: usize,
+    _Size: ::std::os::raw::c_ulonglong,
   ) -> *mut ::std::os::raw::c_void;
 }
 extern "C" {
@@ -4463,7 +4597,7 @@ extern "C" {
 extern "C" {
   pub fn memccpy(
     _Dst: *mut ::std::os::raw::c_void, _Src: *const ::std::os::raw::c_void,
-    _Val: ::std::os::raw::c_int, _Size: usize,
+    _Val: ::std::os::raw::c_int, _Size: ::std::os::raw::c_ulonglong,
   ) -> *mut ::std::os::raw::c_void;
 }
 extern "C" {
@@ -4741,7 +4875,7 @@ extern "C" {
 extern "C" {
   pub fn strncasecmp(
     arg1: *const ::std::os::raw::c_char, arg2: *const ::std::os::raw::c_char,
-    arg3: usize,
+    arg3: ::std::os::raw::c_ulonglong,
   ) -> ::std::os::raw::c_int;
 }
 extern "C" {
@@ -5346,24 +5480,15 @@ pub struct Rf_RegisteredNativeSymbol {
   _unused: [u8; 0],
 }
 pub type R_RegisteredNativeSymbol = Rf_RegisteredNativeSymbol;
-impl NativeSymbolType {
-  pub const R_ANY_SYM: NativeSymbolType = NativeSymbolType(0);
-}
-impl NativeSymbolType {
-  pub const R_C_SYM: NativeSymbolType = NativeSymbolType(1);
-}
-impl NativeSymbolType {
-  pub const R_CALL_SYM: NativeSymbolType = NativeSymbolType(2);
-}
-impl NativeSymbolType {
-  pub const R_FORTRAN_SYM: NativeSymbolType = NativeSymbolType(3);
-}
-impl NativeSymbolType {
-  pub const R_EXTERNAL_SYM: NativeSymbolType = NativeSymbolType(4);
-}
-#[repr(transparent)]
+#[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub struct NativeSymbolType(pub u32);
+pub enum NativeSymbolType {
+  R_ANY_SYM = 0,
+  R_C_SYM = 1,
+  R_CALL_SYM = 2,
+  R_FORTRAN_SYM = 3,
+  R_EXTERNAL_SYM = 4,
+}
 extern "C" {
   pub fn R_FindSymbol(
     arg1: *const ::std::os::raw::c_char, arg2: *const ::std::os::raw::c_char,
@@ -5385,7 +5510,6 @@ extern "C" {
 pub type Rbyte = ::std::os::raw::c_uchar;
 #[doc = "type for length of (standard, not long) vectors etc"]
 pub type R_len_t = ::std::os::raw::c_int;
-pub type R_xlen_t = isize;
 #[doc = "NOT YET using enum:\n  1)\tThe internal SEXPREC struct has 'SEXPTYPE type : 5'\n\t(making FUNSXP and CLOSXP equivalent in there),\n\tgiving (-Wall only ?) warnings all over the place\n 2)\tMany switch(type) { case ... } statements need a final `default:'\n\tadded in order to avoid warnings like [e.g. l.170 of ../main/util.c]\n\t  \"enumeration value `FUNSXP' not handled in switch\""]
 pub type SEXPTYPE = ::std::os::raw::c_uint;
 #[repr(C)]
@@ -6181,19 +6305,14 @@ extern "C" {
 extern "C" {
   pub fn Rf_nthcdr(arg1: SEXP, arg2: ::std::os::raw::c_int) -> SEXP;
 }
-impl nchar_type {
-  pub const Bytes: nchar_type = nchar_type(0);
-}
-impl nchar_type {
-  pub const Chars: nchar_type = nchar_type(1);
-}
-impl nchar_type {
-  pub const Width: nchar_type = nchar_type(2);
-}
-#[repr(transparent)]
+#[repr(u32)]
 #[doc = "../main/character.c :"]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub struct nchar_type(pub u32);
+pub enum nchar_type {
+  Bytes = 0,
+  Chars = 1,
+  Width = 2,
+}
 extern "C" {
   pub fn R_nchar(
     string: SEXP, type_: nchar_type, allowNA: Rboolean, keepNA: Rboolean,
@@ -6276,28 +6395,17 @@ extern "C" {
     arg1: *const ::std::os::raw::c_char,
   ) -> ::std::os::raw::c_int;
 }
-impl cetype_t {
-  pub const CE_NATIVE: cetype_t = cetype_t(0);
-}
-impl cetype_t {
-  pub const CE_UTF8: cetype_t = cetype_t(1);
-}
-impl cetype_t {
-  pub const CE_LATIN1: cetype_t = cetype_t(2);
-}
-impl cetype_t {
-  pub const CE_BYTES: cetype_t = cetype_t(3);
-}
-impl cetype_t {
-  pub const CE_SYMBOL: cetype_t = cetype_t(5);
-}
-impl cetype_t {
-  pub const CE_ANY: cetype_t = cetype_t(99);
-}
-#[repr(transparent)]
+#[repr(u32)]
 #[doc = "cetype_t is an identifier reseved by POSIX, but it is\nwell established as public.  Could remap by a #define though"]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub struct cetype_t(pub u32);
+pub enum cetype_t {
+  CE_NATIVE = 0,
+  CE_UTF8 = 1,
+  CE_LATIN1 = 2,
+  CE_BYTES = 3,
+  CE_SYMBOL = 5,
+  CE_ANY = 99,
+}
 extern "C" {
   pub fn Rf_getCharCE(arg1: SEXP) -> cetype_t;
 }
@@ -6572,25 +6680,15 @@ extern "C" {
   ) -> ::std::os::raw::c_int;
 }
 pub type R_pstream_data_t = *mut ::std::os::raw::c_void;
-impl R_pstream_format_t {
-  pub const R_pstream_any_format: R_pstream_format_t = R_pstream_format_t(0);
-}
-impl R_pstream_format_t {
-  pub const R_pstream_ascii_format: R_pstream_format_t = R_pstream_format_t(1);
-}
-impl R_pstream_format_t {
-  pub const R_pstream_binary_format: R_pstream_format_t = R_pstream_format_t(2);
-}
-impl R_pstream_format_t {
-  pub const R_pstream_xdr_format: R_pstream_format_t = R_pstream_format_t(3);
-}
-impl R_pstream_format_t {
-  pub const R_pstream_asciihex_format: R_pstream_format_t =
-    R_pstream_format_t(4);
-}
-#[repr(transparent)]
+#[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub struct R_pstream_format_t(pub u32);
+pub enum R_pstream_format_t {
+  R_pstream_any_format = 0,
+  R_pstream_ascii_format = 1,
+  R_pstream_binary_format = 2,
+  R_pstream_xdr_format = 3,
+  R_pstream_asciihex_format = 4,
+}
 pub type R_outpstream_t = *mut R_outpstream_st;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -7293,17 +7391,24 @@ extern "C" {
 extern "C" {
   pub fn ALTREP(x: SEXP) -> ::std::os::raw::c_int;
 }
-pub const SORTED_DECR_NA_1ST: _bindgen_ty_1 = _bindgen_ty_1(-2);
-pub const SORTED_DECR: _bindgen_ty_1 = _bindgen_ty_1(-1);
-#[doc = "INT_MIN is NA_INTEGER!"]
-pub const UNKNOWN_SORTEDNESS: _bindgen_ty_1 = _bindgen_ty_1(-2147483648);
-pub const SORTED_INCR: _bindgen_ty_1 = _bindgen_ty_1(1);
-pub const SORTED_INCR_NA_1ST: _bindgen_ty_1 = _bindgen_ty_1(2);
-pub const KNOWN_UNSORTED: _bindgen_ty_1 = _bindgen_ty_1(0);
-#[repr(transparent)]
+pub const SORTED_DECR_NA_1ST: _bindgen_ty_1 = _bindgen_ty_1::SORTED_DECR_NA_1ST;
+pub const SORTED_DECR: _bindgen_ty_1 = _bindgen_ty_1::SORTED_DECR;
+pub const UNKNOWN_SORTEDNESS: _bindgen_ty_1 = _bindgen_ty_1::UNKNOWN_SORTEDNESS;
+pub const SORTED_INCR: _bindgen_ty_1 = _bindgen_ty_1::SORTED_INCR;
+pub const SORTED_INCR_NA_1ST: _bindgen_ty_1 = _bindgen_ty_1::SORTED_INCR_NA_1ST;
+pub const KNOWN_UNSORTED: _bindgen_ty_1 = _bindgen_ty_1::KNOWN_UNSORTED;
+#[repr(i32)]
 #[doc = "ALTREP sorting support"]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub struct _bindgen_ty_1(pub i32);
+pub enum _bindgen_ty_1 {
+  SORTED_DECR_NA_1ST = -2,
+  SORTED_DECR = -1,
+  #[doc = "INT_MIN is NA_INTEGER!"]
+  UNKNOWN_SORTEDNESS = -2147483648,
+  SORTED_INCR = 1,
+  SORTED_INCR_NA_1ST = 2,
+  KNOWN_UNSORTED = 0,
+}
 #[doc = "try to allow some type checking"]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -7457,5 +7562,80 @@ extern "C" {
 extern "C" {
   #[doc = "used by BIOC::matter; mightbe reasonable to include in API"]
   pub fn R_tryWrap(arg1: SEXP) -> SEXP;
+}
+extern "C" {
+  pub fn Rf_initEmbeddedR(
+    argc: ::std::os::raw::c_int, argv: *mut *mut ::std::os::raw::c_char,
+  ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+  pub fn Rf_endEmbeddedR(fatal: ::std::os::raw::c_int);
+}
+extern "C" {
+  pub fn Rf_initialize_R(
+    ac: ::std::os::raw::c_int, av: *mut *mut ::std::os::raw::c_char,
+  ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+  pub fn setup_Rmainloop();
+}
+extern "C" {
+  pub fn R_ReplDLLinit();
+}
+extern "C" {
+  pub fn R_ReplDLLdo1() -> ::std::os::raw::c_int;
+}
+extern "C" {
+  pub fn R_setStartTime();
+}
+extern "C" {
+  pub fn CleanEd();
+}
+extern "C" {
+  pub fn Rf_KillAllDevices();
+}
+extern "C" {
+  pub static mut R_DirtyImage: ::std::os::raw::c_int;
+}
+extern "C" {
+  pub fn R_CleanTempDir();
+}
+extern "C" {
+  pub static mut R_TempDir: *mut ::std::os::raw::c_char;
+}
+extern "C" {
+  pub fn R_SaveGlobalEnv();
+}
+extern "C" {
+  pub fn getDLLVersion() -> *mut ::std::os::raw::c_char;
+}
+extern "C" {
+  pub fn getRUser() -> *mut ::std::os::raw::c_char;
+}
+extern "C" {
+  pub fn get_R_HOME() -> *mut ::std::os::raw::c_char;
+}
+extern "C" {
+  pub fn setup_term_ui();
+}
+extern "C" {
+  pub static mut UserBreak: ::std::os::raw::c_int;
+}
+extern "C" {
+  pub static mut AllDevicesKilled: Rboolean;
+}
+extern "C" {
+  pub fn editorcleanall();
+}
+extern "C" {
+  pub fn GA_initapp(
+    arg1: ::std::os::raw::c_int, arg2: *mut *mut ::std::os::raw::c_char,
+  ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+  pub fn GA_appcleanup();
+}
+extern "C" {
+  pub fn readconsolecfg();
 }
 pub type __builtin_va_list = *mut ::std::os::raw::c_char;
