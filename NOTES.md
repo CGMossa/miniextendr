@@ -21,6 +21,8 @@ enum {SORTED_DECR_NA_1ST = -2,
 
 from `Rinternals.h`.
 
+Most notably all the math functions used in r disappears here.
+
 ## Post and prefix in the C-API
 
 `_R0` means that it does 0-indexing
