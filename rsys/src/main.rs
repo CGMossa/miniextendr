@@ -1,8 +1,13 @@
-fn main() {
-  println!("{}", unsafe { rsys::tan(0.4) });
-  println!("{}", unsafe { rsys::tanh(0.4) });
-  println!("{}", unsafe { rsys::tanh(0.324) });
-  println!("Hello world!");
+use rsys::{Rf_endEmbeddedR, Rf_initEmbeddedR};
 
-  unsafe { rsys::Rprintf("Hello world!".as_ptr() as _) };
+fn main() {
+  println!("[Rust]: Hello world!");
+
+  unsafe {
+    let mut arg = [0_i8 as _; 0];
+    Rf_initEmbeddedR(0, arg.as_mut_ptr());
+    rsys::Rprintf("[R]: Hello world!\n".as_ptr() as _);
+
+    Rf_endEmbeddedR(0);
+  };
 }
