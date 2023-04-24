@@ -2,7 +2,7 @@
 
 ## Installation / Requirements
 
-1. Copy your `R/include` and `R/bin` directories to `miniextendr/r-sys/r`, i.e.
+1. Copy your `R/include` and `R/bin` directories to `miniextendr/rsys/r`, i.e.
 
     ```shell
     Folder PATH listing for volume Windows
@@ -10,7 +10,7 @@
     C:.
     ├───.cargo
     ├───.vscode
-    ├───r-sys
+    ├───rsys
     │   ├───r
     │   │   ├───bin
     │   │   │   └───x64

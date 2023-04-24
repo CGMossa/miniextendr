@@ -1,8 +1,23 @@
+# NOTES
+
+`_R0` means that it does 0-indexing
+`_EX` means that it takes ALTREP into account.
+
+# Macro parsing through LLVM
+
+- [ ] Cannot detect
+
+```c
+#define CHAR(x) R_CHAR(x)
+const char *(R_CHAR)(SEXP x);
+```
+
+second line gets evaded.
 
 Search only a few files:
 
 ```
-r-sys/r/include/**/{R.h,Rconfig.h,R_ext/Arith.h,R_ext/libextern.h,R_ext/Boolean.h,R_ext/Complex.h,R_ext/Constants.h,R_ext/Error.h,R_ext/Memory.h,R_ext/Print.h,R_ext/Random.h,R_ext/Utils.h,R_ext/RS.h,Rinternals.h,R_ext/Rdynload.h}
+rsys/r/include/**/{R.h,Rconfig.h,R_ext/Arith.h,R_ext/libextern.h,R_ext/Boolean.h,R_ext/Complex.h,R_ext/Constants.h,R_ext/Error.h,R_ext/Memory.h,R_ext/Print.h,R_ext/Random.h,R_ext/Utils.h,R_ext/RS.h,Rinternals.h,R_ext/Rdynload.h}
 ```
 
 ## References
