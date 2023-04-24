@@ -9,5 +9,6 @@ edition.workspace = true
 indexmap = "1.9"
 anyhow = "1.0.70"
 clap = { version = "4.2.4", features = ["derive"] }
-clang = { version = "2", features = ["runtime", "clang_3_7"] }
+clang = { version = "2", features = ["runtime", "clang_3_7", "clang_6_0"] }
 fs_extra = "1.3.0"
+itertools = "0.10.5"

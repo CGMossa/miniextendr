@@ -52,9 +52,11 @@ fn main() -> Result<()> {
   }
 
   let target = env::var("TARGET").context("Could not get the target triple")?;
+  
   let allowlist_path = rsys_dir.join("allowlist.txt");
   println!("cargo:rerun-if-changed={}", allowlist_path.display());
   let allowlist_pattern = std::fs::read_to_string(allowlist_path)?;
+  let allowlist_pattern: String = allowlist_pattern.lines().collect();
   let bindings_builder = bindgen::builder()
         // .layout_tests(true)
         .clang_arg(format!(

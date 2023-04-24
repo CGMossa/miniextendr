@@ -1,6 +1,9 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
+use indexmap::IndexSet;
 use std::path::{Path, PathBuf};
+
+use itertools::Itertools;
 
 /// Tasks to aid in the development of R FFI wrappers.
 #[derive(Parser, Debug)]
@@ -129,23 +132,57 @@ fn allowlist(
     .collect();
 
   // Put all the symbols into allowlist
-  let mut allowlist: indexmap::IndexSet<_> = r_ast_entities
+  let r_symbols = r_ast_entities.into_iter().filter(|x| {
+    use clang::EntityKind::*;
+    matches!(
+      x.get_kind(),
+      EnumDecl
+        | FunctionDecl
+        | TypedefDecl
+        | StructDecl
+        | VarDecl
+        | UnionDecl
+        | EnumConstantDecl
+        | GenericSelectionExpr
+        | MacroDefinition
+        | MacroExpansion
+    )
+  });
+  let (anonymous_items, named_items): (Vec<_>, Vec<_>) =
+    r_symbols.partition(|x| x.is_anonymous());
+  // print annonymous items as well to figure out what to do about them
+  std::fs::remove_file(rsys_path.join("anonymous_items.txt")).unwrap_or(());
+  std::fs::write(
+    rsys_path.join("anonymous_items.txt"),
+    anonymous_items
+      .into_iter()
+      .map(|x| {
+        let range = x.get_range().unwrap();
+
+        let start_line: usize = range.get_start().get_file_location().line as _;
+        let end_line: usize = range.get_end().get_file_location().line as _;
+        // dbg!(range, start_line, end_line);
+        let file = range.get_start().get_file_location().file.unwrap();
+        let contents: String = file
+          .get_contents()
+          .unwrap()
+          .lines()
+          .skip(start_line - 1)
+          .take(end_line - start_line + 1)
+          .join("\n");
+
+        Ok(format!(
+          "// {}\n{}",
+          file.get_path().strip_prefix(rsys_path)?.display(),
+          contents
+        ))
+      })
+      .collect::<Result<Vec<_>>>()?
+      .join("\n"),
+  )?;
+
+  let mut allowlist: IndexSet<_> = named_items
     .into_iter()
-    .filter(|x| {
-      use clang::EntityKind::*;
-      matches!(
-        x.get_kind(),
-        EnumDecl
-          | FunctionDecl
-          | StructDecl
-          | TypedefDecl
-          | VarDecl
-          | UnionDecl
-          | MacroDefinition
-          | MacroExpansion
-      )
-    })
-    //TODO: print annonymous items as well to figure out what to do about them
     .filter(|e| {
       // skip unnamed items
       // this occurs on llvm 16.0.0, see
@@ -153,14 +190,14 @@ fn allowlist(
       // and this is how it is decided to check for this
       !e.is_anonymous()
     })
-    .flat_map(|x| x.get_name())
+    .map(|x| x.get_name().unwrap())
     .collect();
 
   // This cannot be detected because the #define-ed constants are aliased in
   // another #define c.f. https://github.com/wch/r-source/blob/9f284035b7e503aebe4a804579e9e80a541311bb/src/include/R_ext/GraphicsEngine.h#L93
   allowlist.insert("R_GE_version".to_string());
 
-  //TODO: 
+  //TODO:
   // // Join into a regex pattern to supply into bindgen::Builder.
   // let allowlist_pattern = allowlist
   //     // Exclude non-API calls
@@ -169,6 +206,6 @@ fn allowlist(
   //     .collect::<Vec<_>>();
   let allowlist: Vec<_> = allowlist.into_iter().collect();
   std::fs::remove_file(rsys_path.join("allowlist.txt")).unwrap_or(());
-  std::fs::write(rsys_path.join("allowlist.txt"), allowlist.join("|"))?;
+  std::fs::write(rsys_path.join("allowlist.txt"), allowlist.join("|\n"))?;
   Ok(())
 }
