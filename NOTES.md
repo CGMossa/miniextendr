@@ -1,5 +1,23 @@
 # NOTES
 
+
+
+## `NORET`
+
+`Rf_error`
+`UNIMPLEMENTED`
+`WrongArgCount`
+`VECTOR_PTR`
+`R_ContinueUnwind`
+`Rf_errorcall`
+
+Where `VECTOR_PTR` is deprecated.
+
+## Globals
+
+`_WIN32` means 32-bit.
+But `WIN32` maybe just means windows.
+
 ## `allowlist.txt`
 
 Before allowlist: 7548
