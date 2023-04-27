@@ -4,7 +4,7 @@ debug = false
 debug = false
 
 [workspace]
-members = ["rsys", "rapi", "xtask"]
+members = ["rsys", "rapi", "rapi-macros", "xtask"]
 resolver = "2"
 
 [workspace.package]

@@ -5,11 +5,13 @@ use std::{
 
 use anyhow::{anyhow, Context, Result};
 use rsys::*;
+use rapi_macros::*;
 
+#[embed_r]
 fn main() -> Result<()> {
-  unsafe {
-    Rf_initEmbeddedR(0, [0_i8 as _; 0].as_mut_ptr());
-  }
+  // unsafe {
+  //   Rf_initEmbeddedR(0, [0_i8 as _; 0].as_mut_ptr());
+  // }
 
   unsafe {
     // LGLSXP, INTSXP, REALSXP, CPLXSP, STRSXP and RAWSXP
@@ -22,9 +24,9 @@ fn main() -> Result<()> {
     Rf_allocVector(RAWSXP as _, n);
   }
 
-  unsafe {
-    Rf_endEmbeddedR(0);
-  }
+  // unsafe {
+  //   Rf_endEmbeddedR(0);
+  // }
   Ok(())
 }
 
