@@ -1,5 +1,7 @@
 #define R_NO_REMAP
+// #define R_REMAP
 #define STRICT_R_HEADERS
+//TODO: make this multiplatform...
 #define Win32
 
 // From r83513 (R 4.3), R defines the `NORET` macro differently depending on the
@@ -60,7 +62,7 @@ typedef ptrdiff_t R_xlen_t_rust;
 // R_ext/Lapack.h	C definitions for some LAPACK routines
 // R_ext/Linpack.h	C definitions for some LINPACK routines, not all of which are included in R
 // R_ext/Parse.h	a small part of R’s parse interface: not part of the stable API.
-// #include <R_ext/RStartup.h> // (internal stuff?) for add-on front-ends
+#include <R_ext/RStartup.h> // (internal stuff?) for add-on front-ends
 // R_ext/Rdynload.h	needed to register compiled code in packages
 // R_ext/Riconv.h	interface to iconv
 // R_ext/Visibility.h	definitions controlling visibility
