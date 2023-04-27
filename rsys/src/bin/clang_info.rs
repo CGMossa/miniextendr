@@ -176,6 +176,7 @@ fn try_main() -> Result<()> {
 
   //TODO: use this for adjusting the syntax of things
   //TODO: check if same name has multiple kinds
+  //TODO: also the entity kind for field name needs to be added.
   // let name_and_kind: HashMap<_, _> = r_entities
   //     .iter()
   //     .map(|x| (x.get_name().unwrap(), x.get_kind()))
