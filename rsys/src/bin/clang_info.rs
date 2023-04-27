@@ -45,10 +45,7 @@ fn try_main() -> Result<()> {
         .into_iter()
         .chain(
             entities
-                .filter(|e| match e.get_kind() {
-                    MacroDefinition | MacroExpansion => false,
-                    _ => true,
-                })
+                .filter(|e| !matches!(e.get_kind(), MacroDefinition | MacroExpansion))
                 .flat_map(|x| x.get_range()),
         )
         .map(|ele| {

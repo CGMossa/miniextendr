@@ -86,7 +86,7 @@ fn copy_r_headers(r_sys_root: &Path) -> Result<()> {
   let r_copied_binaries = r_copied_headers_path.join("bin");
   std::fs::create_dir_all(&r_copied_binaries)?;
   fs_extra::dir::copy(
-    &r_home.join("bin").join("x64"),
+    r_home.join("bin").join("x64"),
     &r_copied_binaries,
     &fs_extra::dir::CopyOptions::new(),
   )?;
@@ -114,11 +114,8 @@ fn allowlist(
     .unwrap();
 
   for ele in tu.get_diagnostics() {
-    match ele.get_severity() {
-      clang::diagnostic::Severity::Error => {
-        eprintln!("{}", ele.get_text());
-      }
-      _ => {}
+    if let clang::diagnostic::Severity::Error = ele.get_severity() {
+      eprintln!("{}", ele.get_text());
     }
   }
 
