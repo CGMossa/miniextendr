@@ -9,7 +9,7 @@
                 "-fdiagnostics-color=always",
                 "-g",
                 "-I${workspaceFolder}/rsys/r/include",
-                "-L${workspaceFolder}/rsys/r/x64",
+                "-L${workspaceFolder}/rsys/r/bin/x64",
                 "-lR",
                 "${file}",
                 "-o",
