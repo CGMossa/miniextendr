@@ -71,9 +71,8 @@ pub enum SEXPTYPE {
 //TODO: add support for ref-counts and other function-like macros
 // mod r_function_like_macros;
 
-
 /* From Rinternals.h
- * 
+ *
 enum {SORTED_DECR_NA_1ST = -2,
       SORTED_DECR = -1,
       UNKNOWN_SORTEDNESS = INT_MIN, /*INT_MIN is NA_INTEGER! */

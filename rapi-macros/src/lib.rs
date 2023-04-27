@@ -3,7 +3,9 @@ use quote::ToTokens;
 use syn::ItemFn;
 
 #[proc_macro_attribute]
-pub fn embed_r(_input: TokenStream, annotated_item: TokenStream) -> TokenStream {
+pub fn embed_r(
+  _input: TokenStream, annotated_item: TokenStream,
+) -> TokenStream {
   let mut item_fn = syn::parse_macro_input!(annotated_item as ItemFn);
   let fn_name = &item_fn.sig.ident;
   let fn_block = &mut item_fn.block;

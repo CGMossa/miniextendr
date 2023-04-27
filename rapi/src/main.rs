@@ -4,8 +4,8 @@ use std::{
 };
 
 use anyhow::{anyhow, Context, Result};
-use rsys::*;
 use rapi_macros::*;
+use rsys::*;
 
 #[embed_r]
 fn main() -> Result<()> {
