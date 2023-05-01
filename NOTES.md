@@ -1,6 +1,10 @@
 # NOTES
 
-
+From R-internals repo:
+> Note that most modern C libraries encode strings as UTF-8.
+> This means you should typically use `Rf_mkCharCE()` or
+> `Rf_mkCharLenCE()`, and avoid the other string
+> creation methods including `Rf_mkString()`
 
 ## `NORET`
 

@@ -1,7 +1,7 @@
 {
     // "terminal.integrated.scrollback": 100000,
-    "rust-analyzer.checkOnSave": false,
-    // "rust-analyzer.checkOnSave": true,
+    // "rust-analyzer.checkOnSave": false,
+    "rust-analyzer.checkOnSave": true,
     "rust-analyzer.cargo.buildScripts.enable": true,
     "rust-analyzer.cargo.buildScripts.invocationLocation": "workspace",
     "rust-analyzer.cargo.buildScripts.useRustcWrapper": true,
@@ -18,6 +18,19 @@
         "r.h": "c",
         "stdio.h": "c",
         "rembedded.h": "c",
-        "stddef.h": "c"
+        "stddef.h": "c",
+        "rstartup.h": "c",
+        "rinternals.h": "c",
+        "rconfig.h": "c",
+        "boolean.h": "c",
+        "arith.h": "c",
+        "complex.h": "c",
+        "constants.h": "c",
+        "memory.h": "c",
+        "error.h": "c",
+        "print.h": "c",
+        "random.h": "c",
+        "utils.h": "c",
+        "rs.h": "c"
     },
 }

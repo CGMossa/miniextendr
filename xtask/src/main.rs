@@ -5,6 +5,11 @@ use std::path::{Path, PathBuf};
 
 use itertools::Itertools;
 
+//TODO: Propose a `clean` task that would also clean the
+// embedded extendrtest package as well as the extendr crate `clean`.
+
+//TODO: generally re-implement the Makefile in Rust and export it?
+
 /// Tasks to aid in the development of R FFI wrappers.
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
