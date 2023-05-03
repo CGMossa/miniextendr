@@ -48,6 +48,12 @@ This this requires
 
 to be available on `PATH`.
 
+This "linker" requires a feature that isn't readily available, thus we have to
+create a mock of it. This applies to any Rust project you want to compile with
+rtools' "linker".
+**Thus define `LIBRARY_PATH` to point somewhere, and then
+the `build.rs` will create the mock for it.**
+
 **REVISE THIS**
 Also the path should contain
 

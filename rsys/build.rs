@@ -4,7 +4,7 @@ use std::{
   path::{Path, PathBuf},
 };
 
-// TODO
+// TODO: is this pattern necessary?
 /* rust
 
 fn main() {
@@ -57,11 +57,15 @@ fn main() -> Result<()> {
   println!("cargo:rerun-if-changed={}", allowlist_path.display());
   let allowlist_pattern = std::fs::read_to_string(allowlist_path)?;
   let allowlist_pattern: String = allowlist_pattern.lines().collect();
+
+  let mingw_root: PathBuf = env!("MINGW_ROOT").into();
+  let r_home: PathBuf = env!("R_HOME").into();
+
   let bindings_builder = bindgen::builder()
         // .layout_tests(true)
         .clang_arg(format!(
             "-I{}",
-            "C:\\rtools42\\x86_64-w64-mingw32.static.posix\\include" // r#"C:\Users\minin\scoop\apps\llvm\current\include"#
+            mingw_root.join("include").display()
         ))
         // Blocklist some types on i686
         // https://github.com/rust-lang/rust-bindgen/issues/1823
@@ -69,17 +73,14 @@ fn main() -> Result<()> {
         // https://github.com/extendr/libR-sys/issues/39
         // .blocklist_item("max_align_t")
         .blocklist_item("__mingw_ldbl_type_t")
-        // .clang_arg(format!(
-        //     "-I{}",
-        //     r#"C:\Users\minin\scoop\apps\llvm\current\include"#
-        // ))
         .allowlist_function(&allowlist_pattern)
         .allowlist_type(&allowlist_pattern)
         .allowlist_var(&allowlist_pattern)
         // Remove constants
         .blocklist_item("^M_.*")
         .clang_arg(format!("--target={target}"))
-        .clang_arg(format!("-I{}", "r/include/"))
+        // .clang_arg(format!("-L{}", libgcc_mock_path.display()))
+        .clang_arg(format!("-I{}", r_home.join("include").display()))
         .clang_arg("-std=c11")
         //https://cran.r-project.org/doc/manuals/R-exts.html#Portable-C-and-C_002b_002b-code
         .blocklist_function("finite")
@@ -111,13 +112,12 @@ fn main() -> Result<()> {
   let bindings = bindings_builder
         // .rust_target(bindgen::RustTarget::Stable_1_64)
         .generate()?;
-  // let path_to_r_bindings = format!("{}/r-bindings.rs", out_dir);
-  let path_to_r_bindings = "r-bindings.rs";
-  bindings.write_to_file(path_to_r_bindings)?;
-  println!("cargo:rerun-if-changed={path_to_r_bindings}");
+  let path_to_r_bindings = rsys_dir.join("r-bindings.rs");
+  bindings.write_to_file(&path_to_r_bindings)?;
+  println!("cargo:rerun-if-changed={}", path_to_r_bindings.display());
 
   // make sure cargo links properly against library
-  let rlib_path = rsys_dir.join("r").join("bin").join("x64").canonicalize()?;
+  let rlib_path = r_home.join("bin").join("x64").canonicalize()?;
   let rlib_path = rlib_path.display();
   println!("cargo:rustc-link-search={rlib_path}");
   println!("cargo:rustc-link-lib=dylib=R");

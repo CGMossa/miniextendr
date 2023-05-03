@@ -1,8 +1,7 @@
 use proc_macro::TokenStream;
 use quote::quote;
 
-/// Note this is not suited for `[test]` yet.
-/// 
+//TODO: Note this is not suited for `[test]` yet.
 #[proc_macro_attribute]
 pub fn embed_r(
   _input: TokenStream, annotated_item: TokenStream,
@@ -39,5 +38,5 @@ pub fn embed_r(
     }
   );
 
-  TokenStream::from(output)
+  output.into()
 }
