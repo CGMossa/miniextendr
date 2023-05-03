@@ -2,9 +2,10 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use std::path::{Path, PathBuf};
 
-mod libgcc_mock;
-mod copy_r_headers;
 mod allowlist;
+mod copy_r_headers;
+mod find_macros;
+mod libgcc_mock;
 
 //TODO: Propose a `clean` task that would also clean the
 // embedded extendrtest package as well as the extendr crate `clean`.
@@ -13,10 +14,11 @@ mod allowlist;
 
 /// Tasks to aid in the development of R FFI wrappers.
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
+#[command(author, version, about)]
+#[command(propagate_version = true)]
 struct Args {
   #[command(subcommand)]
-  command: Command,
+  command: Option<Command>,
 }
 
 #[derive(Debug, Clone, Subcommand)]
@@ -34,24 +36,34 @@ enum Command {
   },
   /// Produce a list of the symbols to be ported through bindgen.
   Allowlist {},
+  FindMacros {},
 }
 
 fn main() -> Result<()> {
   let xtask_directory: PathBuf = env!("CARGO_MANIFEST_DIR").into();
   let workspace_root: &Path = xtask_directory.parent().unwrap();
+  let rsys_root = workspace_root.join("rsys");
 
   let args = Args::parse();
-  match args.command {
-    Command::LibraryGccMock {} => libgcc_mock::libgcc_mock()?,
-    Command::CopyRHeaders {} => {
-      let r_sys_root = workspace_root.join("rsys");
-      copy_r_headers::copy_r_headers(r_sys_root.as_path())?
-    }
-    Command::Allowlist {} => allowlist::allowlist(
-      &workspace_root.join("rsys").join("wrapper.h"),
-      &workspace_root.join("rsys").join("r").join("include"),
-      &workspace_root.join("rsys"),
-    )?,
-  };
+  if let Some(command) = args.command {
+    match command {
+      Command::LibraryGccMock {} => libgcc_mock::libgcc_mock()?,
+      Command::CopyRHeaders {} => {
+        copy_r_headers::copy_r_headers(rsys_root.as_path())?
+      }
+      Command::Allowlist {} => allowlist::allowlist(
+        &workspace_root.join("rsys").join("wrapper.h"),
+        &workspace_root.join("rsys").join("r").join("include"),
+        &workspace_root.join("rsys"),
+      )?,
+      Command::FindMacros {} => find_macros::find_macros(
+        rsys_root.as_path(),
+        &workspace_root.join("rsys").join("wrapper.h"),
+        &workspace_root.join("rsys").join("r").join("include"),
+        &workspace_root.join("rsys").join("r"),
+      )?,
+      // _ => todo!("DEBUGGING"),
+    };
+  }
   Ok(())
 }
