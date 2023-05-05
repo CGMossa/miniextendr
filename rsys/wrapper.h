@@ -67,3 +67,14 @@ typedef ptrdiff_t R_xlen_t_rust;
 // R_ext/Riconv.h	interface to iconv
 // R_ext/Visibility.h	definitions controlling visibility
 // R_ext/eventloop.h	for add-on front-ends and for packages that need to share in the R event loops (not Windows)
+
+// R 4.3 redefined `Rcomplex` to a union for compatibility with Fortran.
+// But the old definition is compatible both the union version
+// and the struct version.
+// See: https://github.com/extendr/extendr/issues/524
+/// <div rustbindgen replaces="Rcomplex"></div>
+typedef struct
+{
+    double r;
+    double i;
+} R_complex_impl;
