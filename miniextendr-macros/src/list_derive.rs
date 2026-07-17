@@ -352,6 +352,11 @@ fn prefer_conflict_marker(input: &DeriveInput) -> TokenStream {
     let name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
+    // Deliberately a NAMED const, not `const _: () = ...`: two stacked `Prefer*`
+    // derives must emit the identical name so rustc's duplicate-definition
+    // check (E0592) fires. An anonymous `const _` block never collides with
+    // itself, which would silently remove this diagnostic — do not "clean up"
+    // this into the anonymous form.
     quote! {
         #[allow(non_upper_case_globals, dead_code)]
         impl #impl_generics #name #ty_generics #where_clause {
