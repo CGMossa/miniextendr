@@ -1,12 +1,11 @@
-error: use of deprecated constant `_MINIEXTENDR_IMPL_METHOD_TAG_WARN_MyType_0_0`: miniextendr: @param on impl block `MyType` has no effect — move it to the method. Tag: @param x nope
-  --> tests/ui/impl_method_tag_deprecated_deny.rs:19:1
+error: use of deprecated constant `_::_MINIEXTENDR_IMPL_METHOD_TAG_WARN`: miniextendr: @param on impl block `MyType` has no effect — move it to the method. Tag: @param x nope
+  --> tests/ui/impl_method_tag_deprecated_deny.rs:20:1
    |
-19 | #[miniextendr]
-   | ^^^^^^^^^^^^^^
+20 | impl MyType {
+   | ^^^^
    |
 note: the lint level is defined here
   --> tests/ui/impl_method_tag_deprecated_deny.rs:11:9
    |
 11 | #![deny(deprecated)]
    |         ^^^^^^^^^^
-   = note: this error originates in the attribute macro `miniextendr` (in Nightly builds, run with -Z macro-backtrace for more info)

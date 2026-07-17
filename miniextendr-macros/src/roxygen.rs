@@ -682,23 +682,6 @@ pub(crate) fn roxygen_tag_name(tag: &str) -> Option<&str> {
     Some(&rest[..end])
 }
 
-/// Monotonic per-crate counter used to disambiguate the compile-warning const
-/// names emitted by [`strip_method_tags`] / [`strip_method_tags_r6`].
-///
-/// The const name is keyed on the type name, but two `#[miniextendr] impl Foo`
-/// blocks on the *same* type (e.g. an inherent impl plus a trait impl, or two
-/// inherent impls) each restart their per-block `warning_id` at 0, so without a
-/// per-block disambiguator they emit identically-named consts and collide with
-/// `error[E0428]: the name ... is defined multiple times` (#1118). Every call
-/// site draws a fresh block id from this counter so the names stay unique
-/// within a crate compilation — the exact scope const names must be unique in,
-/// since the statics reset per rustc process (one process per crate).
-pub(crate) fn next_impl_tag_block_id() -> usize {
-    use std::sync::atomic::{AtomicUsize, Ordering};
-    static IMPL_TAG_WARN_BLOCK: AtomicUsize = AtomicUsize::new(0);
-    IMPL_TAG_WARN_BLOCK.fetch_add(1, Ordering::Relaxed)
-}
-
 /// Filter out method-specific roxygen tags from impl-block-level docs and emit
 /// compile warnings for each stripped tag.
 ///
@@ -708,9 +691,13 @@ pub(crate) fn next_impl_tag_block_id() -> usize {
 /// put them on impl blocks, the tags leak into the class-level Rd file where
 /// R CMD check warns about "documented arguments not in \\usage" and similar.
 ///
-/// `block_id` is a per-impl-block disambiguator (see [`next_impl_tag_block_id`])
-/// that keeps the emitted warning-const names unique across multiple impl
-/// blocks on the same type (#1118).
+/// Each stripped tag's warning is wrapped in its own anonymous
+/// `const _: () = { ... };` block (same pattern as [`doc_conflict_warnings`]),
+/// so the inner const names can stay fixed — an anonymous const block is a
+/// fresh item scope every expansion, so two `#[miniextendr] impl Foo` blocks
+/// on the *same* type (e.g. an inherent impl plus a trait impl) never collide
+/// with `error[E0428]: the name ... is defined multiple times`, without any
+/// per-block disambiguator (#1118).
 ///
 /// Returns the filtered tags and a TokenStream of deprecation warnings for
 /// each stripped tag. The caller should append the warnings to its output so
@@ -718,14 +705,12 @@ pub(crate) fn next_impl_tag_block_id() -> usize {
 pub(crate) fn strip_method_tags(
     tags: &[String],
     type_name: &str,
-    block_id: usize,
     span: proc_macro2::Span,
 ) -> (Vec<String>, proc_macro2::TokenStream) {
     use quote::quote_spanned;
 
     let mut filtered = Vec::new();
     let mut warnings = proc_macro2::TokenStream::new();
-    let mut warning_id: usize = 0;
 
     for tag in tags {
         let Some(name) = roxygen_tag_name(tag) else {
@@ -742,23 +727,16 @@ pub(crate) fn strip_method_tags(
             type_name,
             tag.trim()
         );
-        let suffix = format!(
-            "{}_{}_{}",
-            type_name.replace(|c: char| !c.is_alphanumeric(), "_"),
-            block_id,
-            warning_id
-        );
-        let ident = quote::format_ident!("_MINIEXTENDR_IMPL_METHOD_TAG_WARN_{}", suffix);
-        let use_ident = quote::format_ident!("_MINIEXTENDR_IMPL_METHOD_TAG_USE_{}", suffix);
-        warning_id += 1;
         warnings.extend(quote_spanned! { span =>
-            #[deprecated(note = #msg)]
-            #[doc(hidden)]
-            #[allow(dead_code, non_upper_case_globals)]
-            const #ident: () = ();
-            #[doc(hidden)]
-            #[allow(dead_code, non_upper_case_globals)]
-            const #use_ident: () = #ident;
+            const _: () = {
+                #[deprecated(note = #msg)]
+                #[doc(hidden)]
+                #[allow(dead_code)]
+                const _MINIEXTENDR_IMPL_METHOD_TAG_WARN: () = ();
+                #[doc(hidden)]
+                #[allow(dead_code)]
+                const _MINIEXTENDR_IMPL_METHOD_TAG_USE: () = _MINIEXTENDR_IMPL_METHOD_TAG_WARN;
+            };
         });
     }
 
@@ -889,19 +867,19 @@ pub(crate) fn formal_name(formal: &str) -> &str {
 /// stripped with a compile-time warning. No warning is generated for `@param`.
 ///
 /// Returns `(filtered_tags, warnings)` — same shape as [`strip_method_tags`].
-/// `block_id` is the per-impl-block disambiguator (see
-/// [`next_impl_tag_block_id`]) that keeps warning-const names unique (#1118).
+/// Each stripped tag's warning is wrapped in its own anonymous
+/// `const _: () = { ... };` block, so no per-impl-block disambiguator is
+/// needed to keep warning-const names unique (#1118) — see
+/// [`strip_method_tags`] for the full rationale.
 pub(crate) fn strip_method_tags_r6(
     tags: &[String],
     type_name: &str,
-    block_id: usize,
     span: proc_macro2::Span,
 ) -> (Vec<String>, proc_macro2::TokenStream) {
     use quote::quote_spanned;
 
     let mut filtered = Vec::new();
     let mut warnings = proc_macro2::TokenStream::new();
-    let mut warning_id: usize = 0;
 
     for tag in tags {
         let Some(name) = roxygen_tag_name(tag) else {
@@ -919,23 +897,16 @@ pub(crate) fn strip_method_tags_r6(
             type_name,
             tag.trim()
         );
-        let suffix = format!(
-            "{}_{}_{}",
-            type_name.replace(|c: char| !c.is_alphanumeric(), "_"),
-            block_id,
-            warning_id
-        );
-        let ident = quote::format_ident!("_MINIEXTENDR_IMPL_METHOD_TAG_WARN_{}", suffix);
-        let use_ident = quote::format_ident!("_MINIEXTENDR_IMPL_METHOD_TAG_USE_{}", suffix);
-        warning_id += 1;
         warnings.extend(quote_spanned! { span =>
-            #[deprecated(note = #msg)]
-            #[doc(hidden)]
-            #[allow(dead_code, non_upper_case_globals)]
-            const #ident: () = ();
-            #[doc(hidden)]
-            #[allow(dead_code, non_upper_case_globals)]
-            const #use_ident: () = #ident;
+            const _: () = {
+                #[deprecated(note = #msg)]
+                #[doc(hidden)]
+                #[allow(dead_code)]
+                const _MINIEXTENDR_IMPL_METHOD_TAG_WARN: () = ();
+                #[doc(hidden)]
+                #[allow(dead_code)]
+                const _MINIEXTENDR_IMPL_METHOD_TAG_USE: () = _MINIEXTENDR_IMPL_METHOD_TAG_WARN;
+            };
         });
     }
 

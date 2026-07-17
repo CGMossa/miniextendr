@@ -2723,23 +2723,20 @@ impl ParsedImpl {
             .cloned()
             .collect();
         let raw_doc_tags = crate::roxygen::roxygen_tags_from_attrs(&item_impl.attrs);
-        // Per-block disambiguator so two inherent impl blocks on the same type
-        // don't emit colliding warning consts (#1118).
-        let tag_block_id = crate::roxygen::next_impl_tag_block_id();
         // For R6: keep class-level @param tags (roxygen2 8.0.0 inherits them into
-        // all methods); for other class systems use the stricter filter.
+        // all methods); for other class systems use the stricter filter. Each
+        // stripped tag's warning lives in its own anonymous `const _: () = { .. };`
+        // scope (#1118), so no per-block disambiguator is needed here.
         let (doc_tags, param_warnings) = if attrs.class_system == ClassSystem::R6 {
             crate::roxygen::strip_method_tags_r6(
                 &raw_doc_tags,
                 &type_ident.to_string(),
-                tag_block_id,
                 item_impl.impl_token.span,
             )
         } else {
             crate::roxygen::strip_method_tags(
                 &raw_doc_tags,
                 &type_ident.to_string(),
-                tag_block_id,
                 item_impl.impl_token.span,
             )
         };
