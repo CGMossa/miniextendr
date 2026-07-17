@@ -15,6 +15,7 @@ R6 board target for cross-class builder returns.
     \item \href{#method-R6CrossBoard-initialize}{\code{R6CrossBoard$new()}}
     \item \href{#method-R6CrossBoard-cells}{\code{R6CrossBoard$cells()}}
     \item \href{#method-R6CrossBoard-signature}{\code{R6CrossBoard$signature()}}
+    \item \href{#method-R6CrossBoard-replicate}{\code{R6CrossBoard$replicate()}}
   }
 }
 \if{html}{\out{<hr>}}
@@ -59,6 +60,27 @@ R6 board target for cross-class builder returns.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{R6CrossBoard$signature()}
+    \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-R6CrossBoard-replicate"></a>}}
+\if{latex}{\out{\hypertarget{method-R6CrossBoard-replicate}{}}}
+\subsection{\code{R6CrossBoard$replicate()}}{
+  Produce \code{count} copies of this board with successive seeds.
+
+Exercises the \verb{Vec<Self>} cross-class return path (#1375): the syntactic detector can't see the enclosing impl's type name, so \code{ReturnStrategy::for_method} routes through \code{ParsedMethod::returns_self_list()} and \code{MethodReturnBuilder::with_return_class_from_method} substitutes the receiver class ("R6CrossBoard") at strategy-build time.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{R6CrossBoard$replicate(count)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{count}}{Number of copies to build.}
+    }
     \if{html}{\out{</div>}}
   }
 }

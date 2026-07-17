@@ -1655,19 +1655,21 @@ fn list_return_strategy_detects_vec_of_class_shapes() {
             pub fn maybe_many(&self) -> Option<Vec<Board>> { unimplemented!() }
             pub fn checked_many(&self) -> Result<Vec<Board>, String> { unimplemented!() }
             pub fn null_on_err_many(&self) -> Result<Vec<Board>, ()> { unimplemented!() }
+            pub fn many_handles(&self) -> Vec<ExternalPtr<Board>> { unimplemented!() }
             pub fn many_selves(&self) -> Vec<Self> { unimplemented!() }
             pub fn many_scalars(&self) -> Vec<i32> { unimplemented!() }
             pub fn many_strings(&self) -> Vec<String> { unimplemented!() }
             pub fn maybe_many_scalars(&self) -> Option<Vec<i32>> { unimplemented!() }
             pub fn many_options(&self) -> Vec<Option<Board>> { unimplemented!() }
-            pub fn many_handles(&self) -> Vec<ExternalPtr<Board>> { unimplemented!() }
             pub fn nested_many(&self) -> Vec<Vec<Board>> { unimplemented!() }
         }
     };
 
     let parsed = parse_impl(ClassSystem::R6, item_impl);
 
-    for name in ["many", "maybe_many", "checked_many"] {
+    // `Vec<ExternalPtr<Class>>` (#1375) resolves through the same path as
+    // `Vec<Class>` — `inner_class_ident` peels the `ExternalPtr` segment.
+    for name in ["many", "maybe_many", "checked_many", "many_handles"] {
         let method = parsed.methods.iter().find(|m| m.ident == name).unwrap();
         assert_eq!(
             method.returns_other_class_list().unwrap().to_string(),
@@ -1682,14 +1684,30 @@ fn list_return_strategy_detects_vec_of_class_shapes() {
         assert!(method.returns_other_class().is_none());
     }
 
+    // `Vec<Self>` (#1375): the syntactic detector has no impl-ident
+    // visibility, so `returns_other_class_list()` stays `None` (unlike the
+    // spelled-out-name siblings above), but `returns_self_list()` reports the
+    // shape and `ReturnStrategy::for_method` takes the same
+    // `ReturnOtherClassList` path — the concrete name is substituted later, at
+    // `with_return_class_from_method` (see the r6 emission test below).
+    let many_selves = parsed
+        .methods
+        .iter()
+        .find(|m| m.ident == "many_selves")
+        .unwrap();
+    assert!(many_selves.returns_other_class_list().is_none());
+    assert!(many_selves.returns_self_list());
+    assert_eq!(
+        crate::ReturnStrategy::for_method(many_selves),
+        crate::ReturnStrategy::ReturnOtherClassList
+    );
+
     for name in [
         "null_on_err_many",
-        "many_selves",
         "many_scalars",
         "many_strings",
         "maybe_many_scalars",
         "many_options",
-        "many_handles",
         "nested_many",
     ] {
         let method = parsed.methods.iter().find(|m| m.ident == name).unwrap();
@@ -1697,11 +1715,61 @@ fn list_return_strategy_detects_vec_of_class_shapes() {
             method.returns_other_class_list().is_none(),
             "{name} should not be treated as a list cross-class return"
         );
+        assert!(
+            !method.returns_self_list(),
+            "{name} should not be treated as a Vec<Self> cross-class return"
+        );
         assert_eq!(
             crate::ReturnStrategy::for_method(method),
             crate::ReturnStrategy::Direct
         );
     }
+}
+
+#[test]
+fn scalar_return_strategy_detects_external_ptr_handle_shapes() {
+    // #1375: the explicit-handle spelling `ExternalPtr<Class>` wraps
+    // identically to a bare `Class` return (`IntoR for ExternalPtr<T>`
+    // already produces a bare `EXTPTRSXP`), including through the
+    // `Option`/`Result` wrappers `returns_other_class` recognizes for the
+    // bare-name case.
+    let item_impl: syn::ItemImpl = syn::parse_quote! {
+        impl Builder {
+            pub fn handle(&self) -> ExternalPtr<Board> { unimplemented!() }
+            pub fn maybe_handle(&self) -> Option<ExternalPtr<Board>> { unimplemented!() }
+            pub fn checked_handle(&self) -> Result<ExternalPtr<Board>, String> { unimplemented!() }
+            pub fn null_on_err_handle(&self) -> Result<ExternalPtr<Board>, ()> { unimplemented!() }
+        }
+    };
+
+    let parsed = parse_impl(ClassSystem::R6, item_impl);
+
+    for name in ["handle", "maybe_handle", "checked_handle"] {
+        let method = parsed.methods.iter().find(|m| m.ident == name).unwrap();
+        assert_eq!(
+            method.returns_other_class().unwrap().to_string(),
+            "Board",
+            "{name} should resolve the ExternalPtr-wrapped type as the cross-class target"
+        );
+        assert_eq!(
+            crate::ReturnStrategy::for_method(method),
+            crate::ReturnStrategy::ReturnOtherClass
+        );
+        assert!(method.returns_other_class_list().is_none());
+    }
+
+    // `Result<ExternalPtr<Board>, ()>` keeps the existing NULL-on-Err
+    // exclusion — the unit-error check runs before peeling ExternalPtr.
+    let null_on_err = parsed
+        .methods
+        .iter()
+        .find(|m| m.ident == "null_on_err_handle")
+        .unwrap();
+    assert!(null_on_err.returns_other_class().is_none());
+    assert_eq!(
+        crate::ReturnStrategy::for_method(null_on_err),
+        crate::ReturnStrategy::Direct
+    );
 }
 
 #[test]
@@ -1760,6 +1828,130 @@ fn r6_other_class_return_emits_write_time_marker() {
     assert!(
         !body.contains("Builder$new(.ptr = .val)"),
         "cross-class returns must not wrap as the receiver class, got:\n{body}"
+    );
+}
+
+#[test]
+fn r6_external_ptr_scalar_return_emits_write_time_marker() {
+    // #1375: `-> ExternalPtr<Class>` must emit the same scalar marker as
+    // `-> Class`, not a bare unwrapped pointer.
+    let item_impl: syn::ItemImpl = syn::parse_quote! {
+        impl Builder {
+            pub fn new() -> Self { unimplemented!() }
+            pub fn handle(&self) -> ExternalPtr<Board> { unimplemented!() }
+        }
+    };
+
+    let parsed = parse_impl(ClassSystem::R6, item_impl);
+    let wrapper = generate_r6_r_wrapper(&parsed);
+    let body = wrapper
+        .split("$set(\"public\", \"handle\", function(")
+        .nth(1)
+        .expect("handle R6 method")
+        .split("\n})")
+        .next()
+        .expect("handle method body");
+
+    assert!(
+        body.contains(".__MX_WRAP_RETURN_Board__(.val)"),
+        "R6 ExternalPtr<Class> return should emit the write-time scalar marker, got:\n{body}"
+    );
+}
+
+#[test]
+fn r6_external_ptr_list_return_emits_write_time_list_marker() {
+    // #1375: `-> Vec<ExternalPtr<Class>>` must emit the same list marker as
+    // `-> Vec<Class>`.
+    let item_impl: syn::ItemImpl = syn::parse_quote! {
+        impl Builder {
+            pub fn new() -> Self { unimplemented!() }
+            pub fn build_many_handles(&self, n: i32) -> Vec<ExternalPtr<Board>> { unimplemented!() }
+        }
+    };
+
+    let parsed = parse_impl(ClassSystem::R6, item_impl);
+    let wrapper = generate_r6_r_wrapper(&parsed);
+    let body = wrapper
+        .split("$set(\"public\", \"build_many_handles\", function(")
+        .nth(1)
+        .expect("build_many_handles R6 method")
+        .split("\n})")
+        .next()
+        .expect("build_many_handles method body");
+
+    assert!(
+        body.contains(".__MX_WRAP_LIST_RETURN_Board__(.val)"),
+        "R6 Vec<ExternalPtr<Class>> return should emit the write-time list marker, got:\n{body}"
+    );
+    assert!(
+        !body.contains(".__MX_WRAP_RETURN_Board__"),
+        "list returns must not emit the scalar marker, got:\n{body}"
+    );
+}
+
+#[test]
+fn r6_vec_self_return_emits_write_time_list_marker_with_receiver_class() {
+    // #1375: `-> Vec<Self>` inside `impl Board` must substitute the receiver
+    // class name ("Board") into the write-time list marker even though the
+    // syntactic detector can't see it — `ReturnStrategy::for_method` routes
+    // through `returns_self_list()`, and `with_return_class_from_method`
+    // substitutes `type_ident.to_string()`.
+    let item_impl: syn::ItemImpl = syn::parse_quote! {
+        impl Board {
+            pub fn new() -> Self { unimplemented!() }
+            pub fn replicate(&self, n: i32) -> Vec<Self> { unimplemented!() }
+        }
+    };
+
+    let parsed = parse_impl(ClassSystem::R6, item_impl);
+    let wrapper = generate_r6_r_wrapper(&parsed);
+    let body = wrapper
+        .split("$set(\"public\", \"replicate\", function(")
+        .nth(1)
+        .expect("replicate R6 method")
+        .split("\n})")
+        .next()
+        .expect("replicate method body");
+
+    assert!(
+        body.contains(".__MX_WRAP_LIST_RETURN_Board__(.val)"),
+        "R6 Vec<Self> return should emit the write-time list marker keyed on \
+         the receiver's Rust type name, got:\n{body}"
+    );
+}
+
+#[test]
+fn r6_vec_self_return_uses_rust_type_name_not_class_name_override() {
+    // Regression guard for the type_ident-vs-class_name distinction: the
+    // write-time resolver keys `.__MX_WRAP_LIST_RETURN_<...>__` off the Rust
+    // struct name (`ClassNameEntry::rust_type`), not the R-facing class name
+    // `#[miniextendr(r6(class = "..."))]` can override. Substituting the
+    // wrong one here would silently fail to resolve at write time.
+    let item_impl: syn::ItemImpl = syn::parse_quote! {
+        impl Board {
+            pub fn new() -> Self { unimplemented!() }
+            pub fn replicate(&self, n: i32) -> Vec<Self> { unimplemented!() }
+        }
+    };
+
+    let parsed = parse_impl_with_class_name(ClassSystem::R6, "RenamedBoard", item_impl);
+    let wrapper = generate_r6_r_wrapper(&parsed);
+    let body = wrapper
+        .split("$set(\"public\", \"replicate\", function(")
+        .nth(1)
+        .expect("replicate R6 method")
+        .split("\n})")
+        .next()
+        .expect("replicate method body");
+
+    assert!(
+        body.contains(".__MX_WRAP_LIST_RETURN_Board__(.val)"),
+        "the list marker must key off the Rust type name (\"Board\"), not the \
+         overridden R class name (\"RenamedBoard\"), got:\n{body}"
+    );
+    assert!(
+        !body.contains(".__MX_WRAP_LIST_RETURN_RenamedBoard__"),
+        "must not substitute the R-facing class-name override, got:\n{body}"
     );
 }
 

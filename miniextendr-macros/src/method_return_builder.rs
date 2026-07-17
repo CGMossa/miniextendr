@@ -136,11 +136,16 @@ impl ReturnStrategy {
     ///   [`crate::c_wrapper_builder::ReturnHandling::SelfHandle`]).
     /// - Bare capitalized return types that are not known primitives/containers
     ///   use `ReturnOtherClass`; write-time registry lookup wraps registered
-    ///   classes and leaves false positives unchanged.
+    ///   classes and leaves false positives unchanged. This also covers the
+    ///   explicit-handle spelling `ExternalPtr<Class>` (#1375) — the detector
+    ///   peels through it to the same wrapped name.
     /// - `Vec<Class>` (and the `Option`/`Result` wrappers of it the C wrapper
     ///   unwraps) use `ReturnOtherClassList`; write-time registry lookup wraps
     ///   registered element classes via `lapply` and leaves false positives
-    ///   unchanged (#1284).
+    ///   unchanged (#1284). This also covers `Vec<ExternalPtr<Class>>` and
+    ///   `Vec<Self>` (#1375) — the latter via `returns_self_list()`, since the
+    ///   scalar detector can't name `Self`;
+    ///   `with_return_class_from_method` substitutes the actual name.
     /// - All other methods use `Direct`.
     pub fn for_method(method: &ParsedMethod) -> Self {
         // In-place builders (`&mut self -> &mut Self` / `&self -> Self`), their
@@ -162,7 +167,7 @@ impl ReturnStrategy {
             ReturnStrategy::ReturnSelf
         } else if method.returns_other_class().is_some() {
             ReturnStrategy::ReturnOtherClass
-        } else if method.returns_other_class_list().is_some() {
+        } else if method.returns_other_class_list().is_some() || method.returns_self_list() {
             ReturnStrategy::ReturnOtherClassList
         } else {
             ReturnStrategy::Direct
@@ -257,7 +262,23 @@ impl MethodReturnBuilder {
     /// Attach the method's cross-class return name when this builder uses
     /// [`ReturnStrategy::ReturnOtherClass`] or
     /// [`ReturnStrategy::ReturnOtherClassList`].
-    pub fn with_return_class_from_method(mut self, method: &ParsedMethod) -> Self {
+    ///
+    /// `self_rust_type` is the enclosing impl block's own Rust type name
+    /// (`type_ident.to_string()`) — every class-system generator already has
+    /// `parsed_impl.type_ident` in scope alongside `class_name`, so this
+    /// threads it through rather than widening `ParsedMethod` to carry it
+    /// (#1375). It's consulted only for the `Vec<Self>` case
+    /// ([`ParsedMethod::returns_self_list`]), where it stands in for the
+    /// missing element name: the write-time resolver keys off the Rust type
+    /// name (`ClassNameEntry::rust_type`), which is *not* necessarily the same
+    /// string as this builder's `class_name` field —
+    /// `#[miniextendr(class = "Override")]` makes the R-facing class name and
+    /// the Rust struct name diverge, and `class_name` here is the former.
+    pub fn with_return_class_from_method(
+        mut self,
+        method: &ParsedMethod,
+        self_rust_type: &str,
+    ) -> Self {
         match self.strategy {
             ReturnStrategy::ReturnOtherClass => {
                 let return_class = method
@@ -266,10 +287,17 @@ impl MethodReturnBuilder {
                 self = self.with_return_class(return_class.to_string());
             }
             ReturnStrategy::ReturnOtherClassList => {
-                let return_class = method
-                    .returns_other_class_list()
-                    .expect("return_class required for ReturnOtherClassList strategy");
-                self = self.with_return_class(return_class.to_string());
+                let return_class = match method.returns_other_class_list() {
+                    Some(ident) => ident.to_string(),
+                    None => {
+                        assert!(
+                            method.returns_self_list(),
+                            "return_class required for ReturnOtherClassList strategy"
+                        );
+                        self_rust_type.to_string()
+                    }
+                };
+                self = self.with_return_class(return_class);
             }
             _ => {}
         }

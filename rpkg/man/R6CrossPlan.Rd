@@ -21,6 +21,8 @@ R6 builder fixture for cross-class return wrapping.
     \item \href{#method-R6CrossPlan-build_many_s7}{\code{R6CrossPlan$build_many_s7()}}
     \item \href{#method-R6CrossPlan-try_build_many}{\code{R6CrossPlan$try_build_many()}}
     \item \href{#method-R6CrossPlan-checked_build_many}{\code{R6CrossPlan$checked_build_many()}}
+    \item \href{#method-R6CrossPlan-build_handle}{\code{R6CrossPlan$build_handle()}}
+    \item \href{#method-R6CrossPlan-build_many_handles}{\code{R6CrossPlan$build_many_handles()}}
   }
 }
 \if{html}{\out{<hr>}}
@@ -220,6 +222,51 @@ Exercises the \verb{Result<Vec<Class>, E>} cross-class return path (\code{Return
       \item{\code{height}}{Board height.}
       \item{\code{count}}{Number of boards to build.}
       \item{\code{fail}}{When true, returns an \code{Err} instead of boards.}
+    }
+    \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-R6CrossPlan-build_handle"></a>}}
+\if{latex}{\out{\hypertarget{method-R6CrossPlan-build_handle}{}}}
+\subsection{\code{R6CrossPlan$build_handle()}}{
+  Materialize this plan into an \code{R6CrossBoard}, spelled as the explicit handle type.
+
+Exercises the scalar \verb{ExternalPtr<Class>} cross-class return path (#1375): \verb{IntoR for ExternalPtr<T>} already produces a bare \code{EXTPTRSXP} \code{.val}, identical in shape to the bare-\code{Class} case, so the write-time resolver wraps it the same way \code{build()} above does.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{R6CrossPlan$build_handle(width, height)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{width}}{Board width.}
+      \item{\code{height}}{Board height.}
+    }
+    \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-R6CrossPlan-build_many_handles"></a>}}
+\if{latex}{\out{\hypertarget{method-R6CrossPlan-build_many_handles}{}}}
+\subsection{\code{R6CrossPlan$build_many_handles()}}{
+  Materialize this plan into \code{count} boards, spelled as a list of explicit handles.
+
+Exercises the \verb{Vec<ExternalPtr<Class>>} cross-class return path (#1375) — the sibling of \code{build_many()}'s \verb{Vec<Class>} spelling that \code{inner_class_ident} now peels the same way.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{R6CrossPlan$build_many_handles(width, height, count)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{width}}{Board width.}
+      \item{\code{height}}{Board height.}
+      \item{\code{count}}{Number of boards to build.}
     }
     \if{html}{\out{</div>}}
   }
