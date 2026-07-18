@@ -1,6 +1,6 @@
 use miniextendr_macros::typed_list;
 
-const _SPEC: () = {
+const _: () = {
     let _ = typed_list!(alpha => bogus());
 };
 
