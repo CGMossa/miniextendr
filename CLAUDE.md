@@ -80,20 +80,26 @@ hand-maintained.
 
 ```
 Makevars
-  → cargo rustc --crate-type cdylib
-  → dyn.load + miniextendr_write_wrappers       (cdylib walks linkme #[distributed_slice] tables)
-  → R/miniextendr-wrappers.R                    (generated, do not hand-edit)
-  → cargo rustc --crate-type staticlib
-  → final .so
+  → cargo build --lib                           (staticlib — the only cargo invocation)
+  → C-link: $(OBJECTS) + staticlib → $(SHLIB)   (the final .so, via stub.c's force-link)
+  → dyn.load($(SHLIB)) + miniextendr_write_wrappers + miniextendr_write_wasm_registry
+                                                (walks the linkme #[distributed_slice]
+                                                 tables in the installed .so itself,
+                                                 under MINIEXTENDR_WRAPPER_GEN=1)
+  → R/miniextendr-wrappers.R + src/rust/wasm_registry.rs   (generated, do not hand-edit)
 ```
 
-`stub.c` declares `extern const char miniextendr_force_link`, which references a
+There is **no separate cdylib build**: the freshly linked `$(SHLIB)` is already a
+loadable shared object carrying every linkme entry, so wrapper generation loads
+it directly and calls the two *registered* writer routines via
+`getNativeSymbolInfo` (`rpkg/src/Makevars.in`, the `$(WRAPPERS_R)` recipe). In
+tarball/wasm32 installs the wrapper-gen step is skipped and the pre-shipped
+files are used (with the #1022 regenerate-if-absent fallback in tarball mode).
+
+`stub.c` declares `extern void miniextendr_force_link(void)`, referencing a
 symbol emitted by `miniextendr_init!()`. With `codegen-units = 1`, this pulls the
 entire user crate out of the staticlib archive, carrying all `#[distributed_slice]`
 entries — no `-force_load` / `--whole-archive` needed.
-The cdylib→staticlib double link is what makes wrapper generation possible:
-the cdylib boots far enough into R that we can call into Rust to emit the
-R wrappers, then we relink as staticlib for the final installed shared object.
 
 `miniextendr_init!(pkg)` (proc-macro) generates `R_init_<pkg>`; `package_init()`
 in `miniextendr-api/src/init.rs` consolidates the init steps.
