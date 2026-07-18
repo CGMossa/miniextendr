@@ -982,8 +982,6 @@ mod tests {
     use super::*;
     use miniextendr_api::dataframe::ColumnarFrame;
 
-    use miniextendr_api::dataframe::ColumnarFrame;
-
     #[test]
     fn vec_width_align_pinned_columns() {
         let df = VecWidthEvent::to_dataframe(vec![

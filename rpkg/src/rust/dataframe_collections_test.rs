@@ -353,8 +353,6 @@ mod tests {
     use super::*;
     use miniextendr_api::dataframe::ColumnarFrame;
 
-    use miniextendr_api::dataframe::ColumnarFrame;
-
     #[test]
     fn test_vec_dataframe() {
         let rows = vec![

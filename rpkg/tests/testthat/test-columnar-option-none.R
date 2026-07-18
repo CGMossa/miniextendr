@@ -1,4 +1,5 @@
-# Tests for ColumnarDataFrame all-None column downgrade (#307).
+# Tests for ColumnarDataFrame all-None column downgrade (#307), schema-upgrade
+# ordering, and recursive Compound union (#1370).
 #
 # When every row has None for an Option<T> field the column lands as a logical
 # NA vector (is.logical() && all(is.na())), not list(NULL, NULL, ...).
@@ -238,9 +239,9 @@ test_that("multiple leading None rows then Some(42): numeric column with NAs at 
 test_that("compound-vs-compound different shapes: both field sets discovered", {
   # Variant A has only 'value'; variant B has 'value' and 'extra'.
   # Both are distinct top-level keys in the struct (not nested under a single key),
-  # so both 'value' and 'extra' are found regardless of order.
-  # TODO: union recursion — when one key maps to two different Compound shapes, only
-  # the first Compound wins.  This test verifies existing-wins semantics remain stable.
+  # so both 'value' and 'extra' are found regardless of order. (The single-key
+  # Compound-vs-Compound case — recursive union — is covered in the "Recursive
+  # Compound union (#1370)" region below.)
   df <- miniextendr:::test_columnar_compound_different_shapes()
   expect_s3_class(df, "data.frame")
   expect_equal(nrow(df), 2L)
@@ -250,6 +251,43 @@ test_that("compound-vs-compound different shapes: both field sets discovered", {
   expect_true(is.na(df$extra[[1]]))
   # variant B (row 2) has extra=3.0
   expect_equal(df$extra[[2]], 3.0)
+})
+
+# endregion
+
+# region: Recursive Compound union (#1370)
+
+test_that("nested sub-field None-first types as character, not a list column", {
+  df <- miniextendr:::test_columnar_nested_subfield_none_first()
+  expect_s3_class(df, "data.frame")
+  expect_equal(nrow(df), 2L)
+  expect_true("meta_variant" %in% names(df))
+  expect_true("meta_size" %in% names(df))
+  expect_true(is.character(df$meta_variant))
+  expect_true(is.na(df$meta_variant[[1]]))
+  expect_equal(df$meta_variant[[2]], "x")
+  expect_equal(df$meta_size, c(4.0, 5.0))
+})
+
+test_that("nested sub-field schema is row-order independent", {
+  none_first <- miniextendr:::test_columnar_nested_subfield_none_first()
+  some_first <- miniextendr:::test_columnar_nested_subfield_some_first()
+  expect_equal(names(none_first), names(some_first))
+  expect_equal(class(none_first$meta_variant), class(some_first$meta_variant))
+  expect_true(is.character(some_first$meta_variant))
+})
+
+test_that("Compound union of keys: a key present only in one row's shape is not dropped", {
+  df <- miniextendr:::test_columnar_nested_compound_union_of_keys()
+  expect_s3_class(df, "data.frame")
+  expect_equal(nrow(df), 2L)
+  # Row 1's probe of `meta` omitted `extra` (skip_serializing_if); row 2's
+  # included it. Both `meta_extra` and `meta_size` must be discovered.
+  expect_true("meta_extra" %in% names(df))
+  expect_true("meta_size" %in% names(df))
+  expect_true(is.na(df$meta_extra[[1]]))
+  expect_equal(df$meta_extra[[2]], 3.0)
+  expect_equal(df$meta_size, c(1.0, 2.0))
 })
 
 # endregion

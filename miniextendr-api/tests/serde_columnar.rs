@@ -1058,10 +1058,15 @@ fn struct_fields_optout_keeps_option_enum_none_for_other_fields() {
     }
 
     r_test_utils::with_r_thread(|| {
-        // Row 1 keeps `meta.variant = Some(...)`: a nested sub-field probed as
-        // `None` on the *first* row locks its column to Generic (list) via the
-        // writer's Compound-vs-Compound first-seen lattice (#1370) — a separate
-        // writer limitation, not the #1320 heuristic under test here.
+        // Row 1 keeps `meta.variant = Some(...)`; row 2 has `meta.variant =
+        // None`. Prior to #1370's recursive Compound union this row order
+        // avoided a *separate* writer limitation (a nested sub-field probed
+        // as `None` on the first row locked its column to Generic/list) that
+        // would otherwise be conflated with the #1320 heuristic under test
+        // here. #1370 is now fixed (see `option_nested_struct_tag_collision_...`-
+        // adjacent tests in this file for direct coverage), so this ordering
+        // is no longer load-bearing for the writer — kept as-is since it's
+        // still a valid, order-independent regression for the #1320 opt-out.
         let rows = vec![
             Row {
                 id: 1,
@@ -1297,6 +1302,318 @@ fn flatten_enum_reader_tuple_variant_roundtrip() {
         assert!(names.contains(&"m__1".to_string()), "{names:?}");
         let round: Vec<Row> = dataframe_to_vec(sexp).unwrap();
         assert_eq!(round, rows);
+    });
+}
+
+// endregion
+
+// region: recursive Compound union in schema discovery (#1370)
+
+/// #1370 repro, plain (non-`Option`) nested struct: a sub-field probed as
+/// `None` on the *first* row must still type as an atomic column (not a
+/// Generic/list column) once a later row types it.
+#[test]
+fn compound_none_first_nested_subfield_types_atomic() {
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    struct Meta {
+        variant: Option<String>,
+        size: f64,
+    }
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    struct Row {
+        id: i32,
+        meta: Meta,
+    }
+
+    r_test_utils::with_r_thread(|| {
+        let rows = vec![
+            Row {
+                id: 1,
+                meta: Meta {
+                    variant: None,
+                    size: 4.0,
+                },
+            },
+            Row {
+                id: 2,
+                meta: Meta {
+                    variant: Some("x".into()),
+                    size: 5.0,
+                },
+            },
+        ];
+        let df = vec_to_dataframe(&rows).unwrap();
+        let sexp = df.as_sexp();
+        let variant_col = col(&sexp, "meta_variant");
+        assert_eq!(
+            variant_col.type_of(),
+            miniextendr_api::SEXPTYPE::STRSXP,
+            "None-first nested sub-field must type as character, not a list column"
+        );
+        assert_eq!(variant_col.string_elt_str(0), None, "row 1 is NA");
+        assert_eq!(variant_col.string_elt_str(1), Some("x"));
+        let round: Vec<Row> = dataframe_to_vec(sexp).unwrap();
+        assert_eq!(round, rows);
+    });
+}
+
+/// Same repro through an `Option<Meta>` outer field (the issue notes "plain
+/// or `Option<Meta>` — same result"): the outer `Option` resolves to
+/// `Compound` (both rows are `Some`), so the same nested-sub-field-`None`-
+/// first bug applies to `meta_variant` underneath it.
+///
+/// Reads back via the `dataframe_to_vec_with_struct_fields` opt-out (not the
+/// default `dataframe_to_vec`) so this test isolates the *writer* fix (#1370)
+/// from the *reader*'s separate `variant`-name tag-column collision (#1320,
+/// covered by `option_nested_struct_tag_collision_default_is_lossy` and
+/// `compound_fix_resolves_1320_interaction_none_first_no_longer_errors`).
+#[test]
+fn compound_none_first_nested_subfield_types_atomic_through_option_outer() {
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    struct Meta {
+        variant: Option<String>,
+        size: f64,
+    }
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    struct Row {
+        id: i32,
+        meta: Option<Meta>,
+    }
+
+    r_test_utils::with_r_thread(|| {
+        let rows = vec![
+            Row {
+                id: 1,
+                meta: Some(Meta {
+                    variant: None,
+                    size: 4.0,
+                }),
+            },
+            Row {
+                id: 2,
+                meta: Some(Meta {
+                    variant: Some("x".into()),
+                    size: 5.0,
+                }),
+            },
+        ];
+        let df = vec_to_dataframe(&rows).unwrap();
+        let sexp = df.as_sexp();
+        let variant_col = col(&sexp, "meta_variant");
+        assert_eq!(
+            variant_col.type_of(),
+            miniextendr_api::SEXPTYPE::STRSXP,
+            "None-first nested sub-field must type as character, not a list column"
+        );
+        let round: Vec<Row> = dataframe_to_vec_with_struct_fields(sexp, &["meta"]).unwrap();
+        assert_eq!(round, rows);
+    });
+}
+
+/// Row order must not change the emitted schema: the same two rows, reversed
+/// (`Some`-first instead of `None`-first), produce the identical column set
+/// and types for the nested sub-field.
+#[test]
+fn compound_schema_is_row_order_independent() {
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    struct Meta {
+        variant: Option<String>,
+        size: f64,
+    }
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    struct Row {
+        id: i32,
+        meta: Meta,
+    }
+
+    r_test_utils::with_r_thread(|| {
+        let none_first = vec![
+            Row {
+                id: 1,
+                meta: Meta {
+                    variant: None,
+                    size: 4.0,
+                },
+            },
+            Row {
+                id: 2,
+                meta: Meta {
+                    variant: Some("x".into()),
+                    size: 5.0,
+                },
+            },
+        ];
+        let some_first = vec![none_first[1].clone(), none_first[0].clone()];
+
+        let df_none_first = vec_to_dataframe(&none_first).unwrap();
+        let df_some_first = vec_to_dataframe(&some_first).unwrap();
+
+        let names_a = col_names(&df_none_first.as_sexp());
+        let names_b = col_names(&df_some_first.as_sexp());
+        assert_eq!(
+            names_a, names_b,
+            "column set/order must match regardless of row order"
+        );
+
+        let type_a = col(&df_none_first.as_sexp(), "meta_variant").type_of();
+        let type_b = col(&df_some_first.as_sexp(), "meta_variant").type_of();
+        assert_eq!(
+            type_a, type_b,
+            "meta_variant's column type must not depend on row order"
+        );
+        assert_eq!(
+            type_a,
+            miniextendr_api::SEXPTYPE::STRSXP,
+            "both orderings must resolve to character"
+        );
+    });
+}
+
+/// Two `Compound` candidates of genuinely *different* shapes (a
+/// `#[serde(skip_serializing_if)]` sub-field entirely absent from one row's
+/// probe, present in another's) must union their keys rather than drop the
+/// side not seen first.
+#[test]
+fn compound_union_of_keys_when_shapes_differ() {
+    #[derive(Debug, Serialize)]
+    struct Meta {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        extra: Option<String>,
+        size: f64,
+    }
+    #[derive(Debug, Serialize)]
+    struct Row {
+        id: i32,
+        meta: Meta,
+    }
+
+    r_test_utils::with_r_thread(|| {
+        let rows = vec![
+            Row {
+                id: 1,
+                meta: Meta {
+                    extra: None, // `extra` is omitted entirely from row 1's probe
+                    size: 1.0,
+                },
+            },
+            Row {
+                id: 2,
+                meta: Meta {
+                    extra: Some("x".into()),
+                    size: 2.0,
+                },
+            },
+        ];
+        let df = vec_to_dataframe(&rows).unwrap();
+        let sexp = df.as_sexp();
+        let names = col_names(&sexp);
+        assert!(
+            names.contains(&"meta_extra".to_string()),
+            "row 2's extra field must not be dropped just because row 1's Compound omitted it: {names:?}"
+        );
+        assert!(names.contains(&"meta_size".to_string()), "{names:?}");
+        let extra = col(&sexp, "meta_extra");
+        assert_eq!(extra.string_elt_str(0), None, "row 1 omitted extra -> NA");
+        assert_eq!(extra.string_elt_str(1), Some("x"));
+        let size = col(&sexp, "meta_size");
+        assert_eq!(size.real_elt(0), 1.0);
+        assert_eq!(size.real_elt(1), 2.0);
+    });
+}
+
+/// #1320 interaction (issue's point 3): with the writer bug present, a
+/// colliding `variant` sub-field would flip failure mode with row order —
+/// `Some`-first silently drops the struct (the #1320 default), `None`-first
+/// errored loudly with a type mismatch. Post-#1370, `None`-first no longer
+/// errors: it hits the *same* documented #1320 lossy default as `Some`-first
+/// (the opt-out in `option_nested_struct_with_struct_fields_roundtrips`
+/// still fixes it losslessly, order notwithstanding).
+#[test]
+fn compound_fix_resolves_1320_interaction_none_first_no_longer_errors() {
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    struct Meta {
+        variant: Option<String>,
+        size: f64,
+    }
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    struct Row {
+        id: i32,
+        meta: Option<Meta>,
+    }
+
+    r_test_utils::with_r_thread(|| {
+        // None-first (reverse of `option_nested_struct_tag_collision_default_is_lossy`).
+        let rows = vec![
+            Row {
+                id: 2,
+                meta: Some(Meta {
+                    variant: None,
+                    size: 4.0,
+                }),
+            },
+            Row {
+                id: 1,
+                meta: Some(Meta {
+                    variant: Some("a".into()),
+                    size: 1.0,
+                }),
+            },
+        ];
+        let df = vec_to_dataframe(&rows).unwrap();
+        // Pre-#1370 this failed writing: `meta_variant` would only be
+        // discovered as Generic (list), and the type-mismatch reader error
+        // from the issue (`column "meta_variant": type mismatch: expected
+        // character, got list`) never even applied because the *writer*
+        // itself never produced a working frame here in the first place —
+        // confirm the default (non-opt-out) reader no longer errors at all.
+        let round: Vec<Row> = dataframe_to_vec(df.as_sexp()).unwrap();
+        // Row 0 (`variant: None`) collides with the tag-column heuristic and
+        // is read back as `meta: None` — the same #1320 lossy default as the
+        // `Some`-first ordering, just applied to whichever row has the NA.
+        assert_eq!(round[0], Row { id: 2, meta: None });
+        // Row 1 (`variant: Some`) is unaffected.
+        assert_eq!(round[1], rows[1]);
+
+        // The per-field opt-out still makes both rows round-trip losslessly,
+        // regardless of order.
+        let round_optout: Vec<Row> =
+            dataframe_to_vec_with_struct_fields(df.as_sexp(), &["meta"]).unwrap();
+        assert_eq!(round_optout, rows);
+    });
+}
+
+/// Out of scope (stays as documented): a nested `Option<Struct>` that is
+/// `None` in *every* row never sees a `Compound` probe at all — the key
+/// resolves to `Scalar(Generic)` and the assembly-time all-None downgrade
+/// still converts it to a single logical-NA column, not a per-sub-field
+/// atomic column. Recursive union cannot help here: there's nothing to union.
+#[test]
+fn compound_all_none_option_struct_downgrade_still_applies() {
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    struct Meta {
+        variant: Option<String>,
+        size: f64,
+    }
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    struct Row {
+        id: i32,
+        meta: Option<Meta>,
+    }
+
+    r_test_utils::with_r_thread(|| {
+        let rows = vec![Row { id: 1, meta: None }, Row { id: 2, meta: None }];
+        let df = vec_to_dataframe(&rows).unwrap();
+        let sexp = df.as_sexp();
+        let names = col_names(&sexp);
+        // No Compound ever discovered: `meta` stays a single (unflattened)
+        // column, not `meta_variant`/`meta_size`.
+        assert_eq!(names, vec!["id".to_string(), "meta".to_string()]);
+        let meta_col = col(&sexp, "meta");
+        assert_eq!(
+            meta_col.type_of(),
+            miniextendr_api::SEXPTYPE::LGLSXP,
+            "all-None Option<Struct> must downgrade to a logical-NA column, per docs"
+        );
     });
 }
 

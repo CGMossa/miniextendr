@@ -1,8 +1,12 @@
-//! Tests for `vec_to_dataframe` all-`None` column downgrade.
+//! Tests for `vec_to_dataframe` all-`None` column downgrade, schema-upgrade
+//! ordering, and recursive `Compound` union.
 //!
 //! When every row has `None` for an `Option<T>` field, the column lands as a
 //! logical NA vector (LGLSXP) rather than `list(NULL, NULL, …)`.  R coerces
-//! logical NA to the surrounding type on first use.
+//! logical NA to the surrounding type on first use. The final region covers
+//! #1370: a nested struct sub-field probed `None` on the first row (or a
+//! `Compound` shape missing a key present in another row's shape) must still
+//! resolve via the union across all rows, not just the first one seen.
 
 use crate::serde::Serialize;
 use miniextendr_api::dataframe::BuiltDataFrame;
@@ -413,10 +417,13 @@ pub fn test_columnar_schema_upgrade_multi_none_first() -> BuiltDataFrame {
 /// This fixture tests that the per-key candidate accumulation works correctly for
 /// an enum with fields that differ between variants.
 ///
-/// TODO (union recursion): when a single *key* maps to two different Compound
-/// shapes (e.g. two variant rows of an internally-tagged enum where the nested
-/// struct differs per variant), the first Compound wins silently.  Recursive
-/// Compound union is tracked as a separate follow-up issue.
+/// (Formerly a "TODO (union recursion)" placeholder here: when a single *key* maps
+/// to two different `Compound` shapes for the same row set, the first `Compound`
+/// silently won. Recursive `Compound` union is now implemented — see
+/// [#1370](https://github.com/A2-ai/miniextendr/issues/1370) — and the
+/// same-key case is covered directly by
+/// [`test_columnar_nested_subfield_none_first`] and
+/// [`test_columnar_nested_compound_union_of_keys`] below.)
 ///
 #[miniextendr(noexport)]
 pub fn test_columnar_compound_different_shapes() -> BuiltDataFrame {
@@ -425,6 +432,120 @@ pub fn test_columnar_compound_different_shapes() -> BuiltDataFrame {
         EventDifferentNested::B {
             value: 2.0,
             extra: 3.0,
+        },
+    ];
+    vec_to_dataframe(&rows).expect("from_rows")
+}
+
+// endregion
+
+// region: Recursive Compound union — same key, different shapes (#1370)
+
+/// Nested struct whose `variant` sub-field is `Option<String>` — used to
+/// reproduce #1370's exact repro shape (a sub-field literally named `variant`,
+/// as in the issue, probed `None` on the first row).
+#[derive(Serialize)]
+#[serde(crate = "crate::serde")]
+struct MetaWithOptVariant {
+    variant: Option<String>,
+    size: f64,
+}
+
+#[derive(Serialize)]
+#[serde(crate = "crate::serde")]
+struct WithNestedOptVariant {
+    id: i32,
+    meta: MetaWithOptVariant,
+}
+
+/// Nested struct with a `#[serde(skip_serializing_if)]` sub-field: some rows'
+/// probe of `meta` omits `extra` entirely (a genuinely different `Compound`
+/// shape — one fewer key — not just a differently-typed same key).
+#[derive(Serialize)]
+#[serde(crate = "crate::serde")]
+struct MetaMaybeExtra {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    extra: Option<f64>,
+    size: f64,
+}
+
+#[derive(Serialize)]
+#[serde(crate = "crate::serde")]
+struct WithNestedMaybeExtra {
+    id: i32,
+    meta: MetaMaybeExtra,
+}
+
+/// #1370 repro: nested sub-field `meta.variant` is `None` on the *first* row,
+/// typed (`Some`) on the second. Pre-fix this locked `meta_variant` to a
+/// Generic (list) column; post-fix it resolves to `character` with `NA` at
+/// row 1, matching what a `Some`-first ordering already produced.
+#[miniextendr(noexport)]
+pub fn test_columnar_nested_subfield_none_first() -> BuiltDataFrame {
+    let rows = vec![
+        WithNestedOptVariant {
+            id: 1,
+            meta: MetaWithOptVariant {
+                variant: None,
+                size: 4.0,
+            },
+        },
+        WithNestedOptVariant {
+            id: 2,
+            meta: MetaWithOptVariant {
+                variant: Some("x".into()),
+                size: 5.0,
+            },
+        },
+    ];
+    vec_to_dataframe(&rows).expect("from_rows")
+}
+
+/// Same rows as [`test_columnar_nested_subfield_none_first`], reversed
+/// (`Some`-first). The emitted schema must be identical regardless of row
+/// order — this is the order-independence half of the #1370 regression.
+#[miniextendr(noexport)]
+pub fn test_columnar_nested_subfield_some_first() -> BuiltDataFrame {
+    let rows = vec![
+        WithNestedOptVariant {
+            id: 2,
+            meta: MetaWithOptVariant {
+                variant: Some("x".into()),
+                size: 5.0,
+            },
+        },
+        WithNestedOptVariant {
+            id: 1,
+            meta: MetaWithOptVariant {
+                variant: None,
+                size: 4.0,
+            },
+        },
+    ];
+    vec_to_dataframe(&rows).expect("from_rows")
+}
+
+/// #1370 "union of keys" case: the *same* key (`meta`) maps to two genuinely
+/// different `Compound` shapes across rows — row 1's probe omits `extra`
+/// entirely (`skip_serializing_if` fires), row 2's includes it. Pre-fix, row
+/// 2's `extra` sub-field was silently dropped (first-Compound-wins); post-fix
+/// both `meta_extra` and `meta_size` are discovered.
+#[miniextendr(noexport)]
+pub fn test_columnar_nested_compound_union_of_keys() -> BuiltDataFrame {
+    let rows = vec![
+        WithNestedMaybeExtra {
+            id: 1,
+            meta: MetaMaybeExtra {
+                extra: None,
+                size: 1.0,
+            },
+        },
+        WithNestedMaybeExtra {
+            id: 2,
+            meta: MetaMaybeExtra {
+                extra: Some(3.0),
+                size: 2.0,
+            },
         },
     ];
     vec_to_dataframe(&rows).expect("from_rows")
