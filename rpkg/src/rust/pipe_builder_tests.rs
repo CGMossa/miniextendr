@@ -472,7 +472,11 @@ impl R6CrossPlan {
     /// the write-time resolver wraps it the same way `build()` above does.
     /// @param width Board width.
     /// @param height Board height.
-    pub fn build_handle(&self, width: i32, height: i32) -> miniextendr_api::ExternalPtr<R6CrossBoard> {
+    pub fn build_handle(
+        &self,
+        width: i32,
+        height: i32,
+    ) -> miniextendr_api::ExternalPtr<R6CrossBoard> {
         miniextendr_api::ExternalPtr::new(R6CrossBoard {
             width,
             height,
