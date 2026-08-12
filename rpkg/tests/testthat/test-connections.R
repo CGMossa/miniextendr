@@ -71,6 +71,17 @@ test_that("memory_connection write multiple lines", {
   expect_equal(lines, c("foo", "bar", "baz"))
 })
 
+test_that("memory_connection preserves long formatted writes", {
+  con <- memory_connection()
+  on.exit(close(con))
+  expected <- strrep("x", 12000L)
+  writeLines(expected, con)
+  seek(con, 0)
+  actual <- readLines(con, warn = FALSE)
+  expect_identical(actual, expected)
+  expect_equal(nchar(actual, type = "bytes"), 12000L)
+})
+
 # =============================================================================
 # Uppercase transform connection
 # =============================================================================

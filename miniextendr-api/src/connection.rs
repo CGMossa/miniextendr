@@ -585,26 +585,6 @@ pub trait RConnectionImpl: Sized + 'static {
     fn flush(&mut self) -> i32 {
         0
     }
-
-    /// Formatted print (`vfprintf`-style).
-    ///
-    /// R calls into this through `Rconn_printf` from `writeLines`, `cat`,
-    /// sink dispatch, and similar. The default implementation returns `-1`
-    /// to signal "delegate to the standard format-and-write path," in
-    /// which case the framework formats the args into a fixed buffer via
-    /// the host `vsnprintf` and forwards the bytes to [`write`](Self::write).
-    ///
-    /// Override this only if you need a custom output path that bypasses
-    /// [`write`](Self::write) (e.g., to stream into a pre-encoded sink).
-    /// Return the number of bytes written on success, or `-1` on error.
-    ///
-    /// # Safety
-    ///
-    /// `fmt` is a null-terminated C string from R. `ap` is the `va_list`
-    /// of R's printf-style call; treat it as opaque and pass to libc.
-    fn vfprintf(&mut self, _fmt: *const c_char, _ap: *mut c_void) -> i32 {
-        -1
-    }
 }
 // endregion
 
@@ -753,64 +733,6 @@ simple_trampoline!(fgetc_trampoline, c_int, fallback = -1 => fgetc());
 simple_trampoline!(seek_trampoline, f64, fallback = -1.0, where_: f64, origin: c_int, rw: c_int => seek(where_, origin, rw));
 simple_trampoline!(truncate_trampoline, (), fallback = () => truncate());
 simple_trampoline!(flush_trampoline, c_int, fallback = -1 => flush());
-
-// libc::vsnprintf — the host C library's printf-into-buffer entry point.
-// Used by the default `vfprintf_trampoline` to format R's printf-style
-// callsites (e.g. `Rconn_printf` in `do_writelines`) into a byte buffer,
-// which is then forwarded to the user's `write` callback.
-unsafe extern "C" {
-    fn vsnprintf(s: *mut c_char, n: usize, format: *const c_char, ap: *mut c_void) -> c_int;
-}
-
-/// vfprintf callback trampoline.
-///
-/// R calls this through `Rconn_printf` from `do_writelines`, `cat`, sink
-/// dispatch, and similar. We must NOT return a negative value — R treats
-/// that as a write error and raises `"Error writing to connection"`.
-///
-/// We format the printf-style args into a stack buffer via the host
-/// `vsnprintf`, then forward the resulting bytes to the user's `write`
-/// callback. This mirrors R's own `dummy_vfprintf` (used by most stock
-/// connection types) and means users almost never need to override
-/// [`RConnectionImpl::vfprintf`] manually — implementing `write` is enough.
-///
-/// If the formatted output exceeds the buffer, we still write the
-/// truncated portion and return the truncated length. Long writes through
-/// `Rconn_printf` are rare on custom connections; users who need
-/// unbounded text output can override [`RConnectionImpl::vfprintf`].
-unsafe extern "C-unwind" fn vfprintf_trampoline<T: RConnectionImpl>(
-    conn: *mut Rconn,
-    fmt: *const c_char,
-    ap: *mut c_void,
-) -> c_int {
-    catch_connection_panic(-1, || {
-        // Give user impls first crack — if they return >= 0 we honor that.
-        // The default impl returns -1, which we interpret as "fall back to
-        // the standard format-and-write path below."
-        let state = unsafe { get_state::<T>(conn) };
-        let user_result = state.vfprintf(fmt, ap);
-        if user_result >= 0 {
-            return user_result;
-        }
-
-        // Standard fallback: vsnprintf into a stack buffer, then write.
-        const BUFSIZE: usize = 10_000;
-        let mut buf = [0u8; BUFSIZE];
-        let res = unsafe { vsnprintf(buf.as_mut_ptr().cast::<c_char>(), BUFSIZE, fmt, ap) };
-        if res < 0 {
-            return -1;
-        }
-        let written_len = (res as usize).min(BUFSIZE.saturating_sub(1));
-        if written_len == 0 {
-            return res;
-        }
-        let bytes_written = state.write(&buf[..written_len]);
-        if bytes_written < written_len {
-            return -1;
-        }
-        res
-    })
-}
 // endregion
 
 // region: RCustomConnection builder
@@ -1049,7 +971,11 @@ impl RCustomConnection {
             (*conn).seek = Some(seek_trampoline::<T>);
             (*conn).truncate = Some(truncate_trampoline::<T>);
             (*conn).fflush = Some(flush_trampoline::<T>);
-            (*conn).vfprintf = Some(vfprintf_trampoline::<T>);
+
+            // Keep the `dummy_vfprintf` callback installed by
+            // `R_new_custom_connection`. R owns the platform-specific
+            // `va_list`, grows its formatting buffer as needed, and forwards
+            // the complete output through our `write` trampoline.
 
             // Set text/binary mode (always overrides R's default of TRUE).
             (*conn).text = if text {
