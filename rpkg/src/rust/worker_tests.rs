@@ -303,7 +303,7 @@ pub fn test_worker_return_f64() -> f64 {
 }
 // endregion
 
-// region: Test 7: ExternalPtr creation (must be main thread - ExternalPtr is !Send)
+// region: Test 7: Main-thread ExternalPtr creation from worker-computed values
 
 /// Test creating an ExternalPtr on the main thread with a value computed on the worker.
 #[miniextendr(noexport)]

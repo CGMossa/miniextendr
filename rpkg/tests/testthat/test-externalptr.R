@@ -92,3 +92,29 @@ test_that("multiple Counter instances are independent", {
   expect_equal(miniextendr:::unsafe_C_extptr_counter_get(counter1), 2L)
   expect_equal(miniextendr:::unsafe_C_extptr_counter_get(counter2), 100L)
 })
+
+test_that("ExternalPtr pointee is readable after transfer to the worker", {
+  counter <- extptr_counter_new(37L)
+
+  expect_equal(miniextendr:::extptr_worker_value(counter), 37L)
+  expect_equal(miniextendr:::unsafe_C_extptr_counter_get(counter), 37L)
+})
+
+test_that("ExternalPtr worker round-trip preserves R identity", {
+  counter <- extptr_counter_new(41L)
+
+  returned <- miniextendr:::extptr_worker_identity(counter)
+
+  expect_identical(returned, counter)
+  expect_equal(miniextendr:::unsafe_C_extptr_counter_get(returned), 41L)
+})
+
+test_that("ExternalPtr into_inner on worker clears the R handle", {
+  counter <- extptr_counter_new(73L)
+
+  expect_equal(miniextendr:::extptr_worker_into_inner(counter), 73L)
+  expect_error(
+    miniextendr:::extptr_worker_value(counter),
+    "external pointer is null"
+  )
+})
