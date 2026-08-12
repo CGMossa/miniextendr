@@ -77,6 +77,21 @@ def item_kind(item: dict) -> str:
     return next(iter(inner), "")
 
 
+def item_sort_key(item: dict, paths: dict) -> tuple[str, ...]:
+    """Stable semantic ordering independent of rustdoc JSON object order."""
+    inner = item.get("inner", {})
+    use = inner.get("use", {})
+    return (
+        qualified_name(item, paths),
+        item_kind(item),
+        use.get("source", ""),
+        use.get("name") or "",
+        "1" if use.get("is_glob") else "0",
+        item.get("name") or "",
+        item.get("docs") or "",
+    )
+
+
 def validate_item_kinds(index: dict, crate_id_filter: int | None) -> None:
     """Reject rustdoc schema additions that the renderer has not audited."""
     seen = {
@@ -198,7 +213,7 @@ def generate_megadoc(
         lines.append("")
         lines.append(f"## {title}")
         lines.append("")
-        for item in sorted(items, key=lambda x: qualified_name(x, paths)):
+        for item in sorted(items, key=lambda item: item_sort_key(item, paths)):
             lines.extend(document(item, index, paths))
 
     emit_section("Modules", kinds["modules"], document_module)

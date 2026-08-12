@@ -8,34 +8,34 @@ Traits with impls: 28
 
 | Trait | # impls | # non-blanket non-synthetic |
 |---|---|---|
-| `UnsafeUnpin` | 9 | 0 |
-| `Sync` | 9 | 0 |
-| `TryInto` | 9 | 0 |
 | `Any` | 9 | 0 |
-| `Same` | 9 | 0 |
-| `TryFrom` | 9 | 0 |
-| `Send` | 9 | 0 |
-| `From` | 9 | 0 |
-| `Freeze` | 9 | 0 |
-| `Into` | 9 | 0 |
-| `BorrowMut` | 9 | 0 |
 | `Borrow` | 9 | 0 |
+| `BorrowMut` | 9 | 0 |
+| `Freeze` | 9 | 0 |
+| `From` | 9 | 0 |
+| `Into` | 9 | 0 |
 | `RefUnwindSafe` | 9 | 0 |
-| `UnwindSafe` | 9 | 0 |
+| `Same` | 9 | 0 |
+| `Send` | 9 | 0 |
+| `Sync` | 9 | 0 |
+| `TryFrom` | 9 | 0 |
+| `TryInto` | 9 | 0 |
 | `Unpin` | 9 | 0 |
-| `ToOwned` | 5 | 0 |
-| `CloneToUninit` | 5 | 0 |
+| `UnsafeUnpin` | 9 | 0 |
+| `UnwindSafe` | 9 | 0 |
 | `Clone` | 5 | 5 |
+| `CloneToUninit` | 5 | 0 |
+| `ToOwned` | 5 | 0 |
 | `Debug` | 4 | 4 |
 | `Copy` | 2 | 2 |
-| `PartialEq` | 1 | 1 |
-| `StructuralPartialEq` | 1 | 1 |
 | `Args` | 1 | 1 |
-| `FromArgMatches` | 1 | 1 |
 | `CommandFactory` | 1 | 1 |
-| `Serialize` | 1 | 1 |
-| `Parser` | 1 | 1 |
 | `Drop` | 1 | 1 |
+| `FromArgMatches` | 1 | 1 |
+| `Parser` | 1 | 1 |
+| `PartialEq` | 1 | 1 |
+| `Serialize` | 1 | 1 |
+| `StructuralPartialEq` | 1 | 1 |
 
 ## `Clone` — 5 impls
 
@@ -63,29 +63,11 @@ Traits with impls: 28
 | `Mode` | `` | concrete | 0 | src/main.rs:261 |
 | `Verbosity` | `` | concrete | 0 | src/main.rs:55 |
 
-## `PartialEq` — 1 impls
-
-| for-type | generics | kind | #items | span |
-|---|---|---|---|---|
-| `Mode` | `` | concrete | 1 | src/main.rs:261 |
-
-## `StructuralPartialEq` — 1 impls
-
-| for-type | generics | kind | #items | span |
-|---|---|---|---|---|
-| `Mode` | `` | concrete | 0 | src/main.rs:261 |
-
 ## `Args` — 1 impls
 
 | for-type | generics | kind | #items | span |
 |---|---|---|---|---|
 | `Cli` | `` | concrete | 3 | src/main.rs:70 |
-
-## `FromArgMatches` — 1 impls
-
-| for-type | generics | kind | #items | span |
-|---|---|---|---|---|
-| `Cli` | `` | concrete | 4 | src/main.rs:70 |
 
 ## `CommandFactory` — 1 impls
 
@@ -93,11 +75,17 @@ Traits with impls: 28
 |---|---|---|---|---|
 | `Cli` | `` | concrete | 2 | src/main.rs:70 |
 
-## `Serialize` — 1 impls
+## `Drop` — 1 impls
 
 | for-type | generics | kind | #items | span |
 |---|---|---|---|---|
-| `JsonOutput` | `` | concrete | 1 | src/main.rs:384 |
+| `ManifestGuard` | `` | concrete | 1 | src/manifest_guard.rs:58 |
+
+## `FromArgMatches` — 1 impls
+
+| for-type | generics | kind | #items | span |
+|---|---|---|---|---|
+| `Cli` | `` | concrete | 4 | src/main.rs:70 |
 
 ## `Parser` — 1 impls
 
@@ -105,8 +93,20 @@ Traits with impls: 28
 |---|---|---|---|---|
 | `Cli` | `` | concrete | 0 | src/main.rs:70 |
 
-## `Drop` — 1 impls
+## `PartialEq` — 1 impls
 
 | for-type | generics | kind | #items | span |
 |---|---|---|---|---|
-| `ManifestGuard` | `` | concrete | 1 | src/manifest_guard.rs:58 |
+| `Mode` | `` | concrete | 1 | src/main.rs:261 |
+
+## `Serialize` — 1 impls
+
+| for-type | generics | kind | #items | span |
+|---|---|---|---|---|
+| `JsonOutput` | `` | concrete | 1 | src/main.rs:384 |
+
+## `StructuralPartialEq` — 1 impls
+
+| for-type | generics | kind | #items | span |
+|---|---|---|---|---|
+| `Mode` | `` | concrete | 0 | src/main.rs:261 |

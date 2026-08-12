@@ -8,37 +8,37 @@ Traits with impls: 31
 
 | Trait | # impls | # non-blanket non-synthetic |
 |---|---|---|
-| `UnwindSafe` | 21 | 0 |
-| `Sync` | 21 | 0 |
-| `UnsafeUnpin` | 21 | 0 |
 | `Any` | 21 | 0 |
+| `Borrow` | 21 | 0 |
 | `BorrowMut` | 21 | 0 |
+| `Freeze` | 21 | 0 |
+| `From` | 21 | 0 |
+| `Into` | 21 | 0 |
 | `RefUnwindSafe` | 21 | 0 |
 | `Send` | 21 | 0 |
-| `Freeze` | 21 | 0 |
-| `Borrow` | 21 | 0 |
-| `Into` | 21 | 0 |
+| `Sync` | 21 | 0 |
+| `TryFrom` | 21 | 0 |
 | `TryInto` | 21 | 0 |
 | `Unpin` | 21 | 0 |
-| `TryFrom` | 21 | 0 |
-| `From` | 21 | 0 |
+| `UnsafeUnpin` | 21 | 0 |
+| `UnwindSafe` | 21 | 0 |
 | `FromArgMatches` | 14 | 14 |
 | `Subcommand` | 12 | 12 |
-| `ToOwned` | 6 | 0 |
-| `CloneToUninit` | 6 | 0 |
 | `Clone` | 6 | 6 |
+| `CloneToUninit` | 6 | 0 |
+| `ToOwned` | 6 | 0 |
 | `Debug` | 5 | 5 |
 | `Copy` | 3 | 3 |
-| `Serialize` | 2 | 2 |
-| `Equivalent` | 2 | 0 |
-| `Display` | 2 | 2 |
-| `ToString` | 2 | 0 |
 | `Args` | 2 | 2 |
+| `Display` | 2 | 2 |
+| `Equivalent` | 2 | 0 |
+| `Serialize` | 2 | 2 |
+| `ToString` | 2 | 0 |
 | `CommandFactory` | 1 | 1 |
-| `StructuralPartialEq` | 1 | 1 |
 | `Eq` | 1 | 1 |
-| `PartialEq` | 1 | 1 |
 | `Parser` | 1 | 1 |
+| `PartialEq` | 1 | 1 |
+| `StructuralPartialEq` | 1 | 1 |
 
 ## `FromArgMatches` — 14 impls
 
@@ -105,12 +105,12 @@ Traits with impls: 31
 | `Dest` | `` | concrete | 0 | miniextendr-cli/src/scaffold.rs:325 |
 | `PlanEntry` | `` | concrete | 0 | miniextendr-cli/src/scaffold.rs:336 |
 
-## `Serialize` — 2 impls
+## `Args` — 2 impls
 
 | for-type | generics | kind | #items | span |
 |---|---|---|---|---|
-| `Config` | `` | concrete | 1 | miniextendr-cli/src/commands/config.rs:11 |
-| `HasResult` | `` | concrete | 1 | miniextendr-cli/src/commands/status.rs:9 |
+| `CargoBuildOpts` | `` | concrete | 3 | miniextendr-cli/src/cli.rs:241 |
+| `Cli` | `` | concrete | 3 | miniextendr-cli/src/cli.rs:4 |
 
 ## `Display` — 2 impls
 
@@ -119,12 +119,12 @@ Traits with impls: 31
 | `Config` | `` | concrete | 1 | miniextendr-cli/src/commands/config.rs:21 |
 | `HasResult` | `` | concrete | 1 | miniextendr-cli/src/commands/status.rs:18 |
 
-## `Args` — 2 impls
+## `Serialize` — 2 impls
 
 | for-type | generics | kind | #items | span |
 |---|---|---|---|---|
-| `CargoBuildOpts` | `` | concrete | 3 | miniextendr-cli/src/cli.rs:241 |
-| `Cli` | `` | concrete | 3 | miniextendr-cli/src/cli.rs:4 |
+| `Config` | `` | concrete | 1 | miniextendr-cli/src/commands/config.rs:11 |
+| `HasResult` | `` | concrete | 1 | miniextendr-cli/src/commands/status.rs:9 |
 
 ## `CommandFactory` — 1 impls
 
@@ -132,17 +132,17 @@ Traits with impls: 31
 |---|---|---|---|---|
 | `Cli` | `` | concrete | 2 | miniextendr-cli/src/cli.rs:4 |
 
-## `StructuralPartialEq` — 1 impls
-
-| for-type | generics | kind | #items | span |
-|---|---|---|---|---|
-| `Render` | `` | concrete | 0 | miniextendr-cli/src/scaffold.rs:221 |
-
 ## `Eq` — 1 impls
 
 | for-type | generics | kind | #items | span |
 |---|---|---|---|---|
 | `Render` | `` | concrete | 0 | miniextendr-cli/src/scaffold.rs:221 |
+
+## `Parser` — 1 impls
+
+| for-type | generics | kind | #items | span |
+|---|---|---|---|---|
+| `Cli` | `` | concrete | 0 | miniextendr-cli/src/cli.rs:4 |
 
 ## `PartialEq` — 1 impls
 
@@ -150,8 +150,8 @@ Traits with impls: 31
 |---|---|---|---|---|
 | `Render` | `` | concrete | 1 | miniextendr-cli/src/scaffold.rs:221 |
 
-## `Parser` — 1 impls
+## `StructuralPartialEq` — 1 impls
 
 | for-type | generics | kind | #items | span |
 |---|---|---|---|---|
-| `Cli` | `` | concrete | 0 | miniextendr-cli/src/cli.rs:4 |
+| `Render` | `` | concrete | 0 | miniextendr-cli/src/scaffold.rs:221 |
