@@ -303,26 +303,34 @@ Source: `target/doc/miniextendr_api.json`
     - `i32` (1 items) — miniextendr-api/src/into_r_as.rs:499
     - `i32` (1 items) — miniextendr-api/src/into_r_as.rs:527
     - `i32` (1 items) — miniextendr-api/src/into_r_as.rs:586
-- shape `i64`: **4 hand-rolled**, 0 macro-generated
-    - `i64` (1 items) — miniextendr-api/src/into_r_as.rs:370
-    - `i64` (1 items) — miniextendr-api/src/into_r_as.rs:472
-    - `i64` (1 items) — miniextendr-api/src/into_r_as.rs:500
-    - `i64` (1 items) — miniextendr-api/src/into_r_as.rs:593
 - shape `f32`: **4 hand-rolled**, 0 macro-generated
     - `f32` (1 items) — miniextendr-api/src/into_r_as.rs:377
     - `f32` (1 items) — miniextendr-api/src/into_r_as.rs:406
     - `f32` (1 items) — miniextendr-api/src/into_r_as.rs:506
     - `f32` (1 items) — miniextendr-api/src/into_r_as.rs:579
-- shape `f64`: **4 hand-rolled**, 0 macro-generated
-    - `f64` (1 items) — miniextendr-api/src/into_r_as.rs:378
-    - `f64` (1 items) — miniextendr-api/src/into_r_as.rs:392
-    - `f64` (1 items) — miniextendr-api/src/into_r_as.rs:507
-    - `f64` (1 items) — miniextendr-api/src/into_r_as.rs:561
 - shape `bool`: **4 hand-rolled**, 0 macro-generated
     - `bool` (1 items) — miniextendr-api/src/into_r_as.rs:381
     - `bool` (1 items) — miniextendr-api/src/into_r_as.rs:478
     - `bool` (1 items) — miniextendr-api/src/into_r_as.rs:512
     - `bool` (1 items) — miniextendr-api/src/into_r_as.rs:600
+- shape `i64`: **4 hand-rolled**, 0 macro-generated
+    - `i64` (1 items) — miniextendr-api/src/into_r_as.rs:370
+    - `i64` (1 items) — miniextendr-api/src/into_r_as.rs:472
+    - `i64` (1 items) — miniextendr-api/src/into_r_as.rs:500
+    - `i64` (1 items) — miniextendr-api/src/into_r_as.rs:593
+- shape `f64`: **4 hand-rolled**, 0 macro-generated
+    - `f64` (1 items) — miniextendr-api/src/into_r_as.rs:378
+    - `f64` (1 items) — miniextendr-api/src/into_r_as.rs:392
+    - `f64` (1 items) — miniextendr-api/src/into_r_as.rs:507
+    - `f64` (1 items) — miniextendr-api/src/into_r_as.rs:561
+- shape `u8`: **3 hand-rolled**, 0 macro-generated
+    - `u8` (1 items) — miniextendr-api/src/into_r_as.rs:366
+    - `u8` (1 items) — miniextendr-api/src/into_r_as.rs:450
+    - `u8` (1 items) — miniextendr-api/src/into_r_as.rs:489
+- shape `isize`: **3 hand-rolled**, 0 macro-generated
+    - `isize` (1 items) — miniextendr-api/src/into_r_as.rs:371
+    - `isize` (1 items) — miniextendr-api/src/into_r_as.rs:474
+    - `isize` (1 items) — miniextendr-api/src/into_r_as.rs:501
 - shape `usize`: **3 hand-rolled**, 0 macro-generated
     - `usize` (1 items) — miniextendr-api/src/into_r_as.rs:374
     - `usize` (1 items) — miniextendr-api/src/into_r_as.rs:475
@@ -347,14 +355,6 @@ Source: `target/doc/miniextendr_api.json`
     - `u64` (1 items) — miniextendr-api/src/into_r_as.rs:373
     - `u64` (1 items) — miniextendr-api/src/into_r_as.rs:473
     - `u64` (1 items) — miniextendr-api/src/into_r_as.rs:504
-- shape `isize`: **3 hand-rolled**, 0 macro-generated
-    - `isize` (1 items) — miniextendr-api/src/into_r_as.rs:371
-    - `isize` (1 items) — miniextendr-api/src/into_r_as.rs:474
-    - `isize` (1 items) — miniextendr-api/src/into_r_as.rs:501
-- shape `u8`: **3 hand-rolled**, 0 macro-generated
-    - `u8` (1 items) — miniextendr-api/src/into_r_as.rs:366
-    - `u8` (1 items) — miniextendr-api/src/into_r_as.rs:450
-    - `u8` (1 items) — miniextendr-api/src/into_r_as.rs:489
 
 ## Coerce
 
@@ -423,6 +423,9 @@ Source: `target/doc/miniextendr_api.json`
     - `Decimal` (2 items) — miniextendr-api/src/optionals/rust_decimal_impl.rs:104
     - `Decimal` (2 items) — miniextendr-api/src/optionals/rust_decimal_impl.rs:119
     - `Decimal` (2 items) — miniextendr-api/src/optionals/rust_decimal_impl.rs:91
+- shape `usize`: **2 hand-rolled**, 5 macro-generated  <== macro already exists for this shape
+    - `usize` (2 items) — miniextendr-api/src/coerce.rs:378
+    - `usize` (2 items) — miniextendr-api/src/coerce.rs:890
 - shape `u64`: **2 hand-rolled**, 5 macro-generated  <== macro already exists for this shape
     - `u64` (2 items) — miniextendr-api/src/coerce.rs:377
     - `u64` (2 items) — miniextendr-api/src/coerce.rs:869
@@ -432,9 +435,8 @@ Source: `target/doc/miniextendr_api.json`
 - shape `i64`: **2 hand-rolled**, 5 macro-generated  <== macro already exists for this shape
     - `i64` (2 items) — miniextendr-api/src/coerce.rs:372
     - `i64` (2 items) — miniextendr-api/src/coerce.rs:852
-- shape `usize`: **2 hand-rolled**, 5 macro-generated  <== macro already exists for this shape
-    - `usize` (2 items) — miniextendr-api/src/coerce.rs:378
-    - `usize` (2 items) — miniextendr-api/src/coerce.rs:890
+- shape `u16`: **1 hand-rolled**, 3 macro-generated  <== macro already exists for this shape
+    - `u16` (2 items) — miniextendr-api/src/coerce.rs:375
 - shape `i8`: **1 hand-rolled**, 2 macro-generated  <== macro already exists for this shape
     - `i8` (2 items) — miniextendr-api/src/coerce.rs:369
 - shape `u8`: **1 hand-rolled**, 1 macro-generated  <== macro already exists for this shape
@@ -443,5 +445,3 @@ Source: `target/doc/miniextendr_api.json`
     - `i16` (2 items) — miniextendr-api/src/coerce.rs:370
 - shape `u32`: **1 hand-rolled**, 5 macro-generated  <== macro already exists for this shape
     - `u32` (2 items) — miniextendr-api/src/coerce.rs:376
-- shape `u16`: **1 hand-rolled**, 3 macro-generated  <== macro already exists for this shape
-    - `u16` (2 items) — miniextendr-api/src/coerce.rs:375
