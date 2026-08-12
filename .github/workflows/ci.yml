@@ -424,6 +424,16 @@ jobs:
           -- -D warnings 2>&1 | tee "$RUNNER_TEMP/clippy_all_s7.log"
         shell: bash
 
+      # rpkg/src/rust is a standalone workspace, so none of the root
+      # `--workspace` invocations above reach its fixture crate. The dedicated
+      # recipe supplies local framework patches without requiring configure or
+      # a real R installation, and restores the tarball-shaped lockfile.
+      - name: Clippy (rpkg, full features)
+        id: clippy_rpkg
+        continue-on-error: true
+        run: just clippy-rpkg --features full -- -D warnings 2>&1 | tee "$RUNNER_TEMP/clippy_rpkg.log"
+        shell: bash
+
       # cargo-revendor is a standalone workspace excluded from the root
       # workspace, so the `--workspace` clippy steps above never reach it
       # (#778). It has no R linkage, so it lints without configure/R setup.
@@ -453,6 +463,7 @@ jobs:
           clippy_default="${{ steps.clippy_default.outcome }}"
           clippy_all="${{ steps.clippy_all.outcome }}"
           clippy_all_s7="${{ steps.clippy_all_s7.outcome }}"
+          clippy_rpkg="${{ steps.clippy_rpkg.outcome }}"
           clippy_revendor="${{ steps.clippy_revendor.outcome }}"
           doc_revendor="${{ steps.doc_revendor.outcome }}"
 
@@ -461,6 +472,7 @@ jobs:
           echo "clippy_default:   $clippy_default"
           echo "clippy_all:       $clippy_all"
           echo "clippy_all_s7:    $clippy_all_s7"
+          echo "clippy_rpkg:      $clippy_rpkg"
           echo "clippy_revendor:  $clippy_revendor"
           echo "doc_revendor:     $doc_revendor"
           echo
@@ -484,6 +496,7 @@ jobs:
           dump_failed clippy_default   "$clippy_default"
           dump_failed clippy_all       "$clippy_all"
           dump_failed clippy_all_s7    "$clippy_all_s7"
+          dump_failed clippy_rpkg      "$clippy_rpkg"
           dump_failed clippy_revendor  "$clippy_revendor"
           dump_failed doc_revendor     "$doc_revendor"
 
