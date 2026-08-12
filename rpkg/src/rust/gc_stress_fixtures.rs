@@ -3203,9 +3203,9 @@ pub fn gc_stress_as_named_list_deferred() {
 /// its argument SEXPs in a `Vec<(Option<CString>, SEXP)>` while later
 /// arguments and the `build()` cons-chain allocate — exactly the
 /// SEXP-storage-across-allocations shape #430 requires a no-arg fixture for.
-/// Arguments are protected here per the builder's contract (caller keeps args
-/// reachable); the fixture verifies `build()`/`eval()`'s internal PROTECT
-/// discipline. Returns `paste("alpha", "beta", sep = "-")`, i.e. "alpha-beta".
+/// The arguments are intentionally fresh inline allocations: `RCall` owns
+/// their roots while later arguments and the call pairlist allocate. Returns
+/// `paste("alpha", "beta", sep = "-")`, i.e. "alpha-beta".
 ///
 /// No arguments — picked up by the fast `gctorture(TRUE)` no-arg sweep (#430).
 #[miniextendr(noexport)]
@@ -3213,15 +3213,10 @@ pub fn gc_stress_expression_call() -> Result<SEXP, String> {
     use miniextendr_api::expression::RCall;
 
     unsafe {
-        // Locals drop in reverse declaration order — LIFO, matching the
-        // PROTECT/UNPROTECT stack discipline OwnedProtect relies on.
-        let a = OwnedProtect::new(SEXP::scalar_string_from_str("alpha"));
-        let b = OwnedProtect::new(SEXP::scalar_string_from_str("beta"));
-        let sep = OwnedProtect::new(SEXP::scalar_string_from_str("-"));
         RCall::new("paste")
-            .arg(a.get())
-            .arg(b.get())
-            .named_arg("sep", sep.get())
+            .arg(SEXP::scalar_string_from_str("alpha"))
+            .arg(SEXP::scalar_string_from_str("beta"))
+            .named_arg("sep", SEXP::scalar_string_from_str("-"))
             .eval_base()
     }
 }

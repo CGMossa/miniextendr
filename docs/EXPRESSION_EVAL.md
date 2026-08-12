@@ -80,7 +80,11 @@ match RCall::new("stop").arg(msg_sexp).eval(env) {
 
 ### GC Protection
 
-`RCall` protects all intermediate SEXPs (the call object and argument list) during construction. The **returned SEXP is unprotected** -- caller must protect it if it will survive across R API calls.
+`RCall` roots the callable and every positional or named argument for the
+builder's lifetime, including freshly allocated inline arguments. It also
+protects the call object and intermediate pairlist during construction. The
+**returned SEXP is unprotected** -- caller must protect it if it will survive
+across R API calls.
 
 ## REnv
 
