@@ -581,6 +581,39 @@ satellite = { path = "satellite" }
 `satellite::Reading` implements the *same* `serde::Serialize` that
 miniextendr's bridge functions require — no shared-trait wiring needed.
 
+### Troubleshooting duplicate serde versions
+
+The bridge requires more than two traits with the same spelling: the
+satellite derive and `miniextendr-api` must use the **same resolved serde crate
+instance**. Cargo normally gives them one instance when both dependency
+requirements are compatible with `serde = "1"`. An incompatible major, or
+non-overlapping exact pins within the same major, can instead put two serde
+versions in the package graph. Traits from those versions have different crate
+identities and are not interchangeable.
+
+The resulting compiler error is usually an E0277 at a bridge call, for example
+that `satellite::Reading: serde::Serialize` is not satisfied even though
+`Reading` visibly derives `Serialize`. Inspect duplicate versions and their
+reverse dependency paths from the R-package crate:
+
+```bash
+cargo tree -d
+cargo tree -i serde@<version-reported-by-cargo-tree>
+```
+
+Fix the dependency graph rather than adding another derive or a conversion
+shim:
+
+- Prefer compatible requirements such as `serde = { version = "1", features =
+  ["derive"] }` in the satellite.
+- Remove unnecessary exact pins and update the lockfile so Cargo can select one
+  version satisfying both crates.
+- If the satellite must use an incompatible serde major, expose a feature that
+  selects serde 1 for this integration or define a package-owned data adapter
+  whose fields use serde-1-compatible types, then convert explicitly between
+  the adapter and the satellite value. A derive against one serde dependency
+  does not satisfy the trait from a different serde crate.
+
 ### The bridge (the only miniextendr-aware code)
 
 ```rust
