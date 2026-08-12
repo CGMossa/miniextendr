@@ -111,60 +111,78 @@ RUSTFLAGS='-Wmissing-docs' cargo check -p miniextendr-api --lib
 
 ## CI Workflow
 
-The GitHub Actions workflow (`.github/workflows/ci.yml`) runs:
+The authoritative merge/release classification is the
+[README gate table](../README.md#ci-and-release-gates). The normal
+`.github/workflows/ci.yml` path is summarized by one stable check named
+`CI Success`. It aggregates generated-file and version hygiene, sync checks,
+documentation links, Rust lint/tests, Linux R checks/tests/GC-stress shards,
+cross-package ABI tests, `minirextendr`, the CRAN-like tarball check, and the
+bootstrap-vendor regression test. Path filters may legitimately skip
+inapplicable jobs; the aggregate accepts `success` and `skipped`, not failures.
 
-| Job | Description |
-|-----|-------------|
-| `version-check` | Verifies Cargo.toml and DESCRIPTION versions match |
-| `fmt` | Checks Rust formatting |
-| `clippy` | Runs clippy lints |
-| `rust-test` | Tests on Linux/macOS/Windows, x86_64/arm64, stable/MSRV/nightly |
-| `rust-features` | Tests feature combinations |
-| `docs` | Builds documentation |
-| `r-check-*` | R CMD check on all platforms |
-| `r-tests` | R test suite |
-| `cran-check` | Strict CRAN-like check |
-| `msrv` | Minimum supported Rust version (1.85) |
+Do not infer platform or feature coverage from a green aggregate. macOS,
+feature-runtime, feature-combination, and standalone round-trip jobs are
+weekly or manually dispatched and intentionally sit outside `CI Success`.
+The webR suite is a separate path-triggered workflow. Windows R validation is
+currently disabled.
 
 ## Release Checklist
 
-1. **Update version**
+Use [Releasing miniextendr](./RELEASING.md) for versioning, artifact
+construction, and tagging. Before pushing the tag:
+
+1. **Push the release commit to a branch and record its SHA.** Every result
+   below must exercise that commit, not an older green run on `main`.
+
+2. **Require normal native CI to finish green.** Inspect `CI Success` and its
+   constituent jobs:
 
    ```bash
-   ./scripts/bump-version.sh X.Y.Z
+   gh run list --workflow ci.yml --branch <release-branch> --limit 5
    ```
 
-2. **Update changelog** (if applicable)
-
-3. **Regenerate configure**
-
-   ```bash
-   cd rpkg && autoreconf -vif
-   ```
-
-4. **Run full test suite**
+3. **Validate the release tarball.** `CRAN-like check` must be green, and run
+   the maintainer recipe locally so the checked input is the built tarball:
 
    ```bash
-   just check
-   just test
    just r-cmd-check
    ```
 
-5. **Commit and tag**
+4. **Run release-only native coverage.** A manual CI dispatch exercises both
+   macOS architectures, the feature-runtime matrix, and the standalone
+   round-trip. If feature selection changed, run the scheduled-only feature
+   combination recipe locally too:
 
    ```bash
-   git add -A
-   git commit -m "Release vX.Y.Z"
-   git tag -a vX.Y.Z -m "Release vX.Y.Z"
-   git push origin main --tags
+   just check-features
+   gh workflow run ci.yml --ref <release-branch>
    ```
 
-6. **Publish to crates.io** (if applicable)
+   `CI Success` does not aggregate these release-only jobs; inspect each result
+   in the dispatched run.
+
+5. **Run webR when its covered paths changed.** Require every job, including
+   the tier-2 `R CMD INSTALL`, to pass:
 
    ```bash
-   cargo publish -p miniextendr-macros
-   cargo publish -p miniextendr-api
+   gh workflow run webr.yml --ref <release-branch>
    ```
+
+6. **Run the GC safety sweep when runtime-sensitive code changed.** Miri is
+   informational, but its latest report should still be reviewed:
+
+   ```bash
+   gh workflow run gctorture-nightly.yml --ref <release-branch>
+   gh run list --workflow miri-nightly.yml --limit 1
+   ```
+
+7. **Record the evidence.** Put the release commit SHA and relevant Actions
+   run URLs in the release notes. Until Windows validation is restored, state
+   that the release lacks a Windows gate and link #94, #594, and #1335.
+
+Only after this checklist is green should the release commit be tagged and the
+tag pushed. There is no crates.io publication step today; distribution is from
+the Git tag and the attached R source tarball.
 
 ## Vendoring for CRAN
 

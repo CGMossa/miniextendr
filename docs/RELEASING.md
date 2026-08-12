@@ -10,6 +10,18 @@ are manual tag-and-push. This document is the recipe.
 > (`minirextendr::use_release_workflow()`) — not about releasing miniextendr
 > itself.
 
+## Release gates
+
+Complete the [Maintainer Guide release checklist](./MAINTAINER.md#release-checklist)
+before creating the tag. The repository-wide definition of blocking,
+conditional, informational, and currently unavailable signals lives in the
+[README CI and release gate table](../README.md#ci-and-release-gates).
+
+Run evidence must point at the exact release commit. A green run for an older
+`main` commit does not qualify, and GitHub currently does not enforce the
+aggregate check in repository settings (tracked in
+[#1391](https://github.com/A2-ai/miniextendr/issues/1391)).
+
 ## Version bumping
 
 One script bumps every version-bearing file in lockstep:

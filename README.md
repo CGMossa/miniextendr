@@ -122,6 +122,32 @@ just devtools-test
 just cross-test
 ```
 
+## CI and release gates
+
+“Blocking” below is maintainer policy: do not merge or tag while the applicable
+signal is failing or still running. Until
+[#1391](https://github.com/A2-ai/miniextendr/issues/1391) is closed, GitHub does
+not enforce a required status check on `main`, so the merge button being
+available is not evidence that the policy has been satisfied.
+
+| Signal | Merge policy | Release policy |
+|---|---|---|
+| [`CI / CI Success`](.github/workflows/ci.yml) | Blocking for every PR. This is the aggregate for the normal native Rust and R suite; path-conditional jobs may be skipped, but failures are not accepted. | Blocking on the exact release commit before it is tagged. |
+| `Docs Link Check` in `CI` | Blocking when README, docs, site, or API-documentation inputs change. | Blocking when the release changes documentation; run `just site-check` locally as well. |
+| `CRAN-like check` in `CI` | Blocking when R/package/build inputs change. | Blocking for every `rpkg` release. It builds and checks the vendored source tarball, rather than checking the source directory. |
+| [`webR / wasm32`](.github/workflows/webr.yml) | A separate, path-triggered workflow; blocking when webR-relevant runtime, macro, package, scaffold, or build files change. It is not part of `CI Success`. | Blocking for releases containing those changes; require the complete workflow, including the tier-2 install, to pass on the release commit. |
+| macOS `R CMD check` in `CI` | Informational for PRs; it runs only weekly or by manual dispatch and is not in `CI Success`. | Release-only blocker for `rpkg`: dispatch `ci.yml` and require both arm64 and x86_64 rows to pass. |
+| Weekly feature combinations, feature-runtime legs, and standalone round-trip | Informational for ordinary merges; these expensive jobs are outside `CI Success`. | Conditional blockers when feature selection, code generation, scaffolding, or build plumbing changes. Run `just check-features`, then dispatch `ci.yml` for the runtime and round-trip jobs. |
+| [`gctorture nightly`](.github/workflows/gctorture-nightly.yml) | Informational for ordinary merges; scheduled/manual only. | Conditional safety blocker for FFI, allocation, GC-rooting, conversion, or runtime changes. Dispatch it on the release branch. |
+| [`miri nightly`](.github/workflows/miri-nightly.yml) | Informational by design; its test step records failures without failing the workflow. | Informational. Investigate regressions, but this workflow is not release-gating. |
+| Windows | No active gate: the Windows `R CMD check` job is disabled. | An explicit coverage gap, not evidence of compatibility. Work is tracked in [#94](https://github.com/A2-ai/miniextendr/issues/94), [#594](https://github.com/A2-ai/miniextendr/issues/594), and [#1335](https://github.com/A2-ai/miniextendr/issues/1335). |
+| [Pages deployment](.github/workflows/pages.yml) and [webR image mirroring](.github/workflows/mirror-webr.yml) | Operational workflows, not merge gates. | Informational for a release; their failures affect publishing infrastructure, not artifact correctness. |
+
+The actionable pre-tag procedure is in the
+[Maintainer Guide](docs/MAINTAINER.md#release-checklist). Release artifact
+construction is documented separately in
+[Releasing miniextendr](docs/RELEASING.md).
+
 ## Documentation
 
 - `docs/README.md` - docs index for architecture, build system, features, and
