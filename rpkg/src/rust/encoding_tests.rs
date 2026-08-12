@@ -3,8 +3,9 @@
 //!
 //! `package_init` calls `miniextendr_assert_utf8_locale()` exactly once during
 //! `R_init_*`. That call is the load-time gate that rejects sessions whose
-//! locale isn't UTF-8 (the `from_r` decoders rely on the per-CHARSXP bytes
-//! being valid UTF-8, which is only guaranteed under a UTF-8 locale).
+//! locale isn't UTF-8 (the `from_r` decoders rely on native/unmarked CHARSXPs
+//! having a UTF-8 interpretation; explicitly tagged strings are handled per
+//! string).
 //!
 //! Because the assertion only runs at package load, the only way to exercise
 //! it in process is to re-invoke it after `Sys.setlocale()` has flipped the

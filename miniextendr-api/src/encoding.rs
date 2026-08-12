@@ -45,8 +45,9 @@ pub fn encoding_info() -> Option<&'static REncodingInfo> {
 /// Assert that R's locale is UTF-8.
 ///
 /// Called once from `R_init_*` (package init). Errors if the R session
-/// does not use UTF-8, since `charsxp_to_str` assumes all CHARSXP bytes
-/// are valid UTF-8.
+/// does not use UTF-8, so native/unmarked CHARSXPs have an unambiguous UTF-8
+/// interpretation. Explicitly tagged Latin-1 strings are translated by the
+/// conversion layer, while strings marked as `bytes` are rejected as non-text.
 ///
 /// Uses `l10n_info()[["UTF-8"]]` which is public R API.
 ///

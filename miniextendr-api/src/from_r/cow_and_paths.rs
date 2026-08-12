@@ -52,32 +52,32 @@ where
 
 /// Convert R character scalar to `Cow<'static, str>`.
 ///
-/// Returns `Cow::Borrowed` — the `&str` points directly into R's CHARSXP data
-/// via `R_CHAR` + `LENGTH` (O(1), no strlen). No allocation or copy occurs.
-/// The `'static` lifetime is valid for the duration of the `.Call` invocation.
+/// Returns `Cow::Borrowed` when the CHARSXP is already UTF-8/ASCII. Other text
+/// encodings are translated to an owned UTF-8 string. The `'static` lifetime
+/// on a borrowed value is valid for the duration of the `.Call` invocation.
 ///
-/// This delegates to the `&'static str` impl (which uses `charsxp_to_str`),
-/// giving the same zero-copy behavior. Use `Cow` when your code may need to
-/// mutate the string later — `to_mut()` will copy-on-write at that point.
+/// Use `Cow` when your code may need to mutate the string later — `to_mut()`
+/// copies UTF-8/ASCII inputs on write, while translated inputs are already owned.
 impl TryFromSexp for Cow<'static, str> {
     type Error = SexpError;
 
     fn try_from_sexp(sexp: SEXP) -> Result<Self, Self::Error> {
-        let s: &'static str = TryFromSexp::try_from_sexp(sexp)?;
-        Ok(Cow::Borrowed(s))
+        let charsxp = crate::from_r::scalar_charsxp(sexp)?;
+        if charsxp == SEXP::na_string() || charsxp == SEXP::blank_string() {
+            return Ok(Cow::Borrowed(""));
+        }
+        Ok(unsafe { charsxp_to_cow(charsxp) })
     }
 
     unsafe fn try_from_sexp_unchecked(sexp: SEXP) -> Result<Self, Self::Error> {
-        let s: &'static str = unsafe { TryFromSexp::try_from_sexp_unchecked(sexp)? };
-        Ok(Cow::Borrowed(s))
+        Self::try_from_sexp(sexp)
     }
 }
 
 /// Convert R character vector to `Vec<Cow<'static, str>>` — zero-copy per element.
 ///
-/// Each element borrows directly from R's CHARSXP data. UTF-8 validity is asserted
-/// at package init via `miniextendr_assert_utf8_locale()`, so no per-string
-/// encoding translation is needed.
+/// UTF-8/ASCII elements borrow directly from R's CHARSXP data. Other text
+/// encodings are translated and stored as `Cow::Owned`.
 ///
 /// # NA Handling
 ///

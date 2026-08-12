@@ -378,18 +378,19 @@ DATAPTR_RO round-trip check catches them, since ALTREP data isn't at a fixed off
 
 ### String conversion (`charsxp_to_str`)
 
-`charsxp_to_str()` uses `R_CHAR` + `LENGTH` (O(1)) with `from_utf8_unchecked`.
-No per-string UTF-8 validation. `miniextendr_assert_utf8_locale()` at package init
-guarantees all CHARSXPs in the session are valid UTF-8. `charsxp_to_cow()` wraps
-the result in `Cow::Borrowed` (always borrowed, never owned).
+`charsxp_to_str()` uses `R_CHAR` + `LENGTH` (O(1)) when R reports that the
+CHARSXP is UTF-8/ASCII. Explicitly tagged Latin-1 strings are translated with
+`Rf_translateCharUTF8`, and `bytes` strings are rejected. `charsxp_to_cow()`
+returns `Cow::Borrowed` for the fast path and `Cow::Owned` when translation is
+required.
 
 ## Type Decision Tree
 
 ```text
 Need strings from R?
-├── Scalar → Cow<'static, str>          (zero-copy)
+├── Scalar → Cow<'static, str>          (zero-copy for UTF-8/ASCII)
 ├── Vector, need ownership → Vec<String> (copies, lossy NA→"")
-├── Vector, read-only → Vec<Cow<'static, str>>  (zero-copy per element)
+├── Vector, read-only → Vec<Cow<'static, str>>  (zero-copy per UTF-8/ASCII element)
 ├── Vector, NA-aware → Vec<Option<Cow<'static, str>>>
 ├── View with GC safety → ProtectedStrVec
 └── Lightweight view → StrVec           (Copy, caller manages GC)
