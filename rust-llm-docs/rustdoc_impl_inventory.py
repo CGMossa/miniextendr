@@ -9,7 +9,8 @@ Purpose: spot duplicate / near-duplicate conversion implementations
 macro or a blanket impl.
 
 Usage:
-    python rustdoc_impl_inventory.py <doc.json> [--traits T1,T2,...] [--out FILE]
+    python rustdoc_impl_inventory.py <doc.json> [--traits T1,T2,...]
+        [--source-label LABEL] [--out FILE]
 
 Without --traits, inventories ALL traits. With --traits, restricts to the
 named traits (matched on the trait's terminal path segment).
@@ -62,6 +63,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("json")
     ap.add_argument("--traits", default="", help="comma-separated trait names to restrict to")
+    ap.add_argument(
+        "--source-label",
+        default="",
+        help="stable source path to print instead of the JSON input path",
+    )
     ap.add_argument("--out", default="", help="output markdown file")
     args = ap.parse_args()
 
@@ -98,7 +104,7 @@ def main():
     lines = []
     lines.append("# Trait impl inventory")
     lines.append("")
-    lines.append(f"Source: `{args.json}`")
+    lines.append(f"Source: `{args.source_label or args.json}`")
     lines.append("")
     lines.append(f"Traits with impls: {len(by_trait)}")
     lines.append("")
