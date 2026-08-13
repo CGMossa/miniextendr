@@ -514,7 +514,11 @@ impl<T: RNativeType, const NDIM: usize> RArray<T, NDIM> {
     #[inline]
     pub unsafe fn get_rownames(&self) -> Option<SEXP> {
         unsafe {
-            let rownames = sys::Rf_GetRowNames(self.sexp);
+            let dimnames = self.sexp.get_dimnames();
+            if dimnames.is_nil() {
+                return None;
+            }
+            let rownames = sys::Rf_GetRowNames(dimnames);
             if rownames.is_nil() {
                 None
             } else {

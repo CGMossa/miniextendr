@@ -24,3 +24,39 @@ test_that("RMatrix column extraction works", {
   expect_error(rarray_matrix_column(m, 0L), "positive 1-based")
   expect_error(rarray_matrix_column(m, 4L), "out of bounds")
 })
+
+test_that("RMatrix attribute getters return both dimname axes", {
+  m <- matrix(as.double(1:6), nrow = 2L, dimnames = list(
+    c("row-a", "row-b"),
+    c("col-a", "col-b", "col-c")
+  ))
+
+  expect_identical(rarray_matrix_rownames(m), rownames(m))
+  expect_identical(rarray_matrix_colnames(m), colnames(m))
+})
+
+test_that("List attribute getters return both dimname axes", {
+  m <- matrix(as.list(1:6), nrow = 2L, dimnames = list(
+    c("row-a", "row-b"),
+    c("col-a", "col-b", "col-c")
+  ))
+
+  expect_identical(list_matrix_rownames(m), rownames(m))
+  expect_identical(list_matrix_colnames(m), colnames(m))
+})
+
+test_that("row-name getters report absent row names", {
+  numeric_matrix <- matrix(
+    as.double(1:6),
+    nrow = 2L,
+    dimnames = list(NULL, c("col-a", "col-b", "col-c"))
+  )
+  list_matrix <- matrix(
+    as.list(1:6),
+    nrow = 2L,
+    dimnames = list(NULL, c("col-a", "col-b", "col-c"))
+  )
+
+  expect_error(rarray_matrix_rownames(numeric_matrix), "expected row names")
+  expect_error(list_matrix_rownames(list_matrix), "expected row names")
+})
