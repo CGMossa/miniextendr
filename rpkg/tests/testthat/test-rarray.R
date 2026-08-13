@@ -24,3 +24,10 @@ test_that("RMatrix column extraction works", {
   expect_error(rarray_matrix_column(m, 0L), "positive 1-based")
   expect_error(rarray_matrix_column(m, 4L), "out of bounds")
 })
+
+test_that("RMatrix construction survives allocations in its initializer", {
+  result <- rarray_construct_matrix(2L, 3L)
+
+  expect_identical(dim(result), c(2L, 3L))
+  expect_identical(result, matrix(42, nrow = 2L, ncol = 3L))
+})

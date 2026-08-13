@@ -3,6 +3,7 @@
 use miniextendr_api::prelude::SEXP;
 use miniextendr_api::prelude::*;
 use miniextendr_api::rarray::{RMatrix, RVector};
+use miniextendr_api::{OwnedProtect, SEXPTYPE, sys};
 
 /// Get dimensions of a matrix as integer vector.
 #[miniextendr]
@@ -41,4 +42,22 @@ pub fn rarray_matrix_column(x: SEXP, col: i32) -> Vec<f64> {
     }
     let column = unsafe { mat.column(col as usize - 1) };
     column.to_vec()
+}
+
+/// Construct a numeric matrix while allocating inside the initializer.
+/// @param nrow Non-negative row count.
+/// @param ncol Non-negative column count.
+#[miniextendr]
+pub fn rarray_construct_matrix(nrow: i32, ncol: i32) -> RMatrix<f64> {
+    let nrow = usize::try_from(nrow).expect("nrow must be non-negative");
+    let ncol = usize::try_from(ncol).expect("ncol must be non-negative");
+
+    unsafe {
+        RMatrix::new([nrow, ncol], |slice| {
+            // Force a GC-capable allocation while the constructor's data SEXP
+            // and the mutable slice derived from it must remain valid.
+            let _scratch = OwnedProtect::new(sys::Rf_allocVector(SEXPTYPE::REALSXP, 1));
+            slice.fill(42.0);
+        })
+    }
 }

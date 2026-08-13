@@ -630,19 +630,23 @@ impl<T: RNativeType, const NDIM: usize> RArray<T, NDIM> {
             "array total length {total_len} exceeds R_xlen_t::MAX"
         );
 
-        // Allocate the vector
-        let sexp = unsafe { sys::Rf_allocVector(T::SEXP_TYPE, total_len as R_xlen_t) };
+        // Root the data vector across dimension allocation and the caller's
+        // initializer, both of which may allocate and trigger GC. The caller
+        // cannot protect this object until `new` returns it.
+        let sexp = unsafe {
+            crate::OwnedProtect::new(sys::Rf_allocVector(T::SEXP_TYPE, total_len as R_xlen_t))
+        };
 
         // Set dimensions
-        unsafe { set_dims::<NDIM>(sexp, &dims) };
+        unsafe { set_dims::<NDIM>(sexp.get(), &dims) };
 
         // Initialize data
-        let ptr = unsafe { T::dataptr_mut(sexp) };
+        let ptr = unsafe { T::dataptr_mut(sexp.get()) };
         let slice = unsafe { crate::from_r::r_slice_mut(ptr, total_len) };
         init(slice);
 
         Self {
-            sexp,
+            sexp: sexp.get(),
             _marker: PhantomData,
         }
     }
