@@ -14,10 +14,14 @@
 //! `Class$set("public"/"active", "name", function(...) {...})` from the roxygen
 //! block directly preceding the `$set` call. We emit a minimal `R6Class` core
 //! (only `initialize` inline in `public`, plus the private list) followed by one
-//! `$set` block per public method and per active binding, each carrying its own
-//! `#'` roxygen block:
+//! `$set` block per public method. Active-binding `@field` tags stay on the
+//! class block: roxygen2's dynamic `$set()` parser treats every target as a
+//! method, including `$set("active", ...)`, so putting field tags immediately
+//! above an active-binding call produces spurious "can't find matching R6
+//! method" warnings.
 //!
 //! ```r
+//! #' @field binding_name <binding doc>
 //! ClassName <- R6::R6Class("ClassName",
 //!   public = list(initialize = function(...) { ... }),
 //!   private = list(.ptr = NULL),
@@ -28,7 +32,7 @@
 //! #' @param x <param doc>
 //! ClassName$set("public", "method_name", function(x) { ... })
 //!
-//! #' @field binding_name <binding doc>
+//! # No adjacent roxygen block: the @field tag is on the class documentation.
 //! ClassName$set("active", "binding_name", function(value) { ... })
 //! ```
 //!
@@ -90,6 +94,59 @@ fn active_setter_precondition_checks(setter: &ParsedMethod) -> Vec<String> {
         &per_param,
         setter.method_attrs.coerce,
     )
+}
+
+/// Build class-level `@field` documentation for an R6 active binding.
+///
+/// roxygen2 8.0's dynamic `$set()` parser does not distinguish `public` from
+/// `active`: a roxygen block immediately before either call is classified as
+/// method documentation. Active-binding docs therefore belong on the class
+/// block, where roxygen2 resolves them against the runtime class's active
+/// bindings without inventing a method owner.
+fn field_tag_documents(tag: &str, field_name: &str) -> bool {
+    let Some(rest) = tag.trim_start().strip_prefix("@field ") else {
+        return false;
+    };
+    let Some(names) = rest.split_whitespace().next() else {
+        return false;
+    };
+    names.split(',').any(|name| name.trim() == field_name)
+}
+
+fn active_binding_field_lines(method: &ParsedMethod, class_doc_tags: &[String]) -> Vec<String> {
+    let prop_name = method
+        .method_attrs
+        .r6
+        .prop
+        .clone()
+        .unwrap_or_else(|| method.r_method_name());
+
+    if class_doc_tags
+        .iter()
+        .any(|tag| field_tag_documents(tag, &prop_name))
+    {
+        return Vec::new();
+    }
+
+    if method.method_attrs.noexport || method.method_attrs.internal {
+        return vec![format!("#' @field {prop_name} (internal)")];
+    }
+
+    let description = method.doc_tags.iter().find_map(|tag| {
+        tag.strip_prefix("@field ")
+            .and_then(|rest| rest.split_once(char::is_whitespace).map(|(_, desc)| desc))
+            .or_else(|| tag.strip_prefix("@description "))
+            .or_else(|| tag.strip_prefix("@title "))
+    });
+    let Some(description) = description else {
+        return vec![format!("#' @field {prop_name} Active binding.")];
+    };
+
+    let mut description_lines = description.lines();
+    let first = description_lines.next().unwrap_or("Active binding.");
+    let mut lines = vec![format!("#' @field {prop_name} {first}")];
+    lines.extend(description_lines.map(|line| format!("#' {line}")));
+    lines
 }
 
 /// Marker prefix emitted by the proc-macro when a subclass method param might be
@@ -156,6 +213,23 @@ pub fn generate_r6_r_wrapper(parsed_impl: &ParsedImpl) -> String {
                 .to_string(),
         );
     }
+
+    // Active bindings are documented on the class block. roxygen2 8.0 parses
+    // every dynamic `$set()` target as a method, even for `$set("active", ...)`;
+    // an adjacent `@field` block consequently warns that it cannot find a
+    // matching R6 method. Class-level fields are resolved against the runtime
+    // R6 class and retain the same rendered Active bindings section.
+    let active_method_contexts: Vec<_> = parsed_impl.active_instance_method_contexts().collect();
+    let active_field_lines: Vec<_> = active_method_contexts
+        .iter()
+        .flat_map(|ctx| active_binding_field_lines(ctx.method, class_doc_tags))
+        .collect();
+    let active_field_insert = lines
+        .iter()
+        .position(|line| line == "#' @export")
+        .unwrap_or(lines.len());
+    lines.splice(active_field_insert..active_field_insert, active_field_lines);
+
     // R6Class definition — optionally include inherit.
     // Use a placeholder so the resolver can look up the actual R class name
     // at cdylib write time (handles `class = "Override"` on the parent).
@@ -477,50 +551,11 @@ pub fn generate_r6_r_wrapper(parsed_impl: &ParsedImpl) -> String {
         lines.push("})".to_string());
     }
 
-    // Active bindings — one `$set("active", ...)` block each so roxygen2 8.0.0
-    // documents each field from its own preceding block (#369).
-    let active_method_contexts: Vec<_> = parsed_impl.active_instance_method_contexts().collect();
+    // Active bindings. Their @field documentation is intentionally attached to
+    // the class block above; do not put a roxygen block before these dynamic
+    // `$set("active", ...)` calls (roxygen2 misclassifies it as method docs).
     for ctx in &active_method_contexts {
         lines.push(String::new());
-
-        // Add @field documentation for active bindings.
-        // roxygen2 requires @field tags (not @description) for active bindings.
-        let method_name = ctx.method.r_method_name();
-        let method_noexport = ctx.method.method_attrs.noexport || ctx.method.method_attrs.internal;
-        if method_noexport {
-            // `@field name NULL` is documented as the roxygen2 8.0.0 opt-out, but
-            // `r6_resolve_fields` still emits "Undocumented R6 active binding"
-            // because `expected` is introspected from the class definition and
-            // is not pruned in sync with the NULL-description discard. Emit a
-            // minimal `(internal)` description: it satisfies the warning, keeps
-            // the binding clearly marked as internal in the rendered docs, and
-            // is short enough not to clutter the help page.
-            lines.push(format!("#' @field {} (internal)", method_name));
-        } else if ctx.method.doc_tags.is_empty() {
-            lines.push(format!("#' @field {} Active binding.", method_name));
-        } else {
-            for tag in &ctx.method.doc_tags {
-                for (line_idx, line) in tag.lines().enumerate() {
-                    // Convert @description/@title to @field on first line only
-                    let line = if line_idx == 0 {
-                        if let Some(desc) = line.strip_prefix("@description ") {
-                            format!("@field {} {}", method_name, desc)
-                        } else if let Some(desc) = line.strip_prefix("@title ") {
-                            format!("@field {} {}", method_name, desc)
-                        } else if !line.starts_with('@') {
-                            // Plain doc comment - treat as field description
-                            format!("@field {} {}", method_name, line)
-                        } else {
-                            line.to_string()
-                        }
-                    } else {
-                        // Continuation lines stay as-is
-                        line.to_string()
-                    };
-                    lines.push(format!("#' {}", line));
-                }
-            }
-        }
 
         // Determine the property name (from r6_prop or method name)
         let prop_name = ctx

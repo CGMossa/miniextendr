@@ -23,7 +23,7 @@
 //!
 //! - [`r6_tests`]: R6 class system tests (including active bindings)
 //! - [`r6_default_tests`]: R6 default parameter tests
-//! - [`r6_noexport_field_tests`]: R6 `@field name NULL` opt-out for noexported active bindings
+//! - [`r6_noexport_field_tests`]: warning-free docs for noexported R6 active bindings
 //! - [`s3_tests`]: S3 class system tests
 //! - [`s4_tests`]: S4 class system tests
 //! - [`s7_tests`]: S7 class system tests

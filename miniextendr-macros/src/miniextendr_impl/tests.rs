@@ -660,6 +660,33 @@ fn r6_active_binding_noexport_emits_field_internal() {
         wrapper
     );
 
+    assert!(
+        wrapper.contains(
+            "#' @field value Active binding.\n\
+             #' @field raw_bytes (internal)\n\
+             #' @export\n\
+             Sensor <- R6::R6Class"
+        ),
+        "active-binding fields must live on the class documentation block\n{}",
+        wrapper
+    );
+    assert!(
+        ["value", "raw_bytes"].iter().all(|binding| {
+            let marker = format!("Sensor$set(\"active\", \"{binding}\"");
+            let before_call = wrapper
+                .split(&marker)
+                .next()
+                .expect("active binding call must exist");
+            before_call
+                .lines()
+                .rev()
+                .find(|line| !line.is_empty())
+                .is_some_and(|line| !line.starts_with("#'"))
+        }),
+        "dynamic active-binding calls must not have adjacent roxygen blocks\n{}",
+        wrapper
+    );
+
     // Must NOT emit "Active binding." for the noexported binding, and must NOT
     // emit the old `NULL`-opt-out form.
     assert!(
@@ -670,6 +697,62 @@ fn r6_active_binding_noexport_emits_field_internal() {
     assert!(
         !wrapper.contains("#' @field raw_bytes NULL"),
         "noexported active binding must not use the (broken) NULL opt-out\n{}",
+        wrapper
+    );
+}
+
+#[test]
+fn r6_active_binding_reuses_explicit_class_field_doc() {
+    let item_impl: syn::ItemImpl = syn::parse_quote! {
+        /// @field reading User-authored class-level documentation.
+        impl Sensor {
+            pub fn new() -> Self { unimplemented!() }
+            /// Getter prose must not create a duplicate field tag.
+            #[miniextendr(r6(active, prop = "reading"))]
+            pub fn value(&self) -> f64 { unimplemented!() }
+        }
+    };
+
+    let parsed = parse_impl(ClassSystem::R6, item_impl);
+    let wrapper = generate_r6_r_wrapper(&parsed);
+
+    assert_eq!(
+        wrapper
+            .matches("#' @field reading User-authored class-level documentation.")
+            .count(),
+        1,
+        "an explicit class-level field must not be duplicated\n{}",
+        wrapper
+    );
+    assert!(
+        !wrapper.contains("#' @field value"),
+        "the Rust getter name must not leak when prop renames the binding\n{}",
+        wrapper
+    );
+}
+
+#[test]
+fn r6_active_binding_uses_renamed_property_in_generated_field_doc() {
+    let item_impl: syn::ItemImpl = syn::parse_quote! {
+        impl Sensor {
+            pub fn new() -> Self { unimplemented!() }
+            /// Current sensor reading.
+            #[miniextendr(r6(active, prop = "reading"))]
+            pub fn value(&self) -> f64 { unimplemented!() }
+        }
+    };
+
+    let parsed = parse_impl(ClassSystem::R6, item_impl);
+    let wrapper = generate_r6_r_wrapper(&parsed);
+
+    assert!(
+        wrapper.contains("#' @field reading Current sensor reading."),
+        "generated field documentation must use the R-visible property name\n{}",
+        wrapper
+    );
+    assert!(
+        !wrapper.contains("#' @field value"),
+        "the Rust getter name must not leak into generated field documentation\n{}",
         wrapper
     );
 }
