@@ -137,9 +137,11 @@ creating temporary library: …/__rv_R_mismatch
 Error in loadNamespace(x) : there is no package called 'testthat'
 ```
 
-Current pin: **R 4.6** (see `rproject.toml:r_version`). Switch your
-default with **rig** before running `just devtools-test` /
-`just rcmdinstall` / any recipe that loads the project library:
+Read the current pin from `rproject.toml:[project].r_version` at the start of
+every fresh shell; that file is the source of truth. Switch the default with
+**rig** to that exact version before running `just devtools-test` /
+`just rcmdinstall` / any recipe that loads the project library. For the current
+pin this is:
 
 ```bash
 rig default 4.6           # or `rig default 4.6-arm64` on macOS arm64
@@ -149,8 +151,9 @@ R --version | head -1     # verify 4.6.x
 **`rig default` may not stick across shells.** A fresh shell (every Bash-tool
 invocation is one) can resolve `R` back to the system default — the framework
 `Current` symlink flips — silently reverting mid-session and breaking installs
-with the `__rv_R_mismatch` safe-mode error above. Re-run `rig default 4.6` and
-re-check `R --version` at the **start of each batch** of R recipes, not just once.
+with the `__rv_R_mismatch` safe-mode error above. Re-read the pin, re-run
+`rig default <pinned-version>`, and re-check `R --version` at the **start of each
+batch** of R recipes, not just once.
 
 If you legitimately need to bump R, edit `rproject.toml` *and* mirror
 the change in this section. Don't try to work around a mismatch by
@@ -197,10 +200,10 @@ just llm-docs / llm-docs-check
 ### Configure is mandatory
 
 Always `bash ./configure` (not bare `./configure` — `#!/bin/sh` causes spurious errors in `AC_CONFIG_COMMANDS` passthrough). Configure:
-1. **Self-repairs**: if `inst/vendor.tar.xz` is absent AND `cargo-revendor` is on PATH AND no `.git` ancestor exists, runs `cargo-revendor` to produce the tarball before mode detection. Skipped in dev-source trees so `just configure` stays fast.
-2. Generates `Makevars` from `.in` templates.
-3. Auto-detects install mode (source vs tarball) from `[ -f inst/vendor.tar.xz ]`.
-4. Writes `.cargo/config.toml` per mode (source: `[patch."git+url"]` for monorepo siblings or empty; tarball: `[source]` replacement to `vendored-sources`).
+1. Generates `Makevars` from `.in` templates.
+2. Auto-detects install mode (source vs tarball) from `[ -f inst/vendor.tar.xz ]`.
+3. Writes `.cargo/config.toml` per mode (source: `[patch."git+url"]` for monorepo siblings or empty; tarball: `[source]` replacement to `vendored-sources`).
+4. Does **not** create `inst/vendor.tar.xz` — that's an explicit tarball-producing workflow such as `just vendor`, `miniextendr_vendor()`, or `bootstrap.R` before `R CMD build`.
 
 ## The install-mode latch (`inst/vendor.tar.xz`)
 
@@ -209,7 +212,7 @@ tarball mode. Everything about vendoring revolves around this one file.
 
 | Mode | Triggered when | What configure does |
 |---|---|---|
-| **Source** | tarball absent (auto-vendor skipped/failed) | No vendoring. In monorepo: `[patch."git+url"]` → workspace siblings. Otherwise: minimal config, cargo follows git URL. |
+| **Source** | tarball absent | No vendoring. In monorepo: `[patch."git+url"]` → workspace siblings. Otherwise: minimal config, cargo follows git URL. |
 | **Tarball** | tarball present | Unpacks tarball, writes `[source]` replacement → `vendored-sources`, offline build. |
 
 The tarball is **gitignored** (since 2026-04-18). Tracked tarballs caused
@@ -217,15 +220,15 @@ binary merge conflicts, 22 MB/commit bloat, and stale-after-rebase drift.
 CI regenerates per-build via `just vendor`; locally, regenerate the same way —
 cheap and deterministic from `Cargo.lock` + workspace sources.
 
-Three layered triggers all converge on this signal:
-1. Maintainer's explicit `just vendor` / `miniextendr_vendor()` (writes the tarball before `R CMD build`).
-2. `bootstrap.R` (run by pkgbuild — `devtools::build()`, `rcmdcheck`, `r-lib/actions/check-r-package`) → `./configure` runs in a build-staging dir → no `.git` ancestor → auto-vendor fires → tarball sealed.
-3. End-user install of a tarball that arrived without vendor → `./configure` runs at install time → no `.git` ancestor → auto-vendor fires → tarball mode → offline build.
+Only tarball-producing workflows create this signal:
+1. Maintainer's explicit `just vendor` / `miniextendr_vendor()` before `R CMD build`.
+2. `bootstrap.R`, when invoked by a build frontend that honors `Config/build/bootstrap: TRUE`, before `R CMD build` seals the artifact.
 
-CRAN's offline farm has no `cargo-revendor`, so the auto-vendor branch is
-short-circuited — a maintainer who shipped a tarball without vendor inside
-fails CRAN's offline check loudly. Intended canary. No `NOT_CRAN`, no
-`FORCE_VENDOR`, no `PREPARE_CRAN`, no `BUILD_CONTEXT`. See `docs/CRAN_COMPATIBILITY.md`.
+An artifact built without `inst/vendor.tar.xz` remains a source-mode artifact;
+`configure` never tries to repair or vendor it during installation. Such an
+artifact is not CRAN-ready because CRAN's offline farm cannot fetch Rust
+dependencies. No `NOT_CRAN`, no `FORCE_VENDOR`, no `PREPARE_CRAN`, no
+`BUILD_CONTEXT`. See `docs/CRAN_COMPATIBILITY.md`.
 
 ### The latch leak (#441)
 

@@ -31,7 +31,7 @@ src/rust/wasm_registry.rs    # GENERATED wasm32 registration snapshot (gitignore
 src/Makevars.in              # build template → src/Makevars (via ./configure)
 src/stub.c                   # force-link anchor; R's build needs ≥1 C file
 configure.ac → configure     # install-mode detection; regen with autoconf
-bootstrap.R                  # run by R CMD build: configure + auto-vendor
+bootstrap.R                  # tarball build hook: configure + vendor
 tools/                       # configure-time helpers (never call minirextendr from configure)
 inst/vendor.tar.xz           # THE LATCH: presence flips builds to offline mode (gitignored)
 ```
@@ -79,10 +79,11 @@ This runs autoconf → configure → install (compiles Rust, regenerates
 wrappers) → `devtools::document()` → reinstalls once more if NAMESPACE gained
 new exports. One call, everything consistent.
 
-**Do NOT use bare `R CMD INSTALL .` or `devtools::install()` on a fresh
-package.** Their `R CMD build` step runs `bootstrap.R`, which vendors
-dependencies and flips configure into tarball mode — tarball mode *skips*
-wrapper generation, so `library(pkg)` exposes no functions.
+**Do not use a build-producing `devtools::install()` on a fresh package.** Its
+tarball build hook runs `bootstrap.R`, which vendors dependencies and flips the
+staged package into tarball mode — tarball mode *skips* wrapper generation, so
+`library(pkg)` exposes no functions. A direct `R CMD INSTALL .` remains in
+source mode because configure never vendors.
 `miniextendr_build()` detects and handles this (fresh-package bootstrap,
 `MINIEXTENDR_FORCE_WRAPPER_GEN`).
 

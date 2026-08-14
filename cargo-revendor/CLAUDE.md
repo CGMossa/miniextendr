@@ -16,6 +16,7 @@ End users install via `cargo install cargo-revendor`; it must build without drag
 - **`--versioned-dirs`** — opt-in for now; #239 tracks making it default.
 - **`cargo package` for workspace resolution** — let cargo expand workspace inheritance; never hard-code workspace dependency replacements.
 
-## When the tarball arrives without `cargo-revendor` on PATH
-CRAN's offline farm has no `cargo-revendor`. The configure.ac auto-vendor branch is short-circuited; a maintainer who shipped a tarball without `inst/vendor.tar.xz` fails CRAN's offline check loudly. Intended canary.
-
+## When a package tarball lacks vendored sources
+`configure` never creates `inst/vendor.tar.xz`. A maintainer must run an explicit
+tarball-producing vendor workflow before release; otherwise the artifact stays
+in source mode and fails on CRAN's offline farm. Intended canary.

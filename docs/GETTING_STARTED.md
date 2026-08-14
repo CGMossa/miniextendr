@@ -115,14 +115,13 @@ This runs `autoconf` + `./configure`, compiles the Rust code, generates the
 R wrappers (`R/mypackage-wrappers.R`) via linkme, updates `NAMESPACE` +
 `man/` with roxygen2, and installs the package -- all in one step.
 
-Do **not** install with a bare `devtools::install()`, `R CMD INSTALL .`, or
-`devtools::document()`: on a fresh package, `R CMD build`'s `bootstrap.R`
-vendors dependencies into `inst/vendor.tar.xz`, which flips `./configure`
-into offline "tarball" mode. Tarball mode ships pre-generated wrappers and
-**skips** wrapper generation, so on a first build those paths install a
-package whose namespace exposes no functions. `miniextendr_build()` avoids
-this trap by bootstrapping a fresh package's wrappers through an in-place
-install first.
+Prefer `miniextendr_build()` over a build-producing `devtools::install()` on a
+fresh package. The latter runs the pkgbuild `bootstrap.R` hook, which vendors
+dependencies while producing a package tarball and selects wrapper-skipping
+tarball mode before the first wrappers exist. A direct `R CMD INSTALL .` does
+not vendor—configure leaves it in source mode—but it also does not perform the
+complete wrappers → roxygen2 → reinstall cycle. `devtools::document()` alone
+does not install the wrapper-generating build either.
 
 ### Step 4: Use from R
 
@@ -382,8 +381,8 @@ The `ExternalPtr` derive:
 `miniextendr_build()` is the only supported rebuild path: it runs `autoconf`
 + `./configure`, compiles the Rust code, regenerates the R wrappers, updates
 `NAMESPACE` + `man/` with roxygen2, and installs -- all in one step. See
-"Build and Install" above for why `devtools::document()` / `devtools::install()`
-/ `R CMD INSTALL .` are unsafe to use directly.
+"Build and Install" above for why those lower-level commands do not replace the
+complete `miniextendr_build()` cycle.
 
 ### Debugging Tips
 

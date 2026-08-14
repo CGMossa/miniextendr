@@ -1,6 +1,7 @@
 # Tests for use_local_miniextendr() / unuse_local_miniextendr() (#908)
 #
-# All tests use tempdir fixtures — no compilation, no autoconf.
+# All tests use tempdir fixtures. Configure regressions run autoconf with a
+# fake Rust toolchain, but never compile.
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -42,6 +43,57 @@ make_fake_mx_repo <- function() {
     file.path(repo, "miniextendr-api", "Cargo.toml")
   )
   repo
+}
+
+make_fake_rust_toolchain <- function() {
+  bin <- tempfile("fake-rust-bin-")
+  dir.create(bin)
+
+  cargo <- file.path(bin, "cargo")
+  writeLines(
+    c(
+      "#!/bin/sh",
+      "if test \"$1\" = \"--version\"; then",
+      "  echo 'cargo 1.97.1 (test)'",
+      "  exit 0",
+      "fi",
+      "if test \"$1\" = \"revendor\"; then",
+      "  : > \"$MX_REVENDOR_SENTINEL\"",
+      "  exit 0",
+      "fi",
+      "if test \"$1\" = \"generate-lockfile\"; then",
+      "  while test $# -gt 0; do",
+      "    if test \"$1\" = \"--manifest-path\"; then",
+      "      shift",
+      "      mkdir -p \"$(dirname \"$1\")\"",
+      "      : > \"$(dirname \"$1\")/Cargo.lock\"",
+      "      exit 0",
+      "    fi",
+      "    shift",
+      "  done",
+      "fi",
+      "exit 0"
+    ),
+    cargo
+  )
+
+  rustc <- file.path(bin, "rustc")
+  writeLines(
+    c(
+      "#!/bin/sh",
+      "if test \"$1\" = \"-vV\"; then",
+      "  echo 'rustc 1.97.1 (test)'",
+      "  echo 'host: x86_64-unknown-linux-gnu'",
+      "else",
+      "  echo 'rustc 1.97.1 (test)'",
+      "fi"
+    ),
+    rustc
+  )
+
+  writeLines(c("#!/bin/sh", "exit 0"), file.path(bin, "cargo-revendor"))
+  Sys.chmod(c(cargo, rustc, file.path(bin, "cargo-revendor")), "0755")
+  bin
 }
 
 # ---------------------------------------------------------------------------
@@ -114,6 +166,65 @@ test_that("use_local_miniextendr() rejects a non-existent path", {
     use_local_miniextendr("/no/such/path/here", path = pkg),
     class = "error"
   )
+})
+
+test_that("local checkout keeps a non-git scaffold in source mode", {
+  skip_if_not(nzchar(Sys.which("autoconf")), "autoconf not available")
+  skip_if_no_local_repo()
+
+  tmp <- withr::local_tempdir()
+  pkg <- file.path(tmp, "localpkg")
+  sentinel <- file.path(tmp, "cargo-revendor-ran")
+  fake_bin <- make_fake_rust_toolchain()
+  withr::defer(unlink(fake_bin, recursive = TRUE))
+  withr::local_envvar(c(
+    PATH = paste(fake_bin, Sys.getenv("PATH"), sep = .Platform$path.sep),
+    MX_REVENDOR_SENTINEL = sentinel
+  ))
+  withr::local_options(usethis.quiet = TRUE)
+
+  suppressWarnings(suppressMessages(
+    create_miniextendr_package(pkg, open = FALSE, rstudio = FALSE)
+  ))
+  suppressMessages(use_local_miniextendr(find_miniextendr_repo(), path = pkg))
+  suppressMessages(miniextendr_configure(path = pkg))
+
+  expect_false(file.exists(sentinel))
+  expect_false(file.exists(file.path(pkg, "inst", "vendor.tar.xz")))
+  cargo_config <- readLines(
+    file.path(pkg, "src", "rust", ".cargo", "config.toml"),
+    warn = FALSE
+  )
+  expect_true(any(grepl('[patch."https://github.com/A2-ai/miniextendr"]',
+                        cargo_config, fixed = TRUE)))
+})
+
+test_that("configure does not vendor a non-git scaffold", {
+  skip_if_not(nzchar(Sys.which("autoconf")), "autoconf not available")
+
+  tmp <- withr::local_tempdir()
+  pkg <- file.path(tmp, "ordinarypkg")
+  sentinel <- file.path(tmp, "cargo-revendor-ran")
+  fake_bin <- make_fake_rust_toolchain()
+  withr::defer(unlink(fake_bin, recursive = TRUE))
+  withr::local_envvar(c(
+    PATH = paste(fake_bin, Sys.getenv("PATH"), sep = .Platform$path.sep),
+    MX_REVENDOR_SENTINEL = sentinel
+  ))
+  withr::local_options(usethis.quiet = TRUE)
+
+  suppressWarnings(suppressMessages(
+    create_miniextendr_package(pkg, open = FALSE, rstudio = FALSE)
+  ))
+  suppressMessages(miniextendr_configure(path = pkg))
+
+  expect_false(file.exists(sentinel))
+  expect_false(file.exists(file.path(pkg, "inst", "vendor.tar.xz")))
+  cargo_config <- readLines(
+    file.path(pkg, "src", "rust", ".cargo", "config.toml"),
+    warn = FALSE
+  )
+  expect_false(any(grepl("vendored-sources", cargo_config, fixed = TRUE)))
 })
 
 # ---------------------------------------------------------------------------

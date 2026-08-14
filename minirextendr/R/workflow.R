@@ -150,7 +150,8 @@ miniextendr_configure <- function(path = ".") {
 #' A brand-new package has no generated `R/<pkg>-wrappers.R` yet. The wrappers
 #' are produced by the wrapper-gen pass during install, but a plain
 #' `devtools::install(build = TRUE)` cannot bootstrap them: its `R CMD build`
-#' step runs `bootstrap.R`, which auto-vendors into `inst/vendor.tar.xz`, and
+#' step runs `bootstrap.R`, which vendors into `inst/vendor.tar.xz` as part of
+#' producing the package tarball, and
 #' that latch flips `./configure` into offline *tarball* mode -- which ships
 #' pre-generated wrappers and skips wrapper generation. With no wrappers to
 #' ship, the install either fails loudly ("tarball is missing pre-generated
@@ -160,12 +161,10 @@ miniextendr_configure <- function(path = ".") {
 #' first runs a bootstrap (clear any stale latch -> configure ->
 #' `devtools::install(build = FALSE, MINIEXTENDR_FORCE_WRAPPER_GEN=1)` ->
 #' `devtools::document()`) so the wrappers exist before the normal build path
-#' runs. The `MINIEXTENDR_FORCE_WRAPPER_GEN` override forces the
-#' wrapper-gen pass regardless of which install mode configure resolves to: in
-#' a non-git tree configure's self-repair branch may legitimately re-seal the
-#' latch (cargo-revendor on PATH), and that is fine -- the FORCE override
-#' ensures wrapper generation proceeds. Once wrappers are present, the normal
-#' build path runs unchanged.
+#' runs. The `MINIEXTENDR_FORCE_WRAPPER_GEN` override also protects this helper
+#' from a pre-existing tarball-mode configuration while it establishes the
+#' source-mode wrapper set. Once wrappers are present, the normal build path
+#' runs unchanged.
 #'
 #' @param path Path to the R package root, or `NULL` to use the active project.
 #' @param install Whether to run the `R CMD INSTALL` steps. If `FALSE`, only
@@ -180,7 +179,7 @@ miniextendr_build <- function(path = ".", install = TRUE) {
   has_devtools <- requireNamespace("devtools", quietly = TRUE)
 
   # A build = TRUE install (Step 3/5 below) runs the package's bootstrap.R in the
-  # source tree, which auto-vendors when no inst/vendor.tar.xz is present: that
+  # source tree, which vendors when no inst/vendor.tar.xz is present: that
   # FREEZES src/rust/Cargo.toml (rewriting a `path = "../../../my-core"` sibling
   # to `vendor/my-core`) and leaves inst/vendor.tar.xz behind -- flipping the tree
   # into tarball mode and stranding the next source-mode build. The dev loop must
@@ -248,7 +247,8 @@ miniextendr_build <- function(path = ".", install = TRUE) {
       # Fresh-package bootstrap (#822). On a brand-new package the generated
       # R/<pkg>-wrappers.R does not exist yet. The normal devtools::install()
       # below uses build = TRUE, whose R CMD build step runs bootstrap.R, which
-      # auto-vendors inst/vendor.tar.xz and flips ./configure into tarball mode
+      # vendors inst/vendor.tar.xz while producing the package tarball and flips
+      # ./configure into tarball mode
       # -- a mode that SKIPS wrapper generation. So the very build that should
       # have created the wrappers can't, and library() exposes nothing. Detect
       # this and generate the wrappers first via an in-place source-mode install
@@ -431,17 +431,15 @@ wrappers_file_exists <- function(pkg_path) {
 #' On a brand-new package there is no generated `R/<pkg>-wrappers.R`. The
 #' wrappers are emitted by the wrapper-gen pass during install. A plain
 #' `devtools::install(build = TRUE)` can't bootstrap them because its
-#' `R CMD build` step runs `bootstrap.R`, which auto-vendors the tarball and
+#' `R CMD build` step runs `bootstrap.R`, which vendors the tarball and
 #' flips `./configure` into wrapper-skipping tarball mode.
 #'
 #' This helper clears any stale latch, re-runs `./configure`, then does an
 #' in-place `devtools::install(build = FALSE)` with
-#' `MINIEXTENDR_FORCE_WRAPPER_GEN=1` to force the wrapper-gen pass
-#' regardless of which mode configure resolved to. In a non-git tree,
-#' configure's self-repair branch may legitimately re-seal `inst/vendor.tar.xz`
-#' (cargo-revendor on PATH + no `.git` ancestor); the FORCE override ensures
-#' the wrapper-gen pass runs even then. Once wrappers exist, `devtools::document()`
-#' is run and the package is installed once more so the namespace-aware install
+#' `MINIEXTENDR_FORCE_WRAPPER_GEN=1` to force the wrapper-gen pass even if stale
+#' generated configuration still describes tarball mode. Configure itself never
+#' creates `inst/vendor.tar.xz`. Once wrappers exist, `devtools::document()` is
+#' run and the package is installed once more so the namespace-aware install
 #' lands.
 #'
 #' @param pkg_path Absolute path to the package root.
@@ -453,10 +451,8 @@ bootstrap_fresh_wrappers <- function(pkg_path) {
     "before the full build."
   ))
 
-  # Clear any stale tarball-mode latch so configure gets a clean start.
-  # In a non-git tree configure's self-repair may re-seal inst/vendor.tar.xz
-  # (cargo-revendor on PATH); that is fine -- MINIEXTENDR_FORCE_WRAPPER_GEN
-  # below ensures the wrapper-gen pass runs regardless of install mode.
+  # Clear any stale tarball-mode latch so configure gets a clean source-mode
+  # start. Configure never creates a replacement vendor tarball.
   clear_install_mode_latch(pkg_path)
 
   # Re-configure now that the latch is gone, so the tarball-mode
@@ -464,9 +460,9 @@ bootstrap_fresh_wrappers <- function(pkg_path) {
   miniextendr_configure(pkg_path)
 
   # Generate wrappers via an in-place install. build = FALSE skips R CMD build
-  # (and therefore bootstrap.R's auto-vendor). MINIEXTENDR_FORCE_WRAPPER_GEN=1
-  # forces the wrapper-gen pass even if configure resolved to tarball
-  # mode (e.g. because self-repair re-sealed the latch in a non-git tree).
+  # (and therefore bootstrap.R's tarball-producing vendor step).
+  # MINIEXTENDR_FORCE_WRAPPER_GEN=1 also protects against stale generated
+  # tarball-mode configuration.
   old_force <- Sys.getenv("MINIEXTENDR_FORCE_WRAPPER_GEN", unset = NA)
   Sys.setenv(MINIEXTENDR_FORCE_WRAPPER_GEN = "1")
   on.exit(

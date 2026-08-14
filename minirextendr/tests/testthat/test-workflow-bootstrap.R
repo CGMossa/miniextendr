@@ -65,10 +65,9 @@ test_that("clear_install_mode_latch is a no-op when nothing is present", {
 })
 
 test_that("bootstrap_fresh_wrappers sets MINIEXTENDR_FORCE_WRAPPER_GEN=1 during installs", {
-  # Verify the fix for #963: bootstrap_fresh_wrappers() must set
-  # MINIEXTENDR_FORCE_WRAPPER_GEN=1 around its devtools::install() calls so
-  # that the cdylib wrapper-gen pass runs even when configure's self-repair
-  # branch re-seals inst/vendor.tar.xz in a non-git tree.
+  # bootstrap_fresh_wrappers() keeps the override around its
+  # devtools::install() calls so stale generated tarball-mode configuration
+  # cannot suppress the cdylib wrapper-gen pass.
   #
   # We mock devtools::install and miniextendr_configure to avoid a real compile.
   # devtools::document is also mocked to avoid roxygenising a stub package.

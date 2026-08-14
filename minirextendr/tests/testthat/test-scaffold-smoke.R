@@ -31,11 +31,10 @@ test_that("standalone scaffold can vendor for CRAN prep", {
     miniextendr_autoconf(path = pkg_path)
     miniextendr_configure(path = pkg_path)
   })
-  configure_log <- file.path(pkg_path, "config.log")
-  configure_output <- readLines(configure_log, warn = FALSE)
-  expect_true(
-    any(grepl("auto-vendor: no \\.git ancestor found", configure_output)),
-    info = "configure should explain that auto-vendor fired because no .git ancestor was found"
+  tarball <- file.path(pkg_path, "inst", "vendor.tar.xz")
+  expect_false(
+    file.exists(tarball),
+    info = "configure must not create a vendor tarball"
   )
 
   # Vendor for CRAN
@@ -44,7 +43,6 @@ test_that("standalone scaffold can vendor for CRAN prep", {
   })
 
   # Verify vendor tarball was created
-  tarball <- file.path(pkg_path, "inst", "vendor.tar.xz")
   expect_true(file.exists(tarball), info = "vendor.tar.xz should exist")
   expect_true(file.size(tarball) > 0, info = "vendor.tar.xz should be non-empty")
 

@@ -19,7 +19,7 @@ just dev-tools-install
 
 Installs the helpers expected by the other recipes:
 
-- `cargo-revendor` from the in-tree `cargo-revendor/` (required by [`just vendor`](https://github.com/A2-ai/miniextendr/blob/main/justfile) and the dev-monorepo configure path).
+- `cargo-revendor` from the in-tree `cargo-revendor/` (required by [`just vendor`](https://github.com/A2-ai/miniextendr/blob/main/justfile) and tarball-producing bootstrap workflows; configure itself never vendors).
 - `cargo-limit`, which provides the `cargo lcheck` / `lclippy` / `ltest` / `lbuild` aliases that truncate output to the first few errors, recommended for interactive iteration. CI and `just` recipes keep plain `cargo` so `-D warnings` output stays complete.
 
 ## Quick Start

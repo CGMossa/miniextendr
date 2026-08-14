@@ -33,7 +33,7 @@ Templates may have extra standalone-project logic (e.g., checking for miniextend
 - `usethis::write_over()` skips silently in non-interactive mode. `use_template()` deletes the target first so `upgrade_miniextendr_package()` actually overwrites.
 - Cargo directory source can't find manually-extracted crates from `.crate` files — use `[patch.crates-io]` + path deps for workspace crates.
 - Regression tests in `tests/testthat/` grep function source for literal strings (`deparse(body)` style). Don't inline a helper just to satisfy them — fix the test or accept the indirection.
-- `bootstrap.R` (run by pkgbuild — `devtools::build()`, `rcmdcheck`, `r-lib/actions/check-r-package`) is the auto-vendor trigger when a non-`.git`-rooted source tree lacks `inst/vendor.tar.xz`.
+- `configure` never vendors. `bootstrap.R` may create `inst/vendor.tar.xz` only while a build frontend is producing a package tarball.
 
 ## End-user contract
 **`just` is maintainer-only.** Scaffolded packages must build via `configure.ac` / `tools/*.R` / standard R mechanisms. If a template requires `just`, fix the template.
