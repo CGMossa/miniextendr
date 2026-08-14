@@ -27,7 +27,7 @@ fn ensure_r_initialized() -> Result<(), String> {
                     .init();
 
                 match result {
-                    Ok(engine) => {
+                    Ok(_engine) => {
                         // Initialize miniextendr-api components
                         miniextendr_api::backtrace::miniextendr_panic_hook();
                         miniextendr_api::worker::miniextendr_runtime_init();
@@ -37,8 +37,6 @@ fn ensure_r_initialized() -> Result<(), String> {
                             return Err("Rf_initialize_R did not set C stack sentinels".to_string());
                         }
 
-                        // Forget the engine to prevent Drop (R cleanup is unsafe)
-                        std::mem::forget(engine);
                         Ok(())
                     }
                     Err(e) => Err(format!("Failed to initialize R: {}", e)),

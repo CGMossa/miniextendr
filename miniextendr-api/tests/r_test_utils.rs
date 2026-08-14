@@ -11,7 +11,7 @@ static R_THREAD: OnceLock<mpsc::Sender<Job>> = OnceLock::new();
 
 fn initialize_r() {
     unsafe {
-        let engine = miniextendr_engine::REngine::build()
+        let _engine = miniextendr_engine::REngine::build()
             .with_args(&["R", "--quiet", "--vanilla"])
             .init()
             .expect("Failed to initialize R");
@@ -23,7 +23,6 @@ fn initialize_r() {
             miniextendr_engine::r_initialized_sentinel(),
             "Rf_initialize_R did not set C stack sentinels"
         );
-        std::mem::forget(engine);
     }
 }
 

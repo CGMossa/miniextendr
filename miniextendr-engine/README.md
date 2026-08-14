@@ -25,7 +25,7 @@ This crate centralizes:
 
 ```rust
 // SAFETY: Must be called once, from the main thread.
-let engine = unsafe {
+let _engine = unsafe {
     miniextendr_engine::REngine::build()
         .with_args(&["R", "--quiet", "--vanilla"])
         .init()
@@ -33,13 +33,14 @@ let engine = unsafe {
 };
 
 // ... use R APIs from the main thread ...
-
-std::mem::forget(engine); // optional: intentionally leak the handle
+// R remains initialized when the handle leaves scope.
 ```
 
 R shutdown is intentionally skipped: `Rf_endEmbeddedR` is not reentrant-safe
 and can crash if called during Drop or test teardown. Let the OS reclaim
-resources on process exit.
+resources on process exit. `REngine` has a private constructor, so obtaining a
+handle proves that initialization completed successfully; dropping the handle
+does not shut R down.
 
 ### Initialization details
 

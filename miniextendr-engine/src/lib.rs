@@ -14,9 +14,9 @@
 //!
 //! ## Quick start
 //!
-//! ```ignore
+//! ```no_run
 //! // SAFETY: Must be called once, from the main thread.
-//! let engine = unsafe {
+//! let _engine = unsafe {
 //!     miniextendr_engine::REngine::build()
 //!         .with_args(&["R", "--quiet", "--vanilla"])
 //!         .init()
@@ -24,8 +24,7 @@
 //! };
 //!
 //! // ... use R APIs from the main thread ...
-//!
-//! std::mem::forget(engine); // optional: intentionally leak the handle
+//! // R remains initialized when the handle leaves scope.
 //! ```
 //!
 //! ## Initialization details
@@ -35,7 +34,7 @@
 //!
 //! ## Runtime sentinel
 //!
-//! ```ignore
+//! ```no_run
 //! if miniextendr_engine::r_initialized_sentinel() {
 //!     // R has been initialized in this process.
 //! }
@@ -111,12 +110,17 @@ pub fn r_initialized_sentinel() -> bool {
 ///
 /// # Example
 ///
-/// ```ignore
-/// let engine = REngine::build()
-///     .with_args(&["R", "--quiet", "--no-save"])
-///     .interactive(false)
-///     .signal_handlers(false)
-///     .init()?;
+/// ```no_run
+/// # fn main() -> Result<(), miniextendr_engine::REngineError> {
+/// let _engine = unsafe {
+///     miniextendr_engine::REngine::build()
+///         .with_args(&["R", "--quiet", "--no-save"])
+///         .interactive(false)
+///         .signal_handlers(false)
+///         .init()?
+/// };
+/// # Ok(())
+/// # }
 /// ```
 pub struct REngineBuilder {
     args: Vec<String>,
@@ -240,7 +244,7 @@ impl REngineBuilder {
             // resources on process exit is safer and sufficient.
         }
 
-        Ok(REngine)
+        Ok(REngine { _private: () })
     }
 }
 
@@ -250,12 +254,15 @@ impl REngineBuilder {
 /// R cleanup (via `Rf_endEmbeddedR`) is intentionally NOT called because it
 /// performs non-reentrant operations that can crash if called during Drop
 /// or concurrent with other cleanup. The OS reclaims all resources on process exit.
-pub struct REngine;
-
-impl Drop for REngine {
-    /// Implements drop such that `std::mem::forget` leaks `REngine` rather than
-    /// dropping it, when `Drop` is absent.
-    fn drop(&mut self) {}
+///
+/// The handle cannot be constructed directly; only a successful
+/// [`REngineBuilder::init`] can create it.
+///
+/// ```compile_fail
+/// let _forged = miniextendr_engine::REngine;
+/// ```
+pub struct REngine {
+    _private: (),
 }
 
 impl REngine {
