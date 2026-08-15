@@ -37,33 +37,111 @@ pub(crate) fn is_sexp_type(ty: &syn::Type) -> bool {
         .unwrap_or(false))
 }
 
+/// Framework type names that hold R memory and are `!Send` by design.
+///
+/// Used only for thread-strategy selection: values of these types can neither
+/// move into the worker closure nor cross back out of it (`run_on_worker`
+/// requires `Send`), so any function touching one stays on the main thread
+/// even under `worker-default`. Covers the raw `SEXP`, `AltrepSexp`, the
+/// zero-copy R-backed views (`RDVector`, `RDMatrix`, `RndVec`, `RndMat`,
+/// `ProtectedStrVec`), and the owned GC-rooted handles (`BuiltDataFrame`,
+/// `DataFrameShape`). Arbitrary user `!Send` types can't be detected
+/// syntactically — those need an explicit `no_worker`.
+const MAIN_THREAD_BOUND: &[&str] = &[
+    "SEXP",
+    "AltrepSexp",
+    "RDVector",
+    "RDMatrix",
+    "RndVec",
+    "RndMat",
+    "ProtectedStrVec",
+    "BuiltDataFrame",
+    "DataFrameShape",
+];
+
 /// Returns `true` if `ty` is an input type bound to the R main thread.
 ///
-/// Used only for thread-strategy selection: parameters of these types cannot
-/// move into the worker closure (`run_on_worker` requires `Send`), so the
-/// function stays on the main thread even under `worker-default`. Covers the
-/// raw `SEXP` and framework wrapper types that hold R memory and are `!Send`
-/// by design: `AltrepSexp` and the zero-copy R-backed views (`RDVector`,
-/// `RDMatrix`, `RndVec`, `RndMat`). Arbitrary user `!Send` types can't be
-/// detected syntactically — those need an explicit `no_worker`.
-/// Return-type analysis keeps the narrower [`is_sexp_type`].
+/// Checks only the outermost path segment: main-thread-bound inputs arrive
+/// bare (`x: SEXP`, `v: RDVector<f64>`), never nested inside containers.
+/// Return-type analysis keeps the narrower [`is_sexp_type`] and uses the
+/// recursive [`is_main_thread_bound_return`] for thread selection.
 #[inline]
 pub(crate) fn is_main_thread_bound_input(ty: &syn::Type) -> bool {
-    const MAIN_THREAD_BOUND: &[&str] = &[
-        "SEXP",
-        "AltrepSexp",
-        "RDVector",
-        "RDMatrix",
-        "RndVec",
-        "RndMat",
-        "ProtectedStrVec",
-    ];
     matches!(ty, syn::Type::Path(p) if p
         .path
         .segments
         .last()
         .map(|s| MAIN_THREAD_BOUND.contains(&s.ident.to_string().as_str()))
         .unwrap_or(false))
+}
+
+/// Returns `true` if `ty` is (or contains) a main-thread-bound type anywhere
+/// in a return position — e.g. `BuiltDataFrame`, `Result<BuiltDataFrame,
+/// String>`, `Option<DataFrameShape>`, `Vec<BuiltDataFrame>`.
+///
+/// Unlike inputs, main-thread-bound returns routinely nest inside `Result` /
+/// `Option` / containers, so this walks the whole type tree. Under
+/// `worker-default` a function whose return type matches is forced onto the
+/// main thread: the value owns R memory (`!Send`) and cannot cross back from
+/// the worker (`run_on_worker` requires `T: Send`).
+pub(crate) fn is_main_thread_bound_return(ty: &syn::Type) -> bool {
+    match ty {
+        syn::Type::Path(p) => p.path.segments.last().is_some_and(|seg| {
+            if MAIN_THREAD_BOUND.contains(&seg.ident.to_string().as_str()) {
+                return true;
+            }
+            if let syn::PathArguments::AngleBracketed(ab) = &seg.arguments {
+                return ab.args.iter().any(|arg| {
+                    matches!(arg, syn::GenericArgument::Type(t) if is_main_thread_bound_return(t))
+                });
+            }
+            false
+        }),
+        syn::Type::Reference(r) => is_main_thread_bound_return(&r.elem),
+        syn::Type::Paren(p) => is_main_thread_bound_return(&p.elem),
+        syn::Type::Group(g) => is_main_thread_bound_return(&g.elem),
+        syn::Type::Tuple(t) => t.elems.iter().any(is_main_thread_bound_return),
+        syn::Type::Array(a) => is_main_thread_bound_return(&a.elem),
+        syn::Type::Slice(s) => is_main_thread_bound_return(&s.elem),
+        _ => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_main_thread_bound_return;
+
+    fn ty(s: &str) -> syn::Type {
+        syn::parse_str(s).unwrap()
+    }
+
+    #[test]
+    fn main_thread_bound_return_detects_nested_positions() {
+        // Bare and fully-qualified paths
+        assert!(is_main_thread_bound_return(&ty("BuiltDataFrame")));
+        assert!(is_main_thread_bound_return(&ty(
+            "miniextendr_api::dataframe::BuiltDataFrame"
+        )));
+        assert!(is_main_thread_bound_return(&ty("DataFrameShape")));
+        assert!(is_main_thread_bound_return(&ty("SEXP")));
+        // Nested inside Result / Option / containers / tuples
+        assert!(is_main_thread_bound_return(&ty(
+            "Result<BuiltDataFrame, String>"
+        )));
+        assert!(is_main_thread_bound_return(&ty(
+            "Result<DataFrameShape, std::string::String>"
+        )));
+        assert!(is_main_thread_bound_return(&ty("Option<BuiltDataFrame>")));
+        assert!(is_main_thread_bound_return(&ty("Vec<BuiltDataFrame>")));
+        assert!(is_main_thread_bound_return(&ty("(i32, BuiltDataFrame)")));
+        // Send-safe returns stay worker-eligible
+        assert!(!is_main_thread_bound_return(&ty("i32")));
+        assert!(!is_main_thread_bound_return(&ty(
+            "Result<Vec<f64>, String>"
+        )));
+        assert!(!is_main_thread_bound_return(&ty("ExternalPtr<MyType>")));
+        assert!(!is_main_thread_bound_return(&ty("DataFrame")));
+    }
 }
 
 /// Container family for a `several_ok` parameter, returned by
