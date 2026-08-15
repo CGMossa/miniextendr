@@ -835,6 +835,13 @@ dependencies = [
 ]
 
 [[packages]]
+name = "rdtools"
+version = "0.1.0"
+source = { repository = "https://cloud.r-project.org/" }
+force_source = false
+dependencies = []
+
+[[packages]]
 name = "rlang"
 version = "1.2.0"
 source = { repository = "https://cloud.r-project.org/" }
@@ -861,8 +868,8 @@ dependencies = [
 
 [[packages]]
 name = "roxygen2"
-version = "8.0.0"
-source = { repository = "https://prism.dev.a2-ai.cloud/rpkgs/stratus/2026-06-18" }
+version = "8.1.0"
+source = { repository = "https://cloud.r-project.org/" }
 force_source = false
 dependencies = [
     "brew",
@@ -873,6 +880,7 @@ dependencies = [
     "lifecycle",
     { name = "pkgload", requirement = "(>= 1.5.2)" },
     { name = "R6", requirement = "(>= 2.1.2)" },
+    { name = "rdtools", requirement = "(>= 0.1.0)" },
     { name = "rlang", requirement = "(>= 1.1.0)" },
     "withr",
     "xml2",

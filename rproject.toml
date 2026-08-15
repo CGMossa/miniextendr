@@ -38,7 +38,12 @@ dependencies = [
     "knitr",
     "rcmdcheck",
     "rmarkdown",
-    "roxygen2",
+    # CI's Sync Checks job installs roxygen2 from public RSPM "latest"; the
+    # stratus snapshot (2026-06-18) still has 8.0.0, whose NAMESPACE importFrom
+    # formatting differs from 8.1.0 — the committed NAMESPACE must be generated
+    # by the same major/minor roxygen2 CI regenerates with, or
+    # `just wrappers-sync-check` red-flags every PR. Pin to CRAN (latest).
+    {name = "roxygen2", repository = "CRAN"},
     "withr",
     "yaml",
     "jsonlite",
