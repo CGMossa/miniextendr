@@ -1704,49 +1704,57 @@ export(zstd_roundtrip)
 exportMethods(s4_mode_current)
 exportMethods(s4_mode_set)
 importFrom(R6,R6Class)
-importFrom(S7,S7_dispatch)
-importFrom(S7,S7_object)
-importFrom(S7,class_any)
-importFrom(S7,class_character)
-importFrom(S7,class_double)
-importFrom(S7,class_integer)
-importFrom(S7,convert)
-importFrom(S7,method)
-importFrom(S7,new_class)
-importFrom(S7,new_generic)
-importFrom(S7,new_object)
-importFrom(S7,new_property)
+importFrom(S7,
+  S7_dispatch,
+  S7_object,
+  class_any,
+  class_character,
+  class_double,
+  class_integer,
+  convert,
+  method,
+  new_class,
+  new_generic,
+  new_object,
+  new_property
+)
 importFrom(cli,cli_progress_bar)
-importFrom(lifecycle,badge)
-importFrom(lifecycle,deprecate_soft)
-importFrom(lifecycle,deprecate_stop)
-importFrom(lifecycle,deprecate_warn)
-importFrom(lifecycle,signal_stage)
-importFrom(methods,new)
-importFrom(methods,setClass)
-importFrom(methods,setGeneric)
-importFrom(methods,setMethod)
-importFrom(vctrs,field)
-importFrom(vctrs,new_data_frame)
-importFrom(vctrs,new_list_of)
-importFrom(vctrs,new_rcrd)
-importFrom(vctrs,new_vctr)
-importFrom(vctrs,stop_incompatible_op)
-importFrom(vctrs,vec_arith)
-importFrom(vctrs,vec_arith.numeric)
-importFrom(vctrs,vec_arith_base)
-importFrom(vctrs,vec_cast)
-importFrom(vctrs,vec_data)
-importFrom(vctrs,vec_math)
-importFrom(vctrs,vec_math_base)
-importFrom(vctrs,vec_proxy)
-importFrom(vctrs,vec_proxy_compare)
-importFrom(vctrs,vec_proxy_equal)
-importFrom(vctrs,vec_proxy_order)
-importFrom(vctrs,vec_ptype)
-importFrom(vctrs,vec_ptype2)
-importFrom(vctrs,vec_ptype_abbr)
-importFrom(vctrs,vec_ptype_common)
-importFrom(vctrs,vec_ptype_full)
-importFrom(vctrs,vec_restore)
+importFrom(lifecycle,
+  badge,
+  deprecate_soft,
+  deprecate_stop,
+  deprecate_warn,
+  signal_stage
+)
+importFrom(methods,
+  new,
+  setClass,
+  setGeneric,
+  setMethod
+)
+importFrom(vctrs,
+  field,
+  new_data_frame,
+  new_list_of,
+  new_rcrd,
+  new_vctr,
+  stop_incompatible_op,
+  vec_arith,
+  vec_arith.numeric,
+  vec_arith_base,
+  vec_cast,
+  vec_data,
+  vec_math,
+  vec_math_base,
+  vec_proxy,
+  vec_proxy_compare,
+  vec_proxy_equal,
+  vec_proxy_order,
+  vec_ptype,
+  vec_ptype2,
+  vec_ptype_abbr,
+  vec_ptype_common,
+  vec_ptype_full,
+  vec_restore
+)
 useDynLib(miniextendr, .registration = TRUE)
