@@ -32,6 +32,17 @@ if (!dir.exists(tests_dir)) {
   stop(sprintf("tests dir not found: %s (run from repo root)", tests_dir))
 }
 
+# The throwaway library `just gctorture-full` installed rpkg into. Prepended
+# INSIDE the session because .libPaths() as set by env vars doesn't survive
+# startup in either environment: locally the repo .Rprofile (rv activation)
+# replaces the path list wholesale, and in CI an R_LIBS_USER override would
+# hide the runner's dependency library (where setup-r-dependencies put R6,
+# S7, testthat, ...). Prepending keeps both the fresh install and the deps.
+sweep_lib <- Sys.getenv("MINIEXTENDR_GCTORTURE_LIB", "")
+if (nzchar(sweep_lib)) {
+  .libPaths(c(sweep_lib, .libPaths()))
+}
+
 # --- 1. Load the package FIRST, before any gctorture. --------------------------
 library(miniextendr)
 library(testthat)

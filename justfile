@@ -674,7 +674,13 @@ gctorture-full STEP="100": _assert-no-vendor-leak configure
     # it (and clean the temp lib) on every exit path, incl. a failed sweep. (#1052)
     trap 'rm -rf "$libdir"; just cargo-lock-restore' EXIT
     R CMD INSTALL --library="$libdir" rpkg
-    R_LIBS_USER="$libdir" Rscript scripts/gctorture-full-sweep.R rpkg/tests/testthat {{STEP}}
+    # Hand the throwaway library to the sweep via env var — the script prepends
+    # it to .libPaths() INSIDE the session. An R_LIBS_USER override here never
+    # survives startup: locally the repo .Rprofile (rv activation) replaces
+    # .libPaths() wholesale, and in CI overriding R_LIBS_USER hides the
+    # runner's dependency library (setup-r-dependencies installs there),
+    # breaking loadNamespace with "there is no package called 'R6'".
+    MINIEXTENDR_GCTORTURE_LIB="$libdir" Rscript scripts/gctorture-full-sweep.R rpkg/tests/testthat {{STEP}}
 
 # Deliberate lock updates go through `just update` / `just vendor` (they re-stamp
 # tarball-shape); the R-side dev recipes below only DRIFT rpkg/src/rust/Cargo.lock
