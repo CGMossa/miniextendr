@@ -221,7 +221,7 @@ compile_error!(
 
 pub(crate) use type_inspect::{
     SeveralOkContainer, classify_several_ok_container, first_type_argument,
-    is_main_thread_bound_input, is_sexp_type, second_type_argument,
+    is_main_thread_bound_input, is_main_thread_bound_return, is_sexp_type, second_type_argument,
 };
 pub(crate) use util::{extract_cfg_attrs, r_wrapper_raw_literal, source_location_doc};
 
@@ -902,6 +902,16 @@ pub fn miniextendr(
         }
     });
 
+    // Check if the return type is main-thread-bound (BuiltDataFrame /
+    // DataFrameShape / an R-backed view — all hold R memory and are !Send, so
+    // they cannot cross back from the worker thread; `run_on_worker` requires
+    // `T: Send`). Walks nested positions: Result<BuiltDataFrame, E>,
+    // Option<DataFrameShape>, Vec<...>, tuples.
+    let has_main_thread_bound_return = match output {
+        syn::ReturnType::Default => false,
+        syn::ReturnType::Type(_, ty) => is_main_thread_bound_return(ty),
+    };
+
     // ═══════════════════════════════════════════════════════════════════════════
     // Thread Strategy Selection
     // ═══════════════════════════════════════════════════════════════════════════
@@ -934,8 +944,13 @@ pub fn miniextendr(
     // Thread strategy:
     // - Main thread is always used unless force_worker is set
     // - force_worker cannot override hard requirements for main thread
-    // - Hard requirements: returns_sexp, has_sexp_inputs, has_dots, check_interrupt
-    let requires_main_thread = returns_sexp || has_sexp_inputs || has_dots || check_interrupt;
+    // - Hard requirements: returns_sexp, has_sexp_inputs,
+    //   has_main_thread_bound_return, has_dots, check_interrupt
+    let requires_main_thread = returns_sexp
+        || has_sexp_inputs
+        || has_main_thread_bound_return
+        || has_dots
+        || check_interrupt;
     let use_main_thread = !force_worker || requires_main_thread;
 
     // Extract cfg attributes to apply to generated items (needed by CWrapperContext)

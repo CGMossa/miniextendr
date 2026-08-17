@@ -62,9 +62,14 @@ pub fn set_option(key: String, value: i32) { /* ... */ }
 | `worker` | Run on worker thread (default if `worker-default` feature) |
 | `no_worker` | Run on main R thread |
 
-Functions taking `SEXP` parameters automatically run on the main thread — they
-are `!Send`, so the generated wrapper can only execute there. No attribute is
-needed.
+Functions taking or returning `!Send` framework types automatically run on the
+main thread — the generated wrapper can only execute there. No attribute is
+needed. This covers `SEXP` (parameters and returns), the R-backed views
+(`AltrepSexp`, `RDVector`, `RDMatrix`, `RndVec`, `RndMat`, `ProtectedStrVec`),
+and the GC-rooted owned handles (`BuiltDataFrame`, `DataFrameShape`) anywhere
+in the return type, including nested inside `Result`, `Option`, or containers.
+Arbitrary user `!Send` types can't be detected syntactically — mark those
+functions `no_worker` explicitly.
 
 ```rust
 #[miniextendr(no_worker)]
