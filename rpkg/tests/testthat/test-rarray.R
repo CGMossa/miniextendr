@@ -31,8 +31,8 @@ test_that("RMatrix attribute getters return both dimname axes", {
     c("col-a", "col-b", "col-c")
   ))
 
-  expect_identical(rarray_matrix_rownames(m), rownames(m))
-  expect_identical(rarray_matrix_colnames(m), colnames(m))
+  expect_identical(miniextendr:::rarray_matrix_rownames(m), rownames(m))
+  expect_identical(miniextendr:::rarray_matrix_colnames(m), colnames(m))
 })
 
 test_that("List attribute getters return both dimname axes", {
@@ -41,8 +41,8 @@ test_that("List attribute getters return both dimname axes", {
     c("col-a", "col-b", "col-c")
   ))
 
-  expect_identical(list_matrix_rownames(m), rownames(m))
-  expect_identical(list_matrix_colnames(m), colnames(m))
+  expect_identical(miniextendr:::list_matrix_rownames(m), rownames(m))
+  expect_identical(miniextendr:::list_matrix_colnames(m), colnames(m))
 })
 
 test_that("row-name getters report absent row names", {
@@ -57,6 +57,6 @@ test_that("row-name getters report absent row names", {
     dimnames = list(NULL, c("col-a", "col-b", "col-c"))
   )
 
-  expect_error(rarray_matrix_rownames(numeric_matrix), "expected row names")
-  expect_error(list_matrix_rownames(list_matrix), "expected row names")
+  expect_error(miniextendr:::rarray_matrix_rownames(numeric_matrix), "expected row names")
+  expect_error(miniextendr:::list_matrix_rownames(list_matrix), "expected row names")
 })

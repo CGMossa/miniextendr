@@ -53,7 +53,7 @@ pub fn rarray_matrix_column(x: SEXP, col: i32) -> Vec<f64> {
 
 /// Return row names through `RMatrix::get_rownames`.
 /// @param x An R vector or matrix accepted by the selected helper.
-#[miniextendr]
+#[miniextendr(noexport)]
 pub fn rarray_matrix_rownames(x: SEXP) -> Vec<String> {
     let mat = unsafe { RMatrix::<f64>::from_sexp(x).expect("expected numeric matrix") };
     let names = unsafe { mat.get_rownames().expect("expected row names") };
@@ -62,7 +62,7 @@ pub fn rarray_matrix_rownames(x: SEXP) -> Vec<String> {
 
 /// Return column names through `RMatrix::get_colnames`.
 /// @param x An R vector or matrix accepted by the selected helper.
-#[miniextendr]
+#[miniextendr(noexport)]
 pub fn rarray_matrix_colnames(x: SEXP) -> Vec<String> {
     let mat = unsafe { RMatrix::<f64>::from_sexp(x).expect("expected numeric matrix") };
     let names = unsafe { mat.get_colnames().expect("expected column names") };
@@ -71,7 +71,7 @@ pub fn rarray_matrix_colnames(x: SEXP) -> Vec<String> {
 
 /// Return row names through `List::get_rownames` for a VECSXP matrix.
 /// @param x An R vector or matrix accepted by the selected helper.
-#[miniextendr]
+#[miniextendr(noexport)]
 pub fn list_matrix_rownames(x: SEXP) -> Vec<String> {
     let list = List::try_from_sexp(x).expect("expected list matrix");
     strings_from_sexp(list.get_rownames().expect("expected row names"))
@@ -79,7 +79,7 @@ pub fn list_matrix_rownames(x: SEXP) -> Vec<String> {
 
 /// Return column names through `List::get_colnames` for a VECSXP matrix.
 /// @param x An R vector or matrix accepted by the selected helper.
-#[miniextendr]
+#[miniextendr(noexport)]
 pub fn list_matrix_colnames(x: SEXP) -> Vec<String> {
     let list = List::try_from_sexp(x).expect("expected list matrix");
     strings_from_sexp(list.get_colnames().expect("expected column names"))
