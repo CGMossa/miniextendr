@@ -9,8 +9,12 @@ name: gctorture nightly
 # full-suite torture pass on the R-release Linux runner is the only thing that
 # reliably catches this class before a release. See docs/GCTORTURE_TESTING.md.
 #
-# Deliberately NOT on the pull_request / push matrix: the run takes 30-90 minutes
-# (~100x slowdown at step=100), far too expensive for a PR gate. Scheduled nightly
+# Deliberately NOT on the pull_request / push matrix: the full sweep needs
+# ~11 hours of runner time at step=100 over the current 137-file suite
+# (measured: 24 files in the 120-minute run 32053834466), far too expensive
+# for a PR gate — and too long for any single hosted job, so the sweep fans
+# out over a shard matrix (MINIEXTENDR_GCTORTURE_SHARD=k/n partitions test
+# files round-robin in scripts/gctorture-full-sweep.R). Scheduled nightly
 # plus a manual workflow_dispatch trigger for on-demand verification.
 
 on:
@@ -28,19 +32,25 @@ permissions:
 
 jobs:
   gctorture-full:
-    name: gctorture2 full-suite sweep / Linux R-release
+    name: gctorture2 full-suite sweep / shard ${{ matrix.shard }}
     runs-on: ubuntu-latest
-    # ~2x the r-check-linux job's 60-minute timeout: the step=100 sweep is
-    # ~100x slower than a baseline test run, and the full suite already takes
-    # the better part of an hour without torture on cold caches. 120 minutes
-    # leaves headroom for the cdylib->staticlib double-link build plus the sweep.
-    timeout-minutes: 120
+    # Each shard sweeps ~23 of 137 test files. Measured pace from run
+    # 32053834466 (~24 files in 110 minutes of sweeping after a ~10-minute
+    # build): ~2 hours per shard. 300 minutes leaves headroom for the
+    # cdylib->staticlib double-link build plus uneven file weights (the
+    # heaviest single file measured 932s).
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ["1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
 
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
       SCCACHE_GHA_ENABLED: "true"
       RUSTC_WRAPPER: "sccache"
+      MINIEXTENDR_GCTORTURE_SHARD: ${{ matrix.shard }}
 
     steps:
       - uses: actions/checkout@v7
@@ -141,11 +151,15 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Compose artifact-safe shard name
+        if: always()
+        run: echo "SHARD_SLUG=$(echo '${{ matrix.shard }}' | tr '/' '-')" >> "$GITHUB_ENV"
+
       - name: Upload sweep log
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: gctorture-nightly-log
+          name: gctorture-nightly-log-${{ env.SHARD_SLUG }}
           path: ${{ runner.temp }}/gctorture.log
           retention-days: 14
           if-no-files-found: ignore

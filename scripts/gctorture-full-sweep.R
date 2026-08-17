@@ -18,11 +18,15 @@
 #   4. testthat::test_dir(...) over rpkg/tests/testthat.
 #
 # Intended to run on a scheduled CI job (.github/workflows/gctorture-nightly.yml)
-# and locally for bisects. Expect 30-90 minutes locally; longer in CI.
+# and locally for bisects. The FULL suite at step=100 needs ~11 hours (measured
+# in CI, 2026-08); CI shards it via MINIEXTENDR_GCTORTURE_SHARD, and local
+# bisects should either set a shard, pass a bigger step, or budget accordingly.
 #
 # Usage:
 #   Rscript scripts/gctorture-full-sweep.R [tests_dir] [step]
 # Defaults: tests_dir = rpkg/tests/testthat, step = 100.
+# Env: MINIEXTENDR_GCTORTURE_LIB   — extra library to prepend to .libPaths()
+#      MINIEXTENDR_GCTORTURE_SHARD — "k/n" file-level shard (default: all files)
 
 args <- commandArgs(trailingOnly = TRUE)
 tests_dir <- if (length(args) >= 1L && nzchar(args[[1L]])) args[[1L]] else "rpkg/tests/testthat"
@@ -41,6 +45,36 @@ if (!dir.exists(tests_dir)) {
 sweep_lib <- Sys.getenv("MINIEXTENDR_GCTORTURE_LIB", "")
 if (nzchar(sweep_lib)) {
   .libPaths(c(sweep_lib, .libPaths()))
+}
+
+# Optional file-level sharding: MINIEXTENDR_GCTORTURE_SHARD="k/n" runs only
+# every n-th test file (round-robin by sorted index, offset k). The full
+# step=100 sweep over the current suite needs ~11 hours of runner time
+# (measured: 24 of 137 files in the 120-minute run 32053834466), which no
+# single hosted job can hold — the nightly workflow fans the sweep out over
+# a shard matrix instead. Unset (the local default) runs everything.
+sweep_filter <- NULL
+shard_spec <- Sys.getenv("MINIEXTENDR_GCTORTURE_SHARD", "")
+if (nzchar(shard_spec)) {
+  parts <- strsplit(shard_spec, "/", fixed = TRUE)[[1L]]
+  k <- suppressWarnings(as.integer(parts[[1L]]))
+  n <- suppressWarnings(as.integer(parts[[2L]]))
+  if (length(parts) != 2L || is.na(k) || is.na(n) || n < 1L || k < 1L || k > n) {
+    stop(sprintf("malformed MINIEXTENDR_GCTORTURE_SHARD: %s (want k/n)", shard_spec))
+  }
+  files <- sort(list.files(tests_dir, pattern = "^test-.*\\.R$"))
+  mine <- files[seq_along(files) %% n == (k %% n)]
+  if (length(mine) == 0L) {
+    cat(sprintf("gctorture-full-sweep: shard %s selects no files — nothing to do.\n", shard_spec))
+    quit(status = 0L, save = "no")
+  }
+  stems <- sub("^test-", "", sub("\\.R$", "", mine))
+  # test_dir()'s filter is a regex over the stem; anchor an exact alternation.
+  sweep_filter <- paste0("^(", paste(gsub("([][{}()+*^$|\\\\?.])", "\\\\\\1", stems), collapse = "|"), ")$")
+  cat(sprintf(
+    "gctorture-full-sweep: shard %s -> %d of %d test files\n",
+    shard_spec, length(mine), length(files)
+  ))
 }
 
 # --- 1. Load the package FIRST, before any gctorture. --------------------------
@@ -71,10 +105,11 @@ cat(sprintf(
 # --- 3. Enable full-suite torture. ---------------------------------------------
 gctorture2(step = step, wait = 0L, inhibit_release = FALSE)
 
-# --- 4. Run the whole suite; never stop on first failure (collect everything). -
+# --- 4. Run the (possibly sharded) suite; never stop on first failure. ---------
 res <- tryCatch(
   testthat::test_dir(
     tests_dir,
+    filter = sweep_filter,
     reporter = testthat::ProgressReporter,
     stop_on_failure = FALSE
   ),

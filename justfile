@@ -658,9 +658,10 @@ test-bootstrap-vendor:
 #
 # Installs rpkg into a throwaway library (the harness does `library(miniextendr)`
 # — devtools::load_all is unsafe under gctorture per the doc's pitfall #1), then
-# runs scripts/gctorture-full-sweep.R at step=100. Expect 30-90 minutes locally,
-# longer in CI; wire it as a scheduled job, not a PR gate
-# (.github/workflows/gctorture-nightly.yml).
+# runs scripts/gctorture-full-sweep.R at step=100. The FULL suite at step=100
+# needs ~11 hours (measured in CI, 2026-08) — set MINIEXTENDR_GCTORTURE_SHARD=k/n
+# or a bigger STEP for local bisects. Wired as a sharded scheduled job, not a
+# PR gate (.github/workflows/gctorture-nightly.yml).
 #
 # Override step with the STEP arg (step=10 for a faster bisect, step=1 = full
 # gctorture(TRUE)). Exits non-zero and lists the offending test files on failure.
