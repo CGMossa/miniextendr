@@ -94,6 +94,10 @@ test_that("multiple Counter instances are independent", {
 })
 
 test_that("ExternalPtr pointee is readable after transfer to the worker", {
+  skip_if_not(
+    "worker-thread" %in% miniextendr::miniextendr_enabled_features(),
+    "rpkg built without the worker-thread feature"
+  )
   counter <- extptr_counter_new(37L)
 
   expect_equal(miniextendr:::extptr_worker_value(counter), 37L)
@@ -101,6 +105,10 @@ test_that("ExternalPtr pointee is readable after transfer to the worker", {
 })
 
 test_that("ExternalPtr worker round-trip preserves R identity", {
+  skip_if_not(
+    "worker-thread" %in% miniextendr::miniextendr_enabled_features(),
+    "rpkg built without the worker-thread feature"
+  )
   counter <- extptr_counter_new(41L)
 
   returned <- miniextendr:::extptr_worker_identity(counter)
@@ -110,6 +118,10 @@ test_that("ExternalPtr worker round-trip preserves R identity", {
 })
 
 test_that("ExternalPtr into_inner on worker clears the R handle", {
+  skip_if_not(
+    "worker-thread" %in% miniextendr::miniextendr_enabled_features(),
+    "rpkg built without the worker-thread feature"
+  )
   counter <- extptr_counter_new(73L)
 
   expect_equal(miniextendr:::extptr_worker_into_inner(counter), 73L)
