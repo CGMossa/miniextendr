@@ -658,9 +658,10 @@ test-bootstrap-vendor:
 #
 # Installs rpkg into a throwaway library (the harness does `library(miniextendr)`
 # — devtools::load_all is unsafe under gctorture per the doc's pitfall #1), then
-# runs scripts/gctorture-full-sweep.R at step=100. Expect 30-90 minutes locally,
-# longer in CI; wire it as a scheduled job, not a PR gate
-# (.github/workflows/gctorture-nightly.yml).
+# runs scripts/gctorture-full-sweep.R at step=100. The FULL suite at step=100
+# needs ~11 hours (measured in CI, 2026-08) — set MINIEXTENDR_GCTORTURE_SHARD=k/n
+# or a bigger STEP for local bisects. Wired as a sharded scheduled job, not a
+# PR gate (.github/workflows/gctorture-nightly.yml).
 #
 # Override step with the STEP arg (step=10 for a faster bisect, step=1 = full
 # gctorture(TRUE)). Exits non-zero and lists the offending test files on failure.
@@ -674,7 +675,13 @@ gctorture-full STEP="100": _assert-no-vendor-leak configure
     # it (and clean the temp lib) on every exit path, incl. a failed sweep. (#1052)
     trap 'rm -rf "$libdir"; just cargo-lock-restore' EXIT
     R CMD INSTALL --library="$libdir" rpkg
-    R_LIBS_USER="$libdir" Rscript scripts/gctorture-full-sweep.R rpkg/tests/testthat {{STEP}}
+    # Hand the throwaway library to the sweep via env var — the script prepends
+    # it to .libPaths() INSIDE the session. An R_LIBS_USER override here never
+    # survives startup: locally the repo .Rprofile (rv activation) replaces
+    # .libPaths() wholesale, and in CI overriding R_LIBS_USER hides the
+    # runner's dependency library (setup-r-dependencies installs there),
+    # breaking loadNamespace with "there is no package called 'R6'".
+    MINIEXTENDR_GCTORTURE_LIB="$libdir" Rscript scripts/gctorture-full-sweep.R rpkg/tests/testthat {{STEP}}
 
 # Deliberate lock updates go through `just update` / `just vendor` (they re-stamp
 # tarball-shape); the R-side dev recipes below only DRIFT rpkg/src/rust/Cargo.lock
