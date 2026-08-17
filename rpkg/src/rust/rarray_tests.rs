@@ -47,7 +47,7 @@ pub fn rarray_matrix_column(x: SEXP, col: i32) -> Vec<f64> {
 /// Construct a numeric matrix while allocating inside the initializer.
 /// @param nrow Non-negative row count.
 /// @param ncol Non-negative column count.
-#[miniextendr]
+#[miniextendr(noexport)]
 pub fn rarray_construct_matrix(nrow: i32, ncol: i32) -> RMatrix<f64> {
     let nrow = usize::try_from(nrow).expect("nrow must be non-negative");
     let ncol = usize::try_from(ncol).expect("ncol must be non-negative");
