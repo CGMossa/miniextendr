@@ -24,6 +24,18 @@ export RUSTDOCFLAGS="-D warnings -Z unstable-options --output-format json"
 DOC_FLAGS=(--no-deps --document-private-items)
 
 cd "$ROOT"
+
+# Cargo target directories are configurable globally, per workspace, and via
+# `CARGO_TARGET_DIR`. Resolve them from the same working directory as each
+# `cargo doc` invocation so the renderer reads the JSON Cargo actually wrote.
+cargo_target_dir() {
+  cargo metadata --format-version 1 --no-deps \
+    | python3 -c 'import json, sys; print(json.load(sys.stdin)["target_directory"])'
+}
+
+ROOT_TARGET="$(cargo_target_dir)"
+REVENDOR_TARGET="$(cd "$ROOT/cargo-revendor" && cargo_target_dir)"
+
 echo ">> cargo doc (api, full features)"
 cargo doc "${DOC_FLAGS[@]}" -p miniextendr-api --features full
 
@@ -40,16 +52,20 @@ echo ">> cargo doc (cargo-revendor — standalone workspace)"
 # json basename -> output basename  (cli's lib crate is named `miniextendr`)
 gen() {
   local json="$1" out="$2"
-  python3 "$HERE/rustdoc_megadoc.py"        "target/doc/${json}.json" "$GEN/${out}.md" >/dev/null
-  python3 "$HERE/rustdoc_impl_inventory.py" "target/doc/${json}.json" --out "$GEN/${out}-impl-inventory.md" >/dev/null
+  python3 "$HERE/rustdoc_megadoc.py"        "$ROOT_TARGET/doc/${json}.json" "$GEN/${out}.md" >/dev/null
+  python3 "$HERE/rustdoc_impl_inventory.py" "$ROOT_TARGET/doc/${json}.json" \
+    --source-label "target/doc/${json}.json" \
+    --out "$GEN/${out}-impl-inventory.md" >/dev/null
   echo "   ${out}.md + ${out}-impl-inventory.md"
 }
 
 # like gen() but for the cargo-revendor standalone workspace (separate target/)
 gen_revendor() {
   local json="$1" out="$2"
-  python3 "$HERE/rustdoc_megadoc.py"        "cargo-revendor/target/doc/${json}.json" "$GEN/${out}.md" >/dev/null
-  python3 "$HERE/rustdoc_impl_inventory.py" "cargo-revendor/target/doc/${json}.json" --out "$GEN/${out}-impl-inventory.md" >/dev/null
+  python3 "$HERE/rustdoc_megadoc.py"        "$REVENDOR_TARGET/doc/${json}.json" "$GEN/${out}.md" >/dev/null
+  python3 "$HERE/rustdoc_impl_inventory.py" "$REVENDOR_TARGET/doc/${json}.json" \
+    --source-label "cargo-revendor/target/doc/${json}.json" \
+    --out "$GEN/${out}-impl-inventory.md" >/dev/null
   echo "   ${out}.md + ${out}-impl-inventory.md"
 }
 
@@ -63,13 +79,15 @@ gen miniextendr        miniextendr-cli
 gen_revendor cargo_revendor cargo-revendor
 
 # Conversion-only inventory — the dedup-audit lens.
-python3 "$HERE/rustdoc_impl_inventory.py" target/doc/miniextendr_api.json \
+python3 "$HERE/rustdoc_impl_inventory.py" "$ROOT_TARGET/doc/miniextendr_api.json" \
   --traits TryFromSexp,IntoR,Coerce,TryCoerce,IntoRAs,RSerializeNative,RDeserializeNative,IntoRAltrep,AltrepSerialize \
+  --source-label "target/doc/miniextendr_api.json" \
   --out "$GEN/conversion-impl-inventory.md" >/dev/null
 echo "   conversion-impl-inventory.md"
 
 # Manual-vs-macro lens — hand-rolled impls a macro could absorb.
-python3 "$HERE/rustdoc_manual_vs_macro.py" target/doc/miniextendr_api.json \
+python3 "$HERE/rustdoc_manual_vs_macro.py" "$ROOT_TARGET/doc/miniextendr_api.json" \
+  --source-label "target/doc/miniextendr_api.json" \
   --out "$GEN/conversion-manual-vs-macro.md" >/dev/null
 echo "   conversion-manual-vs-macro.md"
 echo ">> done -> $GEN"

@@ -11,7 +11,8 @@ how many members are hand-rolled vs macro-generated. A shape with BOTH (or with
 many hand-rolled members) is a consolidation candidate.
 
 Usage:
-    python rustdoc_manual_vs_macro.py <doc.json> [--traits T1,T2,...] [--out FILE]
+    python rustdoc_manual_vs_macro.py <doc.json> [--traits T1,T2,...]
+        [--source-label LABEL] [--out FILE]
 """
 
 import json
@@ -50,6 +51,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("json")
     ap.add_argument("--traits", default="TryFromSexp,IntoR,IntoRAs,Coerce,TryCoerce")
+    ap.add_argument(
+        "--source-label",
+        default="",
+        help="stable source path to print instead of the JSON input path",
+    )
     ap.add_argument("--out", default="")
     args = ap.parse_args()
 
@@ -75,7 +81,7 @@ def main():
     out = [
         "# Manual-vs-macro conversion impls",
         "",
-        f"Source: `{args.json}`",
+        f"Source: `{args.source_label or args.json}`",
         "",
         "> **Caveat**: the \"macro already exists for this shape\" flags count",
         "> feature-gated optionals (jiff, uuid, bitvec, ...) as absorbable",
