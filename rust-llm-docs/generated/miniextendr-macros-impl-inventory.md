@@ -68,7 +68,7 @@ Traits with impls: 28
 | `LowerFun` | `` | concrete | 1 | miniextendr-macros/src/r_macro/lowering.rs:70 |
 | `LowerArg` | `` | concrete | 1 | miniextendr-macros/src/r_macro/lowering.rs:79 |
 | `LowerAtom` | `` | concrete | 1 | miniextendr-macros/src/r_macro/lowering.rs:86 |
-| `SeveralOkContainer` | `` | concrete | 1 | miniextendr-macros/src/type_inspect.rs:71 |
+| `SeveralOkContainer` | `` | concrete | 1 | miniextendr-macros/src/type_inspect.rs:149 |
 
 ## `Clone` — 19 impls
 
@@ -92,7 +92,7 @@ Traits with impls: 28
 | `ReceiverKind` | `` | concrete | 1 | miniextendr-macros/src/miniextendr_impl.rs:373 |
 | `TraitMethod` | `` | concrete | 1 | miniextendr-macros/src/miniextendr_impl_trait.rs:120 |
 | `PreconditionOptions` | `` | concrete | 1 | miniextendr-macros/src/r_preconditions.rs:83 |
-| `SeveralOkContainer` | `` | concrete | 1 | miniextendr-macros/src/type_inspect.rs:71 |
+| `SeveralOkContainer` | `` | concrete | 1 | miniextendr-macros/src/type_inspect.rs:149 |
 
 ## `Default` — 17 impls
 
