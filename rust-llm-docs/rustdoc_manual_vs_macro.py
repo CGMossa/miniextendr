@@ -102,7 +102,9 @@ def main():
                 manual_by_shape[sh].append((for_s, span, n))
         out.append(f"## {term}")
         out.append("")
-        for sh in sorted(manual_by_shape, key=lambda s: -len(manual_by_shape[s])):
+        for sh in sorted(
+            manual_by_shape, key=lambda shape: (-len(manual_by_shape[shape]), shape)
+        ):
             macro_n = shape_macro.get(sh, 0)
             members = manual_by_shape[sh]
             if macro_n == 0 and len(members) < 3:

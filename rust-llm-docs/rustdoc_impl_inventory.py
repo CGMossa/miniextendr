@@ -114,13 +114,14 @@ def main():
     lines.append("")
     lines.append("| Trait | # impls | # non-blanket non-synthetic |")
     lines.append("|---|---|---|")
-    for term in sorted(by_trait, key=lambda t: -len(by_trait[t])):
+    trait_order = sorted(by_trait, key=lambda term: (-len(by_trait[term]), term))
+    for term in trait_order:
         recs = by_trait[term]
         real = sum(1 for r in recs if not r["blanket"] and not r["synthetic"])
         lines.append(f"| `{term}` | {len(recs)} | {real} |")
     lines.append("")
 
-    for term in sorted(by_trait, key=lambda t: -len(by_trait[t])):
+    for term in trait_order:
         recs = by_trait[term]
         # Drop synthetic auto-trait noise AND blanket-impl instantiations.
         # Blanket impls (Tap, Pipe, Pointable, From/Into, ...) get one
@@ -134,7 +135,17 @@ def main():
         lines.append("")
         lines.append("| for-type | generics | kind | #items | span |")
         lines.append("|---|---|---|---|---|")
-        for r in sorted(real, key=lambda r: r["span"]):
+        for r in sorted(
+            real,
+            key=lambda r: (
+                r["span"],
+                r["for"],
+                r["generics"],
+                r["blanket"],
+                r["negative"],
+                r["n_items"],
+            ),
+        ):
             kind = []
             if r["blanket"]:
                 kind.append("blanket")
@@ -153,8 +164,11 @@ def main():
         if multi:
             lines.append(f"### `{term}` — for-types sharing a source span (likely macro-expanded / co-located)")
             lines.append("")
-            for s, fors in sorted(multi.items(), key=lambda kv: -len(kv[1])):
-                lines.append(f"- **{s}** ({len(fors)} impls): {', '.join('`'+f+'`' for f in fors)}")
+            for s, fors in sorted(
+                multi.items(), key=lambda item: (-len(item[1]), item[0])
+            ):
+                rendered = ", ".join(f"`{for_type}`" for for_type in sorted(fors))
+                lines.append(f"- **{s}** ({len(fors)} impls): {rendered}")
             lines.append("")
 
     out = "\n".join(lines)

@@ -225,15 +225,15 @@ update this rule too.
 
 ### `pub use crate_index::CrateIndex;`
 
-### `pub use lint_code::LintCode;`
+### `pub use crate_index::LintItem;`
+
+### `pub use crate_index::LintKind;`
 
 ### `pub use diagnostic::Diagnostic;`
 
-### `pub use crate_index::LintItem;`
-
 ### `pub use diagnostic::Severity;`
 
-### `pub use crate_index::LintKind;`
+### `pub use lint_code::LintCode;`
 
 ---
 

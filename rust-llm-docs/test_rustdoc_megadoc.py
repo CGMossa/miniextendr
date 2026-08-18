@@ -374,6 +374,48 @@ class MegadocCoverageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "future_item"):
             generate_megadoc(data)
 
+    def test_reexport_order_does_not_depend_on_json_object_order(self):
+        root = item(0, "fixture", {"module": {"is_crate": True, "items": []}})
+        alpha = item(
+            1,
+            None,
+            {
+                "use": {
+                    "source": "alpha::Thing",
+                    "name": "Thing",
+                    "id": None,
+                    "is_glob": False,
+                }
+            },
+        )
+        zeta = item(
+            2,
+            None,
+            {
+                "use": {
+                    "source": "zeta::Thing",
+                    "name": "Thing",
+                    "id": None,
+                    "is_glob": False,
+                }
+            },
+        )
+
+        def render(ordered_items):
+            return generate_megadoc(
+                {
+                    "root": 0,
+                    "crate_version": "1.0.0",
+                    "index": {str(value["id"]): value for value in ordered_items},
+                    "paths": {"0": {"path": ["fixture"]}},
+                }
+            )
+
+        forward = render([root, alpha, zeta])
+        reverse = render([zeta, alpha, root])
+        self.assertEqual(forward, reverse)
+        self.assertLess(forward.index("alpha::Thing"), forward.index("zeta::Thing"))
+
 
 if __name__ == "__main__":
     unittest.main()
