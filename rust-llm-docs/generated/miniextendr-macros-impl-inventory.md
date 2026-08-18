@@ -9,19 +9,19 @@ Traits with impls: 28
 | Trait | # impls | # non-blanket non-synthetic |
 |---|---|---|
 | `Freeze` | 94 | 0 |
-| `TryInto` | 94 | 0 |
 | `RefUnwindSafe` | 94 | 0 |
+| `TryInto` | 94 | 0 |
+| `TryFrom` | 94 | 0 |
 | `Any` | 94 | 0 |
 | `Send` | 94 | 0 |
-| `Sync` | 94 | 0 |
-| `UnsafeUnpin` | 94 | 0 |
-| `TryFrom` | 94 | 0 |
-| `Borrow` | 94 | 0 |
-| `BorrowMut` | 94 | 0 |
 | `Into` | 94 | 0 |
 | `Unpin` | 94 | 0 |
-| `UnwindSafe` | 94 | 0 |
+| `BorrowMut` | 94 | 0 |
+| `Borrow` | 94 | 0 |
+| `Sync` | 94 | 0 |
 | `From` | 94 | 0 |
+| `UnsafeUnpin` | 94 | 0 |
+| `UnwindSafe` | 94 | 0 |
 | `Debug` | 28 | 28 |
 | `CloneToUninit` | 19 | 0 |
 | `ToOwned` | 19 | 0 |
@@ -33,9 +33,9 @@ Traits with impls: 28
 | `StructuralPartialEq` | 9 | 9 |
 | `PartialEq` | 9 | 9 |
 | `FromStr` | 2 | 2 |
-| `Display` | 1 | 1 |
 | `ToString` | 1 | 0 |
 | `ParsedImplExt` | 1 | 1 |
+| `Display` | 1 | 1 |
 
 ## `Debug` — 28 impls
 
@@ -197,14 +197,14 @@ Traits with impls: 28
 | `ClassSystem` | `` | concrete | 2 | miniextendr-macros/src/miniextendr_impl.rs:310 |
 | `VctrsKind` | `` | concrete | 2 | miniextendr-macros/src/miniextendr_impl.rs:341 |
 
-## `Display` — 1 impls
-
-| for-type | generics | kind | #items | span |
-|---|---|---|---|---|
-| `LifecycleStage` | `` | concrete | 1 | miniextendr-macros/src/lifecycle.rs:126 |
-
 ## `ParsedImplExt` — 1 impls
 
 | for-type | generics | kind | #items | span |
 |---|---|---|---|---|
 | `crate::miniextendr_impl::ParsedImpl` | `` | concrete | 6 | miniextendr-macros/src/r_class_formatter.rs:1024 |
+
+## `Display` — 1 impls
+
+| for-type | generics | kind | #items | span |
+|---|---|---|---|---|
+| `LifecycleStage` | `` | concrete | 1 | miniextendr-macros/src/lifecycle.rs:126 |

@@ -711,7 +711,8 @@ fn with_return_class_from_method(self: Self, method: &ParsedMethod) -> Self
 ```
 
 Attach the method's cross-class return name when this builder uses
-[`ReturnStrategy::ReturnOtherClass`].
+[`ReturnStrategy::ReturnOtherClass`] or
+[`ReturnStrategy::ReturnOtherClassList`].
 
 #### `with_strategy`
 
@@ -1201,8 +1202,51 @@ Three shapes are recognized:
 ident is `Self`) — `ReturnStrategy::for_method` checks
 `returns_result_self()` / `returns_option_self()` before this method,
 so those already take the `ReturnSelf` path regardless.
-Nested containers (`Vec<T>`, `Option<Vec<T>>`, …) are not recognized:
-the inner type must be a bare path with no path arguments of its own.
+List-shaped returns (`Vec<Class>` and its `Option`/`Result` wrappers)
+are handled separately by
+[`returns_other_class_list`](Self::returns_other_class_list); any other
+nested container is not recognized: the inner type must be a bare path
+with no path arguments of its own.
+
+#### `returns_other_class_list`
+
+```rust
+fn returns_other_class_list(self: &Self) -> Option<syn::Ident>
+```
+
+Returns the bare element type name when this method returns a *list* of
+values that may be a different registered ExternalPtr-backed class.
+
+The list-shaped sibling of
+[`returns_other_class`](Self::returns_other_class) (#1284). Like the
+scalar detector it is deliberately syntactic: the write-time resolver
+checks the complete class registry, and an unregistered element type
+falls back to the bare list of external pointers.
+
+Three shapes are recognized (the element type must pass the same bare
+capitalized-path filter as the scalar case):
+- `Vec<Class>` — the C wrapper converts via `IntoR` into a `VECSXP` of
+  external pointers (the `IntoRVecElement` impl emitted by
+  `#[derive(ExternalPtr)]`), so `.val` is a bare list.
+- `Option<Vec<Class>>` — the C wrapper already unwraps and raises on
+  `None` (`ReturnHandling::OptionIntoRUnwrap`), so the successful
+  `.val` is the same bare list.
+- `Result<Vec<Class>, E>` where `E` is not `()` — the C wrapper raises
+  on `Err` (`ReturnHandling::ResultIntoR`); same bare list on `Ok`.
+  `Result<Vec<Class>, ()>` is excluded: the unit-error sentinel maps to
+  `ReturnHandling::ResultNullOnErr`, where `.val` can be `NULL`, and
+  `lapply(NULL, ...)` would silently turn that `NULL` into `list()`.
+
+Not recognized (deliberately):
+- `Vec<Self>` — the receiver type ident is not visible here; spell the
+  concrete type name (`-> Vec<Board>` inside `impl Board`) to get the
+  wrapped list.
+- `Vec<Option<Class>>` — has no `IntoR` impl (the `Vec<Option<T>>`
+  blanket slot is occupied by the newtype funnel) and would need a
+  NULL-tolerant per-element wrap; tracked as a follow-up.
+- `Vec<ExternalPtr<Class>>` — kept unwrapped for symmetry with the
+  scalar `ExternalPtr<Class>` return, which `returns_other_class` also
+  leaves unwrapped.
 
 #### `returns_result_self`
 
@@ -2493,6 +2537,8 @@ Each class system generator uses this to produce idiomatic R return code.
   - The method returns `Self`. The wrapper wraps the raw pointer result with
 - `ReturnOtherClass`
   - The method returns a bare type name that may be another registered
+- `ReturnOtherClassList`
+  - The method returns a *list* of values (`Vec<Class>`, plus the
 - `ChainableMutation`
   - The method is a `&mut self` method returning `()`. The wrapper calls the
 - `Direct`
@@ -2524,6 +2570,10 @@ Determine the return strategy for a parsed method.
 - Bare capitalized return types that are not known primitives/containers
   use `ReturnOtherClass`; write-time registry lookup wraps registered
   classes and leaves false positives unchanged.
+- `Vec<Class>` (and the `Option`/`Result` wrappers of it the C wrapper
+  unwraps) use `ReturnOtherClassList`; write-time registry lookup wraps
+  registered element classes via `lapply` and leaves false positives
+  unchanged (#1284).
 - All other methods use `Direct`.
 
 ### `miniextendr_impl::ClassSystem`
@@ -2904,11 +2954,13 @@ Orchestrates the full derive expansion:
 1. Parses `#[externalptr(...)]` attributes for class system selection.
 2. Analyzes struct fields for `#[r_data]` sidecar slots.
 3. Generates `TypedExternal` impl (type identity for `ExternalPtr<T>`).
-4. Generates `IntoExternalPtr` marker impl (enables `IntoR` blanket impl) —
-   suppressed when `emit_into_r_marker` is `false`, which the struct-level
-   `#[miniextendr(prefer = "native")]` path uses so its concrete `AsRNative`
-   `IntoR` does not collide with the blanket `IntoExternalPtr` `IntoR`
-   (E0119, #1283).
+4. Generates `IntoExternalPtr` marker impl (enables `IntoR` blanket impl)
+   and a concrete `IntoRVecElement` impl (enables the `IntoR for Vec<T>`
+   blanket, so `-> Vec<MyType>` returns a `VECSXP` of external pointers —
+   #1284). Both are suppressed when `emit_into_r_marker` is `false`, which
+   the struct-level `#[miniextendr(prefer = "native")]` path uses so its
+   concrete `AsRNative` `IntoR` does not collide with the blanket
+   `IntoExternalPtr` `IntoR` (E0119, #1283).
 5. Generates sidecar accessor FFI functions, registration constants, and R wrappers.
 
 Returns the combined token stream of all generated items.

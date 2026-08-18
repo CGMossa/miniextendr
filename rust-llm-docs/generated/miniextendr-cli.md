@@ -730,6 +730,20 @@ are appended with dedupe, mirroring `usethis::use_build_ignore()` /
 `use_git_ignore()`. Every other file is overwritten — the template is the
 source of truth, matching `use_template()`'s delete-first behavior.
 
+### `scaffold::desc_ensure_r_floor`
+
+```rust
+fn desc_ensure_r_floor(content: &str) -> String
+```
+
+Ensure `Depends` declares at least the [`R_VERSION_FLOOR`] R version
+floor (~ `mx_desc_ensure_r_floor()` in `minirextendr/R/utils.R`). Merges
+rather than overwrites: no `Depends` field adds one carrying the floor;
+an existing `Depends` without an `R` entry gains the floor (prepended,
+other entries untouched); an `R` entry with a provably lower `>=`/`>`
+floor — or no version constraint at all — is raised; a floor already at
+or above ours, or a constraint using another operator, is left untouched.
+
 ### `scaffold::desc_set_field`
 
 ```rust
@@ -794,6 +808,14 @@ fn minimal_namespace(package: &str) -> String
 Minimal roxygen2-managed NAMESPACE (~ `mx_minimal_namespace()`): carries
 the roxygen2 header so a later `devtools::document()` overwrites it
 cleanly, plus `useDynLib()` so the fresh shared library loads.
+
+### `scaffold::r_depends_entry`
+
+```rust
+fn r_depends_entry() -> String
+```
+
+`Depends` entry carrying [`R_VERSION_FLOOR`] (~ `mx_r_depends_entry()`).
 
 ### `scaffold::render`
 
@@ -901,3 +923,16 @@ pub const RUST_SYSTEM_REQUIREMENT: &str = "Rust (>= 1.85)";
 
 `SystemRequirements` entry for the Rust toolchain (shared between the
 fresh DESCRIPTION and the `init use` merge path).
+
+### `scaffold::R_VERSION_FLOOR`
+
+```rust
+pub const R_VERSION_FLOOR: &str = "4.5";
+```
+
+Minimum R version required by miniextendr-backed packages — the runtime
+calls `R_getVarEx` (the `Rf_findVarInFrame` replacement), which only
+exists on R >= 4.5.0 (#1300), so any package linking miniextendr-api
+inherits this floor (~ `MX_R_FLOOR` in `minirextendr/R/utils.R`; the
+`r_floor_matches_minirextendr_and_rpkg` test asserts both mirrors and
+`rpkg/DESCRIPTION` agree).
