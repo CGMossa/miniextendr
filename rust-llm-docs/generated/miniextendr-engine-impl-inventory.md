@@ -2,7 +2,7 @@
 
 Source: `target/doc/miniextendr_engine.json`
 
-Traits with impls: 20
+Traits with impls: 19
 
 ## Summary (impl count per trait)
 
@@ -25,7 +25,6 @@ Traits with impls: 20
 | `Debug` | 1 | 1 |
 | `Default` | 1 | 1 |
 | `Display` | 1 | 1 |
-| `Drop` | 1 | 1 |
 | `Error` | 1 | 1 |
 | `ToString` | 1 | 0 |
 
@@ -33,28 +32,22 @@ Traits with impls: 20
 
 | for-type | generics | kind | #items | span |
 |---|---|---|---|---|
-| `REngineError` | `` | concrete | 1 | miniextendr-engine/src/lib.rs:312 |
+| `REngineError` | `` | concrete | 1 | miniextendr-engine/src/lib.rs:319 |
 
 ## `Default` — 1 impls
 
 | for-type | generics | kind | #items | span |
 |---|---|---|---|---|
-| `REngineBuilder` | `` | concrete | 1 | miniextendr-engine/src/lib.rs:127 |
+| `REngineBuilder` | `` | concrete | 1 | miniextendr-engine/src/lib.rs:131 |
 
 ## `Display` — 1 impls
 
 | for-type | generics | kind | #items | span |
 |---|---|---|---|---|
-| `REngineError` | `` | concrete | 1 | miniextendr-engine/src/lib.rs:325 |
-
-## `Drop` — 1 impls
-
-| for-type | generics | kind | #items | span |
-|---|---|---|---|---|
-| `REngine` | `` | concrete | 1 | miniextendr-engine/src/lib.rs:255 |
+| `REngineError` | `` | concrete | 1 | miniextendr-engine/src/lib.rs:332 |
 
 ## `Error` — 1 impls
 
 | for-type | generics | kind | #items | span |
 |---|---|---|---|---|
-| `REngineError` | `` | concrete | 0 | miniextendr-engine/src/lib.rs:348 |
+| `REngineError` | `` | concrete | 0 | miniextendr-engine/src/lib.rs:355 |
