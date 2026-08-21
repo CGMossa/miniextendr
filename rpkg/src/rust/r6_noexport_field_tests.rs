@@ -1,20 +1,19 @@
-//! Fixture for testing `#' @field name NULL` opt-out for noexported R6 active bindings.
+//! Fixture for documenting noexported R6 active bindings without warnings.
 //!
-//! roxygen2 8.0.0 introduced `@field name NULL` as the documented way to suppress
-//! documentation for R6 fields and active bindings. When a method is tagged with
-//! `#[miniextendr(noexport)]` or `#[miniextendr(internal)]`, the generated R wrapper
-//! emits `#' @field name NULL` instead of a real description so roxygen2 drops the
-//! binding from the rendered `.Rd`.
+//! roxygen2 8.0.0 still reports a binding documented as `@field name NULL` as
+//! undocumented. A method tagged with `#[miniextendr(noexport)]` or
+//! `#[miniextendr(internal)]` therefore gets a minimal class-level
+//! `@field name (internal)` description.
 
 use miniextendr_api::miniextendr;
 
-/// An R6 class demonstrating `@field name NULL` opt-out for active bindings.
+/// An R6 class demonstrating internal active-binding documentation.
 ///
 /// `R6SensorReading` has two active bindings:
 ///
 /// - `value`: exported, documents in the generated `.Rd`.
-/// - `raw_bytes`: tagged `noexport`; gets `@field raw_bytes NULL` so roxygen2 8.0.0
-///   drops it from docs while keeping the binding available at runtime.
+/// - `raw_bytes`: tagged `noexport`; gets a class-level
+///   `@field raw_bytes (internal)` entry while remaining available at runtime.
 #[derive(miniextendr_api::ExternalPtr)]
 pub struct R6SensorReading {
     value: f64,

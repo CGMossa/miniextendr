@@ -4,11 +4,14 @@ error[E0277]: the trait bound `FactorOptionVec<Status>: IntoR` is not satisfied
 12 | #[derive(DataFrameRow)]
    |          ^^^^^^^^^^^^ the trait `IntoR` is not implemented for `FactorOptionVec<Status>`
    |
-help: the trait `IntoR` is implemented for `FactorOptionVec<T>`
+help: the trait `IntoR` is conditionally implemented for `FactorOptionVec<T>`
   --> $WORKSPACE/miniextendr-api/src/factor.rs
    |
    | impl<T: UnitEnumFactor> IntoR for FactorOptionVec<T> {
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   | ^^^^^^^^--------------^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |         |
+   |         unsatisfied requirement introduced here: `Status: UnitEnumFactor`
+   |         unsatisfied requirement introduced here: `Status: UnitEnumFactor`
    = note: this error originates in the derive macro `DataFrameRow` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: the trait bound `Status: UnitEnumFactor` is not satisfied
