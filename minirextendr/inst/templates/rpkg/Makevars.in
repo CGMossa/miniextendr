@@ -135,6 +135,16 @@ $(CARGO_AR): FORCE_CARGO $(OBJECTS)
 #             wrapper-gen rather than installing a wrapper-less, silently-broken
 #             package. Set MINIEXTENDR_FORCE_WRAPPER_GEN to force regeneration
 #             even when the shipped wrappers are valid (debugging only).
+#   roxygen : the compile was triggered by roxygen2::roxygenise() (devtools::
+#             document()) recompiling via pkgload::load_all. roxygen2 >= 7.3.0
+#             exports ROXYGEN_PKG (the documented package's name) for the whole
+#             roxygenise() call, including this child make — the documented dev
+#             loop regenerates wrappers via `R CMD INSTALL` FIRST (rcmdinstall
+#             && force-document), so re-deriving them mid-document is redundant
+#             work (Rscript + dyn.load of the full .so). Name-match against
+#             @PACKAGE_NAME@ so documenting some OTHER package never suppresses
+#             a legitimate wrapper-gen here, and keep the #1022 [ -s ] guard so
+#             a missing/empty wrappers.R still falls back to full generation.
 #   dev     : load $(SHLIB) + generate wrappers (normal dev/CI flow).
 $(WRAPPERS_R): $(SHLIB)
 	@set -e; \
@@ -143,6 +153,9 @@ $(WRAPPERS_R): $(SHLIB)
 	  touch '$(WRAPPERS_R)'; \
 	elif [ "$(IS_TARBALL_INSTALL)" = "true" ] && [ -z "$$MINIEXTENDR_FORCE_WRAPPER_GEN" ] && [ -s '$(WRAPPERS_R)' ]; then \
 	  echo "tarball install: using pre-shipped R/@PACKAGE_NAME@-wrappers.R (skipping wrapper-gen, #1022)"; \
+	  touch '$(WRAPPERS_R)'; \
+	elif [ "$$ROXYGEN_PKG" = "@PACKAGE_NAME@" ] && [ -z "$$MINIEXTENDR_FORCE_WRAPPER_GEN" ] && [ -s '$(WRAPPERS_R)' ]; then \
+	  echo "roxygenise pass (ROXYGEN_PKG=@PACKAGE_NAME@): reusing existing R/@PACKAGE_NAME@-wrappers.R (skipping wrapper-gen)"; \
 	  touch '$(WRAPPERS_R)'; \
 	else \
 	  if [ "$(IS_TARBALL_INSTALL)" = "true" ] && [ -n "$$MINIEXTENDR_FORCE_WRAPPER_GEN" ]; then \
