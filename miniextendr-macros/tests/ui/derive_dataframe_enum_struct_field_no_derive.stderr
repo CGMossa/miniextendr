@@ -4,7 +4,6 @@ error[E0277]: `Point` doesn't implement `Debug`
 11 | #[derive(DataFrameRow)]
    |          ^^^^^^^^^^^^ the trait `Debug` is not implemented for `Point`
    |
-   = note: add `#[derive(Debug)]` to `Point` or manually `impl Debug for Point`
 help: the trait `Debug` is implemented for `Vec<T, A>`
   --> $RUST/alloc/src/vec/mod.rs
 help: consider annotating `Point` with `#[derive(Debug)]`
