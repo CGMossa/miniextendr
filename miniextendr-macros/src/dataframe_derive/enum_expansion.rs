@@ -245,6 +245,9 @@ pub(super) fn derive_enum_dataframe(
                                     },
                                 )));
                             }
+                            FieldTypeKind::OptionScalar => {
+                                return Err(option_scalar_in_variant_error(&f.ty));
+                            }
                         }
                     }
                 }
@@ -487,6 +490,9 @@ pub(super) fn derive_enum_dataframe(
                                         is_factor: false,
                                     },
                                 )));
+                            }
+                            FieldTypeKind::OptionScalar => {
+                                return Err(option_scalar_in_variant_error(&f.ty));
                             }
                         }
                     }
@@ -2011,6 +2017,21 @@ pub(super) fn derive_enum_dataframe(
 /// For multi-variant enums, returns a named R list of data.frames (one per variant,
 /// named with snake_case variant names). Each partition data.frame has only that
 /// variant's columns (non-optional types — no NA fill from other variants).
+/// Error for an `Option<scalar>` field inside an enum variant (#1437).
+///
+/// Enum variant fields are stored as `Vec<Option<T>>` (absent for the other
+/// variants), so `Option<T>` here would need `Vec<Option<Option<T>>>`. Point
+/// at the bare scalar rather than letting the missing conversion surface later.
+fn option_scalar_in_variant_error(ty: &syn::Type) -> syn::Error {
+    syn::Error::new_spanned(
+        ty,
+        "DataFrameRow enum variant fields already become `Option<T>` columns \
+         (absent for the other variants), so `Option<scalar>` is not supported here. \
+         Use the bare scalar (`f64`, `String`, …) and express absence by omitting the \
+         field from the variant, or `#[dataframe(as_list)]` for an opaque list-column.",
+    )
+}
+
 fn generate_split_method(
     row_name: &syn::Ident,
     variant_infos: &[VariantInfo],
