@@ -3809,3 +3809,163 @@ fn typed_self_value_receiver_is_consuming() {
 }
 
 // endregion
+
+// region: per-method @rdname override (#1438)
+
+/// A method-level `/// @rdname other` must win over the class default on every
+/// class system, and must be emitted exactly once for that method. The class
+/// doc block (and the S3 generic block) still target the class page.
+#[test]
+fn method_level_rdname_overrides_class_default_all_systems() {
+    type Gen = fn(&ParsedImpl) -> String;
+    let cases: &[(ClassSystem, Gen)] = &[
+        (ClassSystem::Env, generate_env_r_wrapper as Gen),
+        (ClassSystem::R6, generate_r6_r_wrapper as Gen),
+        (ClassSystem::S3, generate_s3_r_wrapper as Gen),
+        (ClassSystem::S4, generate_s4_r_wrapper as Gen),
+        (ClassSystem::S7, generate_s7_r_wrapper as Gen),
+    ];
+    for (class_system, generator) in cases {
+        let item_impl: syn::ItemImpl = syn::parse_quote! {
+            impl Counter {
+                pub fn new(value: i32) -> Self { unimplemented!() }
+                /// Read the value.
+                /// @rdname counter_get
+                pub fn get(&self) -> i32 { unimplemented!() }
+                /// Static helper.
+                /// @rdname counter_zero
+                pub fn zero() -> i32 { unimplemented!() }
+            }
+        };
+        let parsed = parse_impl(*class_system, item_impl);
+        let wrapper = generator(&parsed);
+
+        // R6 instance methods are `Class$set(...)` blocks that roxygen2 folds
+        // into the class block, so their `@rdname` is dropped (they always
+        // document on the class page); every other block splits.
+        let expected_get = if matches!(class_system, ClassSystem::R6) {
+            0
+        } else {
+            1
+        };
+        assert_eq!(
+            wrapper.matches("#' @rdname counter_get").count(),
+            expected_get,
+            "{class_system:?}: instance method @rdname override, got:\n{wrapper}"
+        );
+        assert_eq!(
+            wrapper.matches("#' @rdname counter_zero").count(),
+            1,
+            "{class_system:?}: static method @rdname override must appear exactly once, got:\n{wrapper}"
+        );
+        // A split page needs its own @title (method prose is demoted to
+        // @description and the class page no longer supplies one); the
+        // generator injects the structural R name.
+        // At least: class block + each split block (S3 also titles its generic).
+        let min_titles = 1 + expected_get + 1;
+        assert!(
+            wrapper.matches("#' @title ").count() >= min_titles,
+            "{class_system:?}: split pages must carry a structural @title, got:\n{wrapper}"
+        );
+        assert!(
+            wrapper.contains("#' @rdname Counter"),
+            "{class_system:?}: class doc block must keep the class page, got:\n{wrapper}"
+        );
+    }
+}
+
+/// `#[miniextendr(as = "...")]` coercion methods push the method's own doc
+/// tags verbatim and then inject the class defaults; a user `@rdname` (or
+/// `@name`) must not be duplicated by that injection.
+#[test]
+fn as_coercion_method_rdname_honoured_once() {
+    let item_impl: syn::ItemImpl = syn::parse_quote! {
+        impl Counter {
+            pub fn new(value: i32) -> Self { unimplemented!() }
+            /// Coerce to a list.
+            /// @rdname counter_as_list
+            #[miniextendr(as = "list")]
+            pub fn to_list(&self) -> Result<List, RCoerceError> { unimplemented!() }
+        }
+    };
+    let parsed = parse_impl(ClassSystem::S3, item_impl);
+    let wrapper = generate_as_coercion_methods(&parsed);
+
+    assert_eq!(
+        wrapper.matches("#' @rdname").count(),
+        1,
+        "exactly one @rdname on the coercion block, got:\n{wrapper}"
+    );
+    assert!(
+        wrapper.contains("#' @rdname counter_as_list"),
+        "user @rdname must win over the class default, got:\n{wrapper}"
+    );
+    assert!(
+        wrapper.contains("#' @name as.list.Counter"),
+        "default @name still injected when the user supplied none, got:\n{wrapper}"
+    );
+    assert!(
+        wrapper.contains("#' @title as.list.Counter"),
+        "split coercion page gets a structural @title, got:\n{wrapper}"
+    );
+}
+
+/// Without a user tag the coercion block still lands on the class page.
+#[test]
+fn as_coercion_method_rdname_defaults_to_class() {
+    let item_impl: syn::ItemImpl = syn::parse_quote! {
+        impl Counter {
+            pub fn new(value: i32) -> Self { unimplemented!() }
+            #[miniextendr(as = "list")]
+            pub fn to_list(&self) -> Result<List, RCoerceError> { unimplemented!() }
+        }
+    };
+    let parsed = parse_impl(ClassSystem::S3, item_impl);
+    let wrapper = generate_as_coercion_methods(&parsed);
+    assert_eq!(
+        wrapper.matches("#' @rdname Counter").count(),
+        1,
+        "got:\n{wrapper}"
+    );
+}
+
+/// S7 `convert_from` / `convert_to` blocks emit scaffolding only, but a
+/// method-level `@rdname` still decides their page.
+#[test]
+fn s7_convert_methods_honour_method_rdname() {
+    let impl_code: syn::ItemImpl = syn::parse_quote! {
+        impl Point3D {
+            pub fn new(x: f64, y: f64, z: f64) -> Self { Self { x, y, z } }
+
+            /// @rdname point_conversions
+            #[miniextendr(s7(convert_from = "Point2D"))]
+            pub fn from_2d(p: Point2D) -> Self { unimplemented!() }
+
+            /// @rdname point_conversions
+            #[miniextendr(s7(convert_to = "Point2D"))]
+            pub fn to_2d(&self) -> Point2D { unimplemented!() }
+        }
+    };
+    let parsed = parse_impl(ClassSystem::S7, impl_code);
+    let wrapper = generate_s7_r_wrapper(&parsed);
+
+    // The convert methods are also emitted as ordinary static / instance
+    // methods (whose S7 generic legitimately stays on the class page), so only
+    // the convert blocks themselves are inspected here.
+    for name in ["convert-Point2D-to-Point3D", "convert-Point3D-to-Point2D"] {
+        let start = wrapper
+            .find(&format!("#' @name {name}"))
+            .unwrap_or_else(|| panic!("missing @name {name} in:\n{wrapper}"));
+        let block = &wrapper[start..(start + 200).min(wrapper.len())];
+        assert!(
+            block.contains("#' @rdname point_conversions"),
+            "convert block {name} must use the user page, got:\n{block}"
+        );
+        assert!(
+            block.contains(&format!("#' @title {name}")),
+            "split convert block {name} gets a structural @title, got:\n{block}"
+        );
+    }
+}
+
+// endregion

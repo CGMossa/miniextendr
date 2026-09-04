@@ -486,7 +486,14 @@ pub fn generate_r6_r_wrapper(parsed_impl: &ParsedImpl) -> String {
         if !has_description {
             lines.push(format!("#' @description Method `{}`.", r_name));
         }
+        // roxygen2 folds a `Class$set("public", ...)` block into the class
+        // block, so a method-level `@rdname` / `@name` here would make it
+        // "contain only one @rdname" and fail. R6 instance methods always
+        // document on the class page (static methods can still split, #1438).
         for tag in &ctx.method.doc_tags {
+            if crate::roxygen::roxygen_tag_name(tag).is_some_and(|n| n == "rdname" || n == "name") {
+                continue;
+            }
             for line in tag.lines() {
                 let line = if line.starts_with("@title ") {
                     line.replacen("@title ", "@description ", 1)

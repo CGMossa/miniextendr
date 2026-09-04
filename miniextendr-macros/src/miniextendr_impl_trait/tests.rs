@@ -88,6 +88,7 @@ fn make_test_method(name: &str, has_self: bool) -> TraitMethod {
         unwrap_in_r: false,
         param_defaults: Default::default(),
         param_tags: vec![],
+        rdname: None,
         skip: false,
         r_name: None,
         strict: false,
@@ -946,3 +947,66 @@ fn test_static_self_return_rewrapped() {
     );
 }
 // endregion
+
+/// A method-level `/// @rdname other` on a trait-impl method moves that
+/// method's wrapper block onto the requested page on every class system, while
+/// the generics and the type's shared page stay put (#1438).
+#[test]
+fn test_trait_method_rdname_override_all_systems() {
+    let type_ident = format_ident!("Foo");
+    let trait_name = format_ident!("Bar");
+    let mut inst = make_test_method("value", true);
+    inst.rdname = Some("foo_value".to_string());
+    let mut stat = make_test_method("make", false);
+    stat.rdname = Some("foo_make".to_string());
+    let methods = vec![inst, stat];
+
+    for class_system in [
+        ClassSystem::Env,
+        ClassSystem::R6,
+        ClassSystem::S3,
+        ClassSystem::S4,
+        ClassSystem::S7,
+    ] {
+        let result = generate_trait_r_wrapper(
+            &type_ident,
+            &trait_name,
+            &methods,
+            &[],
+            opts(class_system, false, false, false),
+        )
+        .unwrap();
+
+        // S7 registers the instance method by assignment with no roxygen of
+        // its own (the generic block documents it on the type page); the
+        // override lands on the per-class shortcut instead. Every other system
+        // documents the method block directly.
+        assert_eq!(
+            result.matches("#' @rdname foo_value").count(),
+            1,
+            "{class_system:?}: instance method page, got:\n{result}"
+        );
+        assert_eq!(
+            result.matches("#' @rdname foo_make").count(),
+            1,
+            "{class_system:?}: static method page, got:\n{result}"
+        );
+        // Prose-less blocks that were split off need a structural @title;
+        // static blocks already open with a prose line (implicit title).
+        if !matches!(class_system, ClassSystem::S7) {
+            assert!(
+                result.contains("#' @title "),
+                "{class_system:?}: split instance-method block needs a @title, got:\n{result}"
+            );
+        }
+        if matches!(
+            class_system,
+            ClassSystem::S3 | ClassSystem::S4 | ClassSystem::S7
+        ) {
+            assert!(
+                result.contains("#' @rdname Foo"),
+                "{class_system:?}: the generic stays on the type page, got:\n{result}"
+            );
+        }
+    }
+}

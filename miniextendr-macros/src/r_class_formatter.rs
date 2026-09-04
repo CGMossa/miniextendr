@@ -960,18 +960,29 @@ impl<'a> MethodDocBuilder<'a> {
             }
         }
 
+        let r_name = if let Some(ref r_name) = self.r_name_override {
+            r_name.clone()
+        } else if let Some(prefix) = self.name_prefix {
+            format!("{}{}{}", self.class_name, prefix, self.method_name)
+        } else {
+            self.method_name.to_string()
+        };
+
         if !crate::roxygen::has_roxygen_tag(self.doc_tags, "name") {
-            let name = if let Some(ref r_name) = self.r_name_override {
-                r_name.clone()
-            } else if let Some(prefix) = self.name_prefix {
-                format!("{}{}{}", self.class_name, prefix, self.method_name)
-            } else {
-                self.method_name.to_string()
-            };
-            lines.push(format!("#' @name {}", name));
+            lines.push(format!("#' @name {}", r_name));
         }
 
-        if !crate::roxygen::has_roxygen_tag(self.doc_tags, "rdname") {
+        // A method-level `@rdname` splits the method onto its own page (#1438).
+        // Method prose is demoted to `@description` (see `roxygen_tags_from_attrs`)
+        // and the class page normally supplies the `@title`, so the new page
+        // would have none and roxygen2 would skip it ("no name and/or title").
+        // Follow the standalone-function convention (`lib.rs`) and use the
+        // structural R name as the title unless the author wrote one.
+        if crate::roxygen::has_roxygen_tag(self.doc_tags, "rdname") {
+            if !crate::roxygen::has_roxygen_tag(self.doc_tags, "title") {
+                lines.push(format!("#' @title {}", r_name));
+            }
+        } else {
             lines.push(format!("#' @rdname {}", self.class_name));
         }
 

@@ -6,16 +6,16 @@
 //!
 //! ```r
 //! greeting <- new_greetingbuilder() |>
-//!   builder_set_name("World") |>
-//!   builder_set_punctuation("!") |>
-//!   builder_set_loud(TRUE)
-//! builder_build(greeting)   # "HELLO, WORLD!"
+//!   set_name("World") |>
+//!   set_punctuation("!") |>
+//!   set_loud(TRUE)
+//! build(greeting)   # "HELLO, WORLD!"
 //! ```
 //!
 //! works end-to-end. Each `&mut self -> &mut Self` step mutates the underlying
 //! Rust value in place and the C wrapper returns the *same* ExternalPtr handle
 //! (no clone), so the S3 object the user piped in flows unchanged through the
-//! chain. The terminal `builder_build()` reads `&self` and returns a `String`,
+//! chain. The terminal `build()` reads `&self` and returns a `String`,
 //! converted to R via the usual `IntoR` path.
 
 use miniextendr_api::miniextendr;
@@ -30,7 +30,7 @@ pub struct GreetingBuilder {
 
 /// Builder for a greeting string, demonstrating functional pipe chaining.
 ///
-/// The `builder_set_*` methods return `&mut Self`, so they compose under R's
+/// The `set_*` methods return `&mut Self`, so they compose under R's
 /// native pipe operator `|>` as free functions taking the object first.
 #[allow(clippy::new_without_default)]
 #[miniextendr(s3)]
@@ -69,6 +69,12 @@ impl GreetingBuilder {
     ///
     /// Takes `&self` (not `self`) so the R object remains valid afterwards, and
     /// returns a different type (`String`) converted to R via `IntoR`.
+    ///
+    /// Documented on its own help page (`man/greeting_build.Rd`, reached via
+    /// `?build.GreetingBuilder`) rather than the shared `GreetingBuilder` page:
+    /// a method-level `@rdname` is honoured by the generator instead of being
+    /// overwritten by the class default.
+    /// @rdname greeting_build
     pub fn build(&self) -> String {
         let name = if self.name.is_empty() {
             "world"
