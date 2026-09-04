@@ -36,7 +36,12 @@ ARG JUST_VERSION=1.36.0
 # `autoconf` is needed because rpkg/configure is regenerated from configure.ac
 # on fresh checkouts. clang is already on the base; we add `lldb` for native
 # debugging when reproducing CI failures inside the container.
-RUN apt-get update && apt-get install -y --no-install-recommends \
+#
+# The base image ships rig's apt source with a signing key that rotates on
+# rig's own schedule, so `apt-get update` fails on a stale key regardless of
+# the WEBR_BASE digest pin (#1430). Refresh the key before touching apt.
+RUN curl -fsSL https://rig.r-pkg.org/deb/rig.gpg -o /etc/apt/trusted.gpg.d/rig.gpg \
+    && apt-get update && apt-get install -y --no-install-recommends \
         autoconf \
         ripgrep \
         fd-find \
