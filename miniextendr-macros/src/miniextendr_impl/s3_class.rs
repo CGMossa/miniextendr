@@ -112,12 +112,27 @@ pub fn generate_s3_r_wrapper(parsed_impl: &ParsedImpl) -> String {
             if class_has_no_rd {
                 lines.push("#' @noRd".to_string());
             } else {
-                lines.push(format!("#' @title S3 generic for `{}`", generic_name));
+                // The generic block is named after the S3 method (`generic.Class`,
+                // class-qualified so classes sharing a generic don't collide on
+                // `\alias{generic}`). That is the same alias the method block
+                // below produces, so both must land on the same page: a
+                // method-level `@rdname` moves the generic block along with the
+                // method, otherwise R CMD check reports the alias as duplicated
+                // across the class page and the split page.
+                let split = crate::roxygen::rdname_value(&ctx.method.doc_tags).is_some();
+                if !split {
+                    // roxygen2 keeps the first `@title` on a page. On the class
+                    // page that is the class block's, so this one is inert; on a
+                    // split page it would beat the method's structural title.
+                    lines.push(format!("#' @title S3 generic for `{}`", generic_name));
+                }
                 lines.push(format!("#' @description S3 generic for `{}`", generic_name));
-                // Use class-qualified name to avoid duplicate alias when multiple
-                // classes define the same S3 generic (e.g., get_value).
                 lines.push(format!("#' @name {}.{}", generic_name, class_name));
-                lines.push(format!("#' @rdname {}", class_name));
+                crate::roxygen::push_rdname_or_default(
+                    &mut lines,
+                    &ctx.method.doc_tags,
+                    &class_name,
+                );
                 lines.push("#' @param x An object".to_string());
                 lines.push("#' @param ... Additional arguments passed to methods".to_string());
                 lines.push(crate::roxygen::method_source_tag(

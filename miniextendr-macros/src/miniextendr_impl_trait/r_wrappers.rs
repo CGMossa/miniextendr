@@ -338,13 +338,24 @@ fn generate_trait_s3_r_wrapper(
         let s3_method_name = format!("{}.{}", generic_name, type_str);
         let ctx = TraitMethodContext::new(method, type_ident, trait_name);
 
-        // S3 generic roxygen (only create if doesn't exist)
-        // Use type-qualified @name to avoid duplicate aliases across types
-        let generic_roxygen = RoxygenBuilder::new()
-            .title(format!("S3 generic for `{}`", generic_name))
+        // S3 generic roxygen (only create if doesn't exist). The type-qualified
+        // @name avoids duplicate aliases across types, but it is also the S3
+        // method's own name, so the generic block must follow a method-level
+        // `@rdname` onto the split page or R CMD check reports the alias as
+        // duplicated across two pages. The `@title` is inert on the type page
+        // (the type block's title comes first) and would beat the method's
+        // structural title on a split page, so it is only emitted when the
+        // block stays on the type page.
+        let generic_roxygen = RoxygenBuilder::new();
+        let generic_roxygen = if method.rdname.is_none() {
+            generic_roxygen.title(format!("S3 generic for `{}`", generic_name))
+        } else {
+            generic_roxygen
+        };
+        let generic_roxygen = generic_roxygen
             .custom(format!("S3 generic for `{}`", generic_name))
             .name(format!("{}.{}", generic_name, type_str))
-            .rdname(&type_str)
+            .rdname(method_rdname(method, &type_str))
             .custom("@param x An object")
             .custom("@param ... Additional arguments passed to methods")
             .source(format!(

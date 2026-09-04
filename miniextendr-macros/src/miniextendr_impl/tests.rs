@@ -3813,8 +3813,10 @@ fn typed_self_value_receiver_is_consuming() {
 // region: per-method @rdname override (#1438)
 
 /// A method-level `/// @rdname other` must win over the class default on every
-/// class system, and must be emitted exactly once for that method. The class
-/// doc block (and the S3 generic block) still target the class page.
+/// class system, and must be emitted exactly once per wrapper block. The class
+/// doc block still targets the class page; the S3 generic guard block is named
+/// after the method (`generic.Class`), so it follows the method onto the split
+/// page rather than leaving that alias on two pages.
 #[test]
 fn method_level_rdname_overrides_class_default_all_systems() {
     type Gen = fn(&ParsedImpl) -> String;
@@ -3842,11 +3844,13 @@ fn method_level_rdname_overrides_class_default_all_systems() {
 
         // R6 instance methods are `Class$set(...)` blocks that roxygen2 folds
         // into the class block, so their `@rdname` is dropped (they always
-        // document on the class page); every other block splits.
-        let expected_get = if matches!(class_system, ClassSystem::R6) {
-            0
-        } else {
-            1
+        // document on the class page). S3 emits two blocks per instance method
+        // (the generic guard, named `get.Counter`, and the method itself) and
+        // both move to the split page. Every other system emits one block.
+        let expected_get = match class_system {
+            ClassSystem::R6 => 0,
+            ClassSystem::S3 => 2,
+            _ => 1,
         };
         assert_eq!(
             wrapper.matches("#' @rdname counter_get").count(),
@@ -3860,9 +3864,15 @@ fn method_level_rdname_overrides_class_default_all_systems() {
         );
         // A split page needs its own @title (method prose is demoted to
         // @description and the class page no longer supplies one); the
-        // generator injects the structural R name.
-        // At least: class block + each split block (S3 also titles its generic).
-        let min_titles = 1 + expected_get + 1;
+        // generator injects the structural R name on the method block.
+        // At least: class block + each split method block. (The S3 generic
+        // guard drops its filler title on a split page so the method's wins.)
+        let split_method_blocks = if matches!(class_system, ClassSystem::R6) {
+            0
+        } else {
+            1
+        };
+        let min_titles = 1 + split_method_blocks + 1;
         assert!(
             wrapper.matches("#' @title ").count() >= min_titles,
             "{class_system:?}: split pages must carry a structural @title, got:\n{wrapper}"
@@ -3872,6 +3882,77 @@ fn method_level_rdname_overrides_class_default_all_systems() {
             "{class_system:?}: class doc block must keep the class page, got:\n{wrapper}"
         );
     }
+}
+
+/// The `@rdname` value of the first `#' @rdname` line after `needle`.
+fn rdname_after<'a>(wrapper: &'a str, needle: &str) -> &'a str {
+    let start = wrapper
+        .find(needle)
+        .unwrap_or_else(|| panic!("missing `{needle}` in:\n{wrapper}"));
+    wrapper[start..]
+        .lines()
+        .find_map(|l| l.strip_prefix("#' @rdname "))
+        .unwrap_or_else(|| panic!("no @rdname after `{needle}` in:\n{wrapper}"))
+}
+
+/// The S3 generic guard is documented under the method's own name
+/// (`get.Counter`, class-qualified so classes sharing a generic don't collide
+/// on `\alias{get}`), which is exactly the alias the method block produces. A
+/// method that splits onto its own page must take the guard block with it:
+/// leaving the guard on the class page puts `\alias{get.Counter}` on two Rd
+/// files, which `R CMD check` reports as "Rd files with duplicated alias".
+/// Methods without an `@rdname` keep the class-page shape unchanged.
+#[test]
+fn s3_generic_guard_follows_split_method_page() {
+    let item_impl: syn::ItemImpl = syn::parse_quote! {
+        impl Counter {
+            pub fn new(value: i32) -> Self { unimplemented!() }
+            /// Read the value.
+            /// @rdname counter_get
+            pub fn get(&self) -> i32 { unimplemented!() }
+            /// Bump the value.
+            pub fn increment(&mut self) { unimplemented!() }
+        }
+    };
+    let parsed = parse_impl(ClassSystem::S3, item_impl);
+    let wrapper = generate_s3_r_wrapper(&parsed);
+
+    // Split method: guard block and method block both target the split page.
+    assert_eq!(
+        rdname_after(&wrapper, "#' @name get.Counter"),
+        "counter_get",
+        "generic guard for a split method must follow it, got:\n{wrapper}"
+    );
+    assert_eq!(
+        wrapper.matches("#' @rdname counter_get").count(),
+        2,
+        "guard block + method block on the split page, got:\n{wrapper}"
+    );
+    // The guard's filler title is dropped there so the method's structural
+    // title (`get.Counter`) is the page title; the generic is still exported.
+    assert!(
+        !wrapper.contains("#' @title S3 generic for `get`"),
+        "split guard block must not carry the filler title, got:\n{wrapper}"
+    );
+    assert!(
+        wrapper.contains("#' @title get.Counter"),
+        "split page keeps the method's structural title, got:\n{wrapper}"
+    );
+    assert!(
+        wrapper.contains("#' @export get\n"),
+        "generic export is unaffected by the split, got:\n{wrapper}"
+    );
+
+    // Non-split method: unchanged class-page shape.
+    assert_eq!(
+        rdname_after(&wrapper, "#' @name increment.Counter"),
+        "Counter",
+        "generic guard without a method @rdname stays on the class page, got:\n{wrapper}"
+    );
+    assert!(
+        wrapper.contains("#' @title S3 generic for `increment`"),
+        "class-page guard block keeps its title, got:\n{wrapper}"
+    );
 }
 
 /// `#[miniextendr(as = "...")]` coercion methods push the method's own doc

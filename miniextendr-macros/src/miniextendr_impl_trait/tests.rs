@@ -950,7 +950,9 @@ fn test_static_self_return_rewrapped() {
 
 /// A method-level `/// @rdname other` on a trait-impl method moves that
 /// method's wrapper block onto the requested page on every class system, while
-/// the generics and the type's shared page stay put (#1438).
+/// the S4/S7 generics and the type's shared page stay put (#1438). The S3
+/// generic guard is documented under the method's own `value.Foo` name, so it
+/// moves with the method (otherwise that alias lands on two pages).
 #[test]
 fn test_trait_method_rdname_override_all_systems() {
     let type_ident = format_ident!("Foo");
@@ -979,11 +981,17 @@ fn test_trait_method_rdname_override_all_systems() {
 
         // S7 registers the instance method by assignment with no roxygen of
         // its own (the generic block documents it on the type page); the
-        // override lands on the per-class shortcut instead. Every other system
-        // documents the method block directly.
+        // override lands on the per-class shortcut instead. S3 emits two
+        // blocks (generic guard named `value.Foo` + method) and both move.
+        // Every other system documents the method block directly.
+        let expected_value = if matches!(class_system, ClassSystem::S3) {
+            2
+        } else {
+            1
+        };
         assert_eq!(
             result.matches("#' @rdname foo_value").count(),
-            1,
+            expected_value,
             "{class_system:?}: instance method page, got:\n{result}"
         );
         assert_eq!(
@@ -999,13 +1007,30 @@ fn test_trait_method_rdname_override_all_systems() {
                 "{class_system:?}: split instance-method block needs a @title, got:\n{result}"
             );
         }
-        if matches!(
-            class_system,
-            ClassSystem::S3 | ClassSystem::S4 | ClassSystem::S7
-        ) {
+        if matches!(class_system, ClassSystem::S4 | ClassSystem::S7) {
             assert!(
                 result.contains("#' @rdname Foo"),
                 "{class_system:?}: the generic stays on the type page, got:\n{result}"
+            );
+        }
+        if matches!(class_system, ClassSystem::S3) {
+            // The guard block's alias is `value.Foo` — the method's own — so it
+            // must not stay behind on the type page (duplicated alias across
+            // two Rd files), and it drops its filler title on the split page.
+            let guard = result
+                .find("#' @name value.Foo")
+                .unwrap_or_else(|| panic!("missing S3 guard block in:\n{result}"));
+            let guard_rdname = result[guard..]
+                .lines()
+                .find_map(|l| l.strip_prefix("#' @rdname "))
+                .unwrap_or_else(|| panic!("no @rdname after the guard in:\n{result}"));
+            assert_eq!(
+                guard_rdname, "foo_value",
+                "S3 generic guard must follow the split method, got:\n{result}"
+            );
+            assert!(
+                !result.contains("#' @title S3 generic for `value`"),
+                "split S3 guard must not carry the filler title, got:\n{result}"
             );
         }
     }

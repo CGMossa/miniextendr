@@ -917,9 +917,14 @@ impl Pipeline {
 
 renders `man/run_pipeline.Rd` for `run.Pipeline` while the rest of the class
 stays on `man/Pipeline.Rd`. Applies to all class systems and to
-`#[miniextendr] impl Trait for Type` blocks. The S3/S4/S7 *generics* the
+`#[miniextendr] impl Trait for Type` blocks. The S4/S7 *generics* the
 generator emits alongside a method stay on the class page, as do trait
-consts. A method-level `@name` is honoured the same way.
+consts. The S3 generic guard is documented under the method's own
+`generic.Class` name (so classes sharing a generic don't collide on
+`\alias{generic}`), which is the same alias the method produces; it therefore
+moves to the split page with the method, otherwise `R CMD check` reports the
+alias as duplicated across the two pages. A method-level `@name` is honoured
+the same way.
 
 Method prose is emitted as `@description` (the class page supplies the
 `@title`), so a split page would have no title and roxygen2 would skip it.
