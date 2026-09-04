@@ -221,6 +221,7 @@ mod lifecycle_tests;
 #[cfg(feature = "log")]
 mod log_tests;
 mod macro_equivalence;
+mod match_arg_foreign_tests;
 mod match_arg_impl_tests;
 mod match_arg_tests;
 #[cfg(feature = "md5")]
