@@ -179,7 +179,7 @@ high-level plan lives in `miniextendr-bench/src/bench_plan.rs`.
 | `connections` | Custom R connections: build/open, read, write, burst write (feature `connections`) |
 | `dataframe` | `Vec<Struct>` → R data.frame transpose + full pipelines |
 | `externalptr` | Creation, access, downcast, N-ptr churn; vs plain `Box` baseline |
-| `factor` | Cached vs uncached level lookup; `Vec<Factor>` throughput |
+| `factor` | Cached vs uncached level lookup; `FactorVec<T>` throughput |
 | `ffi_calls` | Raw `Rf_*` calls (`ScalarInteger`, `allocVector`, `protect`/`unprotect`, `install`) |
 | `from_r` | `TryFromSexp` scalar/slice/map/set paths |
 | `gc_protect` | `OwnedProtect`, `ProtectScope`, manual `PROTECT`/`UNPROTECT` |

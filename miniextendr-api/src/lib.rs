@@ -1230,8 +1230,8 @@ pub use match_arg::{
 /// ```
 pub mod factor;
 pub use factor::{
-    Factor, FactorMut, FactorOptionVec, FactorVec, RFactor, UnitEnumFactor, build_factor,
-    build_levels_sexp, build_levels_sexp_cached, factor_from_sexp,
+    FactorOptionVec, FactorVec, RFactor, UnitEnumFactor, build_factor, build_levels_sexp,
+    build_levels_sexp_cached, factor_from_sexp,
 };
 
 /// Convenience re-exports for common miniextendr items.
