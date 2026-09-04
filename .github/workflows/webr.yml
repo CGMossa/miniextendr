@@ -322,13 +322,16 @@ jobs:
           # ship it. `autoconf` is needed by rpkg/configure.
           #
           # The base image ships rig's apt source (/etc/apt/sources.list.d/rig.list)
-          # together with a rig signing key that rotates on rig's own schedule,
-          # so `apt-get update` fails on a stale key regardless of the digest
-          # pin (#1430). Refresh the key first. Keep update and install as
-          # separate statements: `a && b` under `set -e` does not abort when
-          # `a` fails, which is how a failed update surfaced as
-          # `file: command not found` many steps later instead of here.
-          curl -fsSL https://rig.r-pkg.org/deb/rig.gpg -o /etc/apt/trusted.gpg.d/rig.gpg
+          # with a signing key that rotates on rig's own schedule, so
+          # `apt-get update` fails on a stale key regardless of the digest pin
+          # (#1430). Nothing in this job installs anything from that source, so
+          # remove it (and the stale key) instead of refreshing the key: that
+          # drops the dependency on rig.r-pkg.org being reachable and on its
+          # next key rotation. Keep update and install as separate statements:
+          # `a && b` under `set -e` does not abort when `a` fails, which is how
+          # a failed update surfaced as `file: command not found` many steps
+          # later instead of here.
+          rm -f /etc/apt/sources.list.d/rig.list /etc/apt/trusted.gpg.d/rig.gpg
           apt-get update
           apt-get install -y --no-install-recommends autoconf file
           mkdir -p "$R_LIBS_USER"
