@@ -237,9 +237,11 @@ Absent-variant rows produce `NULL` in both columns (not NA). An empty map produc
 
 **Detection caveats**: `classify_field_type` detects `HashMap` / `BTreeMap` by matching the last path segment (`HashMap` or `BTreeMap`) and requiring exactly two generic type arguments. It also detects struct-typed fields by matching bare path types (single- or multi-segment, e.g. `Point` or `crate::geom::Point`) whose last segment has no generic arguments.
 
-**Rejected wrapper types** — the following shapes produce a compile error (since #484) because they cannot be automatically expanded and would otherwise silently produce a confusing opaque list-column:
+#### Rejected wrapper types
 
-- `Option<T>` — including `Option<HashMap<K,V>>`, `Option<UserStruct>`, etc.
+The following shapes produce a compile error (since #484) because they cannot be automatically expanded and would otherwise silently produce a confusing opaque list-column:
+
+- `Option<T>` for a **non-scalar** `T` — `Option<HashMap<K,V>>`, `Option<UserStruct>`, `Option<Vec<T>>`, etc. (`Option<f64>`, `Option<String>` and the other scalar payloads are the NA contract and are accepted; see [Missing data](#missing-data))
 - `Cow<T>`, `Rc<T>`, `Arc<T>`, `RefCell<T>`, `Cell<T>`, `Mutex<T>`, `RwLock<T>`
 
 For all of these, use `#[dataframe(as_list)]` to opt into an explicit opaque list-column, or unwrap to the inner type (e.g. store `HashMap<K,V>` directly and use an empty map for the absent case):
@@ -682,7 +684,10 @@ Requires the `serde` feature.
 
 ## Missing data
 
-Use `Option<T>` for nullable fields. `None` becomes `NA` in R, and `NA` reads back as `None`:
+Use `Option<T>` for nullable **scalar** fields. `None` becomes the typed `NA`
+in R (`NA_real_`, `NA_integer_`, `NA_character_`, `NA`), and `NA` reads back
+as `None`; the column type is unchanged, so an all-`None` column is still a
+double / character / logical / integer vector:
 
 ```rust
 #[derive(Clone, IntoList, DataFrameRow)]
@@ -691,6 +696,14 @@ struct Record {
     value: Option<f64>,  // NA in R when None
 }
 ```
+
+Accepted payloads: `bool`, `f32`, `f64`, `i8`..`i64`, `u8`..`u64`, `isize`,
+`usize`, `String` (the reader covers the same set as bare scalars: `u64`,
+`isize`, `usize` are write-only). `Option` around a map, a nested
+`DataFrameRow` struct, or a collection is rejected at compile time (see
+[Rejected wrapper types](#rejected-wrapper-types)); in **enum** row types the
+variant fields are already `Option` columns (absent for other variants), so
+write the bare scalar there.
 
 ## `DataFrameError`
 

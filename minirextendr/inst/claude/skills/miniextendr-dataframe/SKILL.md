@@ -14,8 +14,10 @@ scalar conversion surface:
 | `FromDataFrame` | `Vec::<Row>::from_dataframe(&df)?` | R data.frame → `Vec<Row>` |
 
 Both verbs live on the data itself. All errors are one type,
-`DataFrameError`. Missing cells round-trip as `Option<T>` fields — that is
-the entire NA contract.
+`DataFrameError`. Missing cells round-trip as `Option<T>` fields for scalar
+`T` (`Option<f64>`, `Option<String>`, `Option<bool>`, `Option<i32>`, …):
+`None` is the typed `NA` and `NA` reads back as `None`. That is the entire
+NA contract for struct row types.
 
 ## The 90% case: derive a row type
 
@@ -57,7 +59,10 @@ handing it a list that isn't a data.frame errors cleanly.
 ## Field shapes the derive understands
 
 - **Scalars** (`f64`, `i32`, `String`, `bool`, …) → one column each;
-  `Option<T>` for NA-able columns.
+  `Option<scalar>` for NA-able columns. `Option` around a map, a nested
+  struct or a collection is a compile error: use `#[dataframe(as_list)]`
+  or store the inner type. Enum variant fields are already `Option`
+  columns (absent for other variants), so write the bare scalar there.
 - **Fixed arrays** `[T; N]` and `Vec<T>` + `#[dataframe(width = N)]` →
   expanded to `field_1 … field_N` columns (ragged `Vec` pads trailing `NA`,
   and round-trips losslessly).

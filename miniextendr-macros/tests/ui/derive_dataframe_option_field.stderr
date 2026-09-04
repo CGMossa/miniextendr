@@ -1,4 +1,4 @@
-error: DataFrameRow does not support `Option<…>` directly as a field type. Use `#[dataframe(as_list)]` to opt into an explicit opaque list-column, or unwrap to the inner type (e.g. store the inner value directly, using a sentinel / empty collection for the absent case).
+error: DataFrameRow does not support `Option<…>` directly as a field type. `Option<…>` is supported only around a scalar (`Option<f64>`, `Option<String>`, …), where it is the NA-able column contract. Use `#[dataframe(as_list)]` to opt into an explicit opaque list-column, or unwrap to the inner type (e.g. store the inner value directly, using a sentinel / empty collection for the absent case).
  --> tests/ui/derive_dataframe_option_field.rs:9:13
   |
 9 |     counts: Option<HashMap<String, i32>>,
