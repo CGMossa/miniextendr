@@ -202,4 +202,13 @@ NULL
 #' @param x An object.
 #' @param ... Additional arguments.
 #' @name finish
+
+# ClassedChecker fixture generic (classed `Result` errors). Exported by the
+# auto-generated wrappers under @rdname ClassedChecker, aliased here for
+# R CMD check.
+
+#' Check a value against the bound, raising a classed error past it
+#' @param x An object.
+#' @param ... Additional arguments.
+#' @name check_bound
 NULL

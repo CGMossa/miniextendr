@@ -18,7 +18,7 @@ for programmatic catching (one string or a vector, most specific first), and an
 optional `data = ...` argument to attach structured named fields readable as
 `e$<name>` in handlers, optionally namespaced with `data_prefix = "..."`.
 `Result<T, E>` returns get the same treatment through the
-[`RConditionError`](#classed-result-errors-rconditionerror--rerror) trait.
+[`RConditionError`](#classed-result-errors-with-rconditionerror-and-rerror) trait.
 
 > **Import note.** `error!` and `condition!` are shadowed by the crate-root
 > modules `error` / `condition`, so `use miniextendr_api::*;` (or a direct
@@ -268,7 +268,7 @@ withCallingHandlers(
 # NULL
 ```
 
-## Classed `Result` errors: `RConditionError` / `RError`
+## Classed `Result` errors with `RConditionError` and `RError`
 
 A `#[miniextendr]` function or method returning `Result<T, E>` raises `Err(e)`
 as an R error. By default that error is a bare `rust_error` whose message is
