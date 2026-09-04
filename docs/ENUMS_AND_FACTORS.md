@@ -222,7 +222,7 @@ pub enum Priority {
 pub enum Mode { Fast, Safe, Debug }
 ```
 
-### For an Enum You Don't Own (Newtype)
+### For an Enum You Do Not Own (Newtype)
 
 `#[derive(MatchArg)]` has to sit on the enum's declaration, so it cannot be
 attached to an enum from a crate that does not depend on miniextendr (the
@@ -408,7 +408,7 @@ This is provided by a blanket `impl<T: MatchArg> IntoR for Vec<T>` in
 `MatchArg` is the base trait for all enum-like types. `RFactor` requires `MatchArg`
 as a supertrait, so any `RFactor` type also has `MatchArg::CHOICES`, `from_choice()`,
 and `to_choice()`. It can also be implemented by hand on a newtype (see
-[For an Enum You Don't Own](#for-an-enum-you-dont-own-newtype)). Use `MatchArg`
+[For an Enum You Do Not Own](#for-an-enum-you-do-not-own-newtype)). Use `MatchArg`
 as a bound for generic code over both systems:
 
 ```rust
