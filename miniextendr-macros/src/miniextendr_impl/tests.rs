@@ -3579,3 +3579,233 @@ fn s4_internal_keeps_keywords_internal_on_class_block() {
 }
 
 // endregion
+
+// region: consuming `self` receivers (#1432) and fallible in-place steps (#1433)
+
+fn consuming_builder_impl() -> syn::ItemImpl {
+    syn::parse_quote! {
+        impl Builder {
+            pub fn new() -> Self { unimplemented!() }
+            /// `self -> Self`: written back into the same handle.
+            pub fn with_step(mut self, v: i32) -> Self { unimplemented!() }
+            /// `self -> Result<Self, E>`: runs on a clone, overwritten on Ok.
+            pub fn try_step(mut self, v: i32) -> Result<Self, String> { unimplemented!() }
+            /// `self -> Option<Self>`.
+            pub fn maybe_step(mut self, v: i32) -> Option<Self> { unimplemented!() }
+            /// Terminal consume: the handle is left consumed.
+            pub fn finish(self) -> i32 { unimplemented!() }
+            /// Fallible in-place (#1433).
+            pub fn checked_bump(&mut self, v: i32) -> Result<&mut Self, String> { unimplemented!() }
+            /// Option in-place (#1433).
+            pub fn maybe_bump(&mut self, v: i32) -> Option<&mut Self> { unimplemented!() }
+        }
+    }
+}
+
+fn c_wrapper_tokens(parsed: &ParsedImpl, name: &str) -> String {
+    let method = parsed.methods.iter().find(|m| m.ident == name).unwrap();
+    let r_wrappers_const = syn::parse_quote! { R_WRAPPERS_TEST };
+    crate::miniextendr_impl::generate_method_c_wrapper(parsed, method, &r_wrappers_const)
+        .to_string()
+}
+
+/// Every consuming receiver is an instance method (has `self_sexp`), none is
+/// mistaken for a finalizer or a constructor, and the parse succeeds without
+/// any marker attribute.
+#[test]
+fn consuming_self_receivers_parse_as_instance_methods() {
+    let parsed = parse_impl(ClassSystem::S3, consuming_builder_impl());
+    for name in ["with_step", "try_step", "maybe_step", "finish"] {
+        let m = parsed.methods.iter().find(|m| m.ident == name).unwrap();
+        assert_eq!(m.env, ReceiverKind::Value, "{name}");
+        assert!(
+            m.env.is_instance(),
+            "{name}: consuming receiver is an instance method"
+        );
+        assert!(
+            !m.is_finalizer(),
+            "{name}: finalizer is never inferred from the receiver"
+        );
+        assert!(!m.is_constructor(), "{name}");
+    }
+    assert!(parsed.finalizer().is_none());
+    let names: Vec<_> = parsed
+        .instance_methods()
+        .map(|m| m.ident.to_string())
+        .collect();
+    for name in [
+        "with_step",
+        "try_step",
+        "maybe_step",
+        "finish",
+        "checked_bump",
+        "maybe_bump",
+    ] {
+        assert!(
+            names.contains(&name.to_string()),
+            "{name} missing from instance methods: {names:?}"
+        );
+    }
+}
+
+/// `self -> Self` moves the value out, writes the result back, and returns the
+/// same handle; the R strategy is the chainable one (no re-wrap).
+#[test]
+fn consuming_self_returning_self_writes_back_same_handle() {
+    let parsed = parse_impl(ClassSystem::S3, consuming_builder_impl());
+    let tokens = c_wrapper_tokens(&parsed, "with_step");
+    assert!(tokens.contains("take_for_consuming"), "{tokens}");
+    assert!(tokens.contains("restore_after_consuming"), "{tokens}");
+    assert!(
+        !tokens.contains("ExternalPtr :: new"),
+        "must not mint a new handle: {tokens}"
+    );
+    let m = parsed
+        .methods
+        .iter()
+        .find(|m| m.ident == "with_step")
+        .unwrap();
+    assert_eq!(
+        crate::ReturnStrategy::for_method(m),
+        crate::ReturnStrategy::ChainableMutation
+    );
+    let wrapper = generate_s3_r_wrapper(&parsed);
+    assert!(
+        wrapper.contains("with_step.Builder <- function(x, v, ...)"),
+        "{wrapper}"
+    );
+}
+
+/// `self -> Result<Self, E>` / `Option<Self>` clone the stored value, overwrite
+/// on success, and raise on failure through the Result / Option error paths.
+#[test]
+fn consuming_self_fallible_clones_and_overwrites_on_success() {
+    let parsed = parse_impl(ClassSystem::R6, consuming_builder_impl());
+    let tokens = c_wrapper_tokens(&parsed, "try_step");
+    assert!(tokens.contains("clone_for_consuming"), "{tokens}");
+    assert!(tokens.contains("RESULT_ERR"), "Err must raise: {tokens}");
+    assert!(
+        !tokens.contains("take_for_consuming"),
+        "fallible step must not empty the slot: {tokens}"
+    );
+    let tokens = c_wrapper_tokens(&parsed, "maybe_step");
+    assert!(tokens.contains("clone_for_consuming"), "{tokens}");
+    assert!(tokens.contains("NONE_ERR"), "None must raise: {tokens}");
+    for name in ["try_step", "maybe_step"] {
+        let m = parsed.methods.iter().find(|m| m.ident == name).unwrap();
+        assert_eq!(
+            crate::ReturnStrategy::for_method(m),
+            crate::ReturnStrategy::ChainableMutation,
+            "{name}: consuming builder returns the receiver"
+        );
+    }
+    let wrapper = generate_r6_r_wrapper(&parsed);
+    assert!(wrapper.contains("invisible(self)"), "{wrapper}");
+}
+
+/// A terminal `self -> T` moves the value out and converts the result; the
+/// slot is left consumed (no write-back).
+#[test]
+fn consuming_self_terminal_takes_value_without_write_back() {
+    let parsed = parse_impl(ClassSystem::Env, consuming_builder_impl());
+    let tokens = c_wrapper_tokens(&parsed, "finish");
+    assert!(tokens.contains("take_for_consuming"), "{tokens}");
+    assert!(!tokens.contains("restore_after_consuming"), "{tokens}");
+    let m = parsed.methods.iter().find(|m| m.ident == "finish").unwrap();
+    assert_eq!(
+        crate::ReturnStrategy::for_method(m),
+        crate::ReturnStrategy::Direct
+    );
+}
+
+/// `&mut self -> Result<&mut Self, E>` / `Option<&mut Self>` (#1433) use the
+/// self-handle strategy instead of falling through to `IntoR` (E0277).
+#[test]
+fn fallible_self_ref_builders_use_self_handle() {
+    let parsed = parse_impl(ClassSystem::S3, consuming_builder_impl());
+    let checked = parsed
+        .methods
+        .iter()
+        .find(|m| m.ident == "checked_bump")
+        .unwrap();
+    assert!(checked.returns_result_self_ref());
+    assert!(!checked.returns_self_ref());
+    let maybe = parsed
+        .methods
+        .iter()
+        .find(|m| m.ident == "maybe_bump")
+        .unwrap();
+    assert!(maybe.returns_option_self_ref());
+    for name in ["checked_bump", "maybe_bump"] {
+        let tokens = c_wrapper_tokens(&parsed, name);
+        assert!(tokens.contains("self_sexp"), "{name}: {tokens}");
+        assert!(
+            !tokens.contains("IntoR :: into_sexp (__result)"),
+            "{name} must not route the borrow through IntoR: {tokens}"
+        );
+        let m = parsed.methods.iter().find(|m| m.ident == name).unwrap();
+        assert_eq!(
+            crate::ReturnStrategy::for_method(m),
+            crate::ReturnStrategy::ChainableMutation,
+            "{name}"
+        );
+    }
+    let tokens = c_wrapper_tokens(&parsed, "checked_bump");
+    assert!(tokens.contains("RESULT_ERR"), "{tokens}");
+    let tokens = c_wrapper_tokens(&parsed, "maybe_bump");
+    assert!(tokens.contains("NONE_ERR"), "{tokens}");
+}
+
+/// The former escape hatch (`constructor` on a `self` method) is a clear error
+/// now that consuming steps need no marker.
+#[test]
+fn constructor_marker_on_consuming_self_is_rejected() {
+    let item_impl: syn::ItemImpl = syn::parse_quote! {
+        impl Builder {
+            #[miniextendr(s3(constructor))]
+            pub fn with_step(mut self, v: i32) -> Result<Self, String> { unimplemented!() }
+        }
+    };
+    let err = ParsedImpl::parse(default_impl_attrs(ClassSystem::S3), item_impl)
+        .expect_err("constructor on self receiver must be rejected")
+        .to_string();
+    assert!(
+        err.contains("takes `self` and is marked `constructor`"),
+        "got: {err}"
+    );
+    assert!(err.contains("writes its result back"), "got: {err}");
+}
+
+/// Smart-pointer receivers cannot be handed over by the wrapper.
+#[test]
+fn smart_pointer_self_receiver_is_rejected() {
+    let item_impl: syn::ItemImpl = syn::parse_quote! {
+        impl Builder {
+            pub fn consume(self: Box<Self>) -> i32 { unimplemented!() }
+        }
+    };
+    let err = ParsedImpl::parse(default_impl_attrs(ClassSystem::S3), item_impl)
+        .expect_err("Box<Self> receiver must be rejected")
+        .to_string();
+    assert!(err.contains("unsupported receiver type"), "got: {err}");
+}
+
+/// `self: Self` is the same as bare `self`.
+#[test]
+fn typed_self_value_receiver_is_consuming() {
+    let item_impl: syn::ItemImpl = syn::parse_quote! {
+        impl Builder {
+            pub fn with_step(self: Self, v: i32) -> Self { unimplemented!() }
+        }
+    };
+    let parsed = parse_impl(ClassSystem::S3, item_impl);
+    let m = parsed
+        .methods
+        .iter()
+        .find(|m| m.ident == "with_step")
+        .unwrap();
+    assert_eq!(m.env, ReceiverKind::Value);
+    assert!(c_wrapper_tokens(&parsed, "with_step").contains("restore_after_consuming"));
+}
+
+// endregion

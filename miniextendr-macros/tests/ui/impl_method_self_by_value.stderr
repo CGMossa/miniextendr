@@ -1,12 +1,5 @@
-error: method `consume` takes `self` by value (consuming), which is not fully supported.
-
-       Methods that consume `self` cannot be called from R because R uses reference semantics via ExternalPtr - the R object would remain alive after the Rust value is consumed.
-
-       Options:
-       1. Use `&self` or `&mut self` instead of `self`
-       2. If this is a finalizer (cleanup method), add `#[miniextendr(finalize)]`
-       3. If this returns a new Self (builder pattern), add `#[miniextendr(constructor)]`
- --> tests/ui/impl_method_self_by_value.rs:9:5
-  |
-9 |     fn consume(self) -> i32 {
-  |     ^^
+error: unsupported receiver type: the R handle stores the value itself, so a method can take `self`, `self: Self`, `&self`, `&mut self`, or an `ExternalPtr<Self>` receiver — not a smart pointer around `Self`
+  --> tests/ui/impl_method_self_by_value.rs:12:22
+   |
+12 |     fn consume(self: Box<Self>) -> i32 {
+   |                      ^^^^^^^^^
