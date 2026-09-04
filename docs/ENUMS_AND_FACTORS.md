@@ -222,6 +222,76 @@ pub enum Priority {
 pub enum Mode { Fast, Safe, Debug }
 ```
 
+### For an Enum You Don't Own (Newtype)
+
+`#[derive(MatchArg)]` has to sit on the enum's declaration, so it cannot be
+attached to an enum from a crate that does not depend on miniextendr (the
+usual shape when an R package wraps an existing Rust library). Wrap the
+foreign enum in a newtype and implement the three traits the derive would
+have emitted. `MatchArg` (`miniextendr_api::match_arg::MatchArg`) is
+public, and so are the helpers the derive leans on:
+
+```rust
+use miniextendr_api::match_arg::MatchArg;
+use miniextendr_api::{IntoR, SEXP, SexpError, TryFromSexp};
+
+// Owned by the wrapped library; no miniextendr types anywhere near it.
+use wrapped::Interp;
+
+#[derive(Copy, Clone)]
+pub struct InterpChoice(pub Interp);
+
+impl MatchArg for InterpChoice {
+    const CHOICES: &'static [&'static str] = &["linear", "cubic", "nearest"];
+
+    fn from_choice(choice: &str) -> Option<Self> {
+        Some(InterpChoice(match choice {
+            "linear" => Interp::Linear,
+            "cubic" => Interp::Cubic,
+            "nearest" => Interp::Nearest,
+            _ => return None,
+        }))
+    }
+
+    fn to_choice(self) -> &'static str {
+        match self.0 {
+            Interp::Linear => "linear",
+            Interp::Cubic => "cubic",
+            Interp::Nearest => "nearest",
+        }
+    }
+}
+
+impl TryFromSexp for InterpChoice {
+    type Error = SexpError;
+    fn try_from_sexp(sexp: SEXP) -> Result<Self, SexpError> {
+        miniextendr_api::match_arg_from_sexp(sexp).map_err(Into::into)
+    }
+}
+
+impl IntoR for InterpChoice {
+    type Error = std::convert::Infallible;
+    fn try_into_sexp(self) -> Result<SEXP, Self::Error> { Ok(self.into_sexp()) }
+    unsafe fn try_into_sexp_unchecked(self) -> Result<SEXP, Self::Error> { self.try_into_sexp() }
+    fn into_sexp(self) -> SEXP { self.to_choice().into_sexp() }
+}
+
+#[miniextendr]
+pub fn interpolate(#[miniextendr(match_arg)] method: InterpChoice) -> f64 {
+    wrapped::run(method.0)
+}
+```
+
+Everything downstream of the trait is shared with derived enums: the
+`match.arg()` prelude, the choices spliced into the formal default
+(`function(method = c("linear", "cubic", "nearest"))`), partial matching,
+factor input, `several_ok` (`Vec<InterpChoice>`), the `Vec<T>` return path
+(via the blanket `IntoRVecElement` bridge), impl-block `match_arg(param)`
+attributes, and the auto-injected `@param` choices text. `to_choice` is an
+exhaustive `match`, so adding a variant to the wrapped enum without updating
+the newtype is a compile error rather than silent drift.
+`rpkg/src/rust/match_arg_foreign_tests.rs` is the reference fixture.
+
 ### Inline String Choices
 
 For simple cases where you don't need an enum, use `choices(...)` on a `&str` parameter:
@@ -337,7 +407,9 @@ This is provided by a blanket `impl<T: MatchArg> IntoR for Vec<T>` in
 
 `MatchArg` is the base trait for all enum-like types. `RFactor` requires `MatchArg`
 as a supertrait, so any `RFactor` type also has `MatchArg::CHOICES`, `from_choice()`,
-and `to_choice()`. Use `MatchArg` as a bound for generic code over both systems:
+and `to_choice()`. It can also be implemented by hand on a newtype (see
+[For an Enum You Don't Own](#for-an-enum-you-dont-own-newtype)). Use `MatchArg`
+as a bound for generic code over both systems:
 
 ```rust
 use miniextendr_api::MatchArg;
