@@ -92,6 +92,14 @@ parse_number("42")    # 42
 parse_number("abc")   # Error: Parse error: invalid digit found in string
 ```
 
+### Classed errors for R handlers
+
+By default an `Err` is a bare `rust_error` whose message is the error's
+`Debug` rendering. Implement `RConditionError` on the error type (or return
+`RError`) to raise a custom class vector plus structured fields (`e$value`)
+that `tryCatch()` can dispatch on, while keeping `?` composition in Rust. See
+[CONDITIONS.md](CONDITIONS.md#classed-result-errors-rconditionerror--rerror).
+
 ### Custom Error Types
 
 Any type implementing `Display` works:

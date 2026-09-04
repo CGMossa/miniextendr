@@ -144,6 +144,7 @@ mod box_slice_tests;
 mod bytes_adapter_tests;
 mod call_attribution_demo;
 mod class_system_matrix;
+mod classed_result_tests;
 mod coerce_tests;
 mod collect_tests;
 #[cfg(feature = "serde")]

@@ -263,9 +263,9 @@ fn analyze_result_type(
             match #rust_result_ident {
                 Ok(()) => ::miniextendr_api::SEXP::nil(),
                 // SAFETY: runs inside the wrapper's with_r_unwind_protect closure on the R main thread.
-                Err(e) => unsafe { ::miniextendr_api::error_value::make_rust_condition_value(
-                    &format!("{:?}", e), ::miniextendr_api::error_value::kind::RESULT_ERR, ::core::option::Option::None, Some(__miniextendr_call),
-                ) },
+                Err(e) => unsafe { ::miniextendr_api::error_value::result_err_condition_value(
+                            ::miniextendr_api::__mx_result_err_parts!(e), Some(__miniextendr_call),
+                        ) },
             }
         }
     } else if ok_is_sexp {
@@ -276,9 +276,9 @@ fn analyze_result_type(
             match #rust_result_ident {
                 Ok(v) => v,
                 // SAFETY: runs inside the wrapper's with_r_unwind_protect closure on the R main thread.
-                Err(e) => unsafe { ::miniextendr_api::error_value::make_rust_condition_value(
-                    &format!("{:?}", e), ::miniextendr_api::error_value::kind::RESULT_ERR, ::core::option::Option::None, Some(__miniextendr_call),
-                ) },
+                Err(e) => unsafe { ::miniextendr_api::error_value::result_err_condition_value(
+                            ::miniextendr_api::__mx_result_err_parts!(e), Some(__miniextendr_call),
+                        ) },
             }
         }
     } else {
@@ -288,9 +288,9 @@ fn analyze_result_type(
             match #rust_result_ident {
                 Ok(v) => ::miniextendr_api::into_r::IntoR::into_sexp(v),
                 // SAFETY: runs inside the wrapper's with_r_unwind_protect closure on the R main thread.
-                Err(e) => unsafe { ::miniextendr_api::error_value::make_rust_condition_value(
-                    &format!("{:?}", e), ::miniextendr_api::error_value::kind::RESULT_ERR, ::core::option::Option::None, Some(__miniextendr_call),
-                ) },
+                Err(e) => unsafe { ::miniextendr_api::error_value::result_err_condition_value(
+                            ::miniextendr_api::__mx_result_err_parts!(e), Some(__miniextendr_call),
+                        ) },
             }
         }
     }

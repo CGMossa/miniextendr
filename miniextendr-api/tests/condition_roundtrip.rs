@@ -36,7 +36,7 @@ fn condition_data_roundtrip_scalars_and_vecs() {
         let sexp = make_rust_condition_value_with_data(
             "test message",
             miniextendr_api::error_value::kind::ERROR,
-            Some("my_test_class"),
+            &["my_test_class".to_string()],
             None,
             Some(fields),
         );
@@ -51,7 +51,7 @@ fn condition_data_roundtrip_scalars_and_vecs() {
                 data,
             } => {
                 assert_eq!(message, "test message");
-                assert_eq!(class.as_deref(), Some("my_test_class"));
+                assert_eq!(class, vec!["my_test_class"]);
                 let data = data.expect("data must be Some after round-trip");
                 assert_eq!(data.len(), 7);
                 assert_eq!(data[0].0, "field_a");
@@ -98,7 +98,7 @@ fn condition_data_roundtrip_no_data() {
         let sexp = make_rust_condition_value_with_data(
             "plain error",
             miniextendr_api::error_value::kind::ERROR,
-            None,
+            &[],
             None,
             None, // no data
         );
@@ -111,7 +111,7 @@ fn condition_data_roundtrip_no_data() {
                 data,
             } => {
                 assert_eq!(message, "plain error");
-                assert!(class.is_none());
+                assert!(class.is_empty());
                 assert!(data.is_none(), "data should be None when not provided");
             }
             other => panic!("wrong variant: {other:?}"),
@@ -139,7 +139,7 @@ fn condition_data_roundtrip_na_field_survives() {
         let sexp = make_rust_condition_value_with_data(
             "error with na field",
             miniextendr_api::error_value::kind::ERROR,
-            None,
+            &[],
             None,
             Some(fields),
         );
@@ -181,7 +181,7 @@ fn condition_data_roundtrip_warning_carries_data() {
         let sexp = make_rust_condition_value_with_data(
             "truncated 3 rows",
             miniextendr_api::error_value::kind::WARNING,
-            Some("truncation_warning"),
+            &["truncation_warning".to_string()],
             None,
             Some(fields),
         );
@@ -194,7 +194,7 @@ fn condition_data_roundtrip_warning_carries_data() {
                 data,
             } => {
                 assert_eq!(message, "truncated 3 rows");
-                assert_eq!(class.as_deref(), Some("truncation_warning"));
+                assert_eq!(class, vec!["truncation_warning"]);
                 let data = data.expect("data must survive for Warning too");
                 assert_eq!(data.len(), 2);
                 assert!(matches!(&data[0].1, RValue::Integer(v) if v == &[Some(3)]));
@@ -204,5 +204,80 @@ fn condition_data_roundtrip_warning_carries_data() {
             }
             other => panic!("wrong variant: {other:?}"),
         }
+    });
+}
+
+/// Class vectors (#1435): every element of the class slot survives the
+/// SEXP round trip, in order (member first, family second).
+#[test]
+fn condition_class_vector_roundtrip() {
+    r_test_utils::with_r_thread(|| unsafe {
+        use miniextendr_api::condition::RCondition;
+        use miniextendr_api::error_value::make_rust_condition_value_with_data;
+
+        let classes = vec![
+            "pkg_error_missing_field".to_string(),
+            "pkg_error".to_string(),
+        ];
+        let sexp = make_rust_condition_value_with_data(
+            "layered",
+            miniextendr_api::error_value::kind::ERROR,
+            &classes,
+            None,
+            None,
+        );
+        match RCondition::from_tagged_sexp(sexp).expect("tagged") {
+            RCondition::Error {
+                message,
+                class,
+                data,
+            } => {
+                assert_eq!(message, "layered");
+                assert_eq!(class, classes);
+                assert!(data.is_none());
+            }
+            other => panic!("wrong variant: {other:?}"),
+        }
+    });
+}
+
+/// `result_err_condition_value` (#1434): the probed parts of a classed error
+/// land in the tagged value with `kind = "result_err"`, class and data intact.
+#[test]
+fn result_err_parts_roundtrip() {
+    r_test_utils::with_r_thread(|| unsafe {
+        use miniextendr_api::RValue;
+        use miniextendr_api::condition::{RCondition, RError};
+        use miniextendr_api::error_value::result_err_condition_value;
+
+        let err = RError::new("too large")
+            .class(["pkg_too_large", "pkg_error"])
+            .data_prefix("p_")
+            .data("kind", 3)
+            .data("max", 100.0);
+        let parts = miniextendr_api::__mx_result_err_parts!(err);
+        let sexp = result_err_condition_value(parts, None);
+        match RCondition::from_tagged_sexp(sexp).expect("tagged") {
+            RCondition::Error {
+                message,
+                class,
+                data,
+            } => {
+                assert_eq!(message, "too large");
+                assert_eq!(class, vec!["pkg_too_large", "pkg_error"]);
+                let data = data.expect("data");
+                assert_eq!(data[0].0, "p_kind");
+                assert!(matches!(&data[0].1, RValue::Integer(v) if v == &[Some(3)]));
+                assert_eq!(data[1].0, "p_max");
+            }
+            other => panic!("wrong variant: {other:?}"),
+        }
+
+        // The Debug fallback: a plain String error keeps its historical rendering.
+        let plain = String::from("boom");
+        let parts = miniextendr_api::__mx_result_err_parts!(plain);
+        assert_eq!(parts.message, "\"boom\"");
+        assert!(parts.class.is_empty());
+        assert!(parts.data.is_none());
     });
 }

@@ -83,7 +83,7 @@ impl AltIntegerData for ClassedErrorAltrepData {
         // Use the enum directly to set the class at runtime.
         std::panic::panic_any(miniextendr_api::condition::RCondition::Error {
             message: self.message.clone(),
-            class: Some(self.error_class.clone()),
+            class: vec![self.error_class.clone()],
             data: None,
         });
     }

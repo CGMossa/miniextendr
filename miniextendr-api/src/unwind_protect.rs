@@ -87,8 +87,9 @@ fn stop_sym() -> crate::SEXP {
 ///
 /// ## Class layering
 ///
-/// - If `class` is `Some("my_class")`, the resulting R condition has class:
-///   `c("my_class", "rust_error", "simpleError", "error", "condition")`.
+/// - With `class = ["my_class"]`, the resulting R condition has class:
+///   `c("my_class", "rust_error", "simpleError", "error", "condition")`; several
+///   classes are prepended in order.
 /// - Without a custom class: `c("rust_error", "simpleError", "error", "condition")`.
 ///
 /// ## Structured `data` (issue #996 path 2)
@@ -114,7 +115,7 @@ fn stop_sym() -> crate::SEXP {
 /// from `with_r_unwind_protect_sourced` on the ALTREP guard path.
 pub(crate) unsafe fn raise_rust_condition_via_stop(
     message: &str,
-    class: Option<&str>,
+    class: &[String],
     call: Option<crate::SEXP>,
     data: Option<crate::condition::ConditionData>,
 ) -> ! {
@@ -123,21 +124,17 @@ pub(crate) unsafe fn raise_rust_condition_via_stop(
     use crate::{IntoR, SEXP, SEXPTYPE, SexpExt};
 
     unsafe {
-        // Build the class vector: c([custom_class,] "rust_error", "simpleError", "error", "condition")
+        // Build the class vector: c(<custom classes…>, "rust_error", "simpleError", "error", "condition")
         let base_classes: &[&std::ffi::CStr] =
             &[c"rust_error", c"simpleError", c"error", c"condition"];
-        let class_count = if class.is_some() {
-            base_classes.len() + 1
-        } else {
-            base_classes.len()
-        };
+        let class_count = base_classes.len() + class.len();
 
         let class_vec = Rf_allocVector(SEXPTYPE::STRSXP, class_count as isize);
         Rf_protect(class_vec);
 
         let mut idx = 0isize;
-        if let Some(custom) = class {
-            let custom_cstr = std::ffi::CString::new(custom)
+        for custom in class {
+            let custom_cstr = std::ffi::CString::new(custom.as_str())
                 .unwrap_or_else(|_| std::ffi::CString::new("rust_error").unwrap());
             let custom_charsxp = Rf_mkCharCE(custom_cstr.as_ptr(), CE_UTF8);
             class_vec.set_string_elt(idx, custom_charsxp);
@@ -511,9 +508,7 @@ where
                         // both match. No R wrapper needed. `data` fields are spliced in
                         // too (issue #996 path 2) — previously silently dropped here.
                         crate::panic_telemetry::fire(&message, source);
-                        unsafe {
-                            raise_rust_condition_via_stop(&message, class.as_deref(), call, data)
-                        }
+                        unsafe { raise_rust_condition_via_stop(&message, &class, call, data) }
                     }
                     crate::condition::RCondition::Warning { .. }
                     | crate::condition::RCondition::Message { .. }
@@ -530,7 +525,7 @@ where
                                    cannot be raised as non-fatal signals; use error!() instead. \
                                    This context has no R wrapper to handle signal restart.";
                         crate::panic_telemetry::fire(msg, source);
-                        unsafe { raise_rust_condition_via_stop(msg, None, call, None) }
+                        unsafe { raise_rust_condition_via_stop(msg, &[], call, None) }
                     }
                 }
             } else {
@@ -541,7 +536,7 @@ where
                 // tryCatch(rust_error = h, ...) matches even for plain panics.
                 let msg = panic_message_with_location(payload.as_ref());
                 crate::panic_telemetry::fire(&msg, source);
-                unsafe { raise_rust_condition_via_stop(&msg, None, call, None) }
+                unsafe { raise_rust_condition_via_stop(&msg, &[], call, None) }
             }
             // endregion
         }
@@ -595,7 +590,7 @@ where
                         data,
                     } => (kind::WARNING, message, class, data),
                     crate::condition::RCondition::Message { message, data } => {
-                        (kind::MESSAGE, message, None, data)
+                        (kind::MESSAGE, message, Vec::new(), data)
                     }
                     crate::condition::RCondition::Condition {
                         message,
@@ -606,11 +601,7 @@ where
                 // SAFETY: on the R main thread inside R_UnwindProtect.
                 return unsafe {
                     crate::error_value::make_rust_condition_value_with_data(
-                        &message,
-                        kind,
-                        class.as_deref(),
-                        None,
-                        data,
+                        &message, kind, &class, None, data,
                     )
                 };
             }
@@ -677,7 +668,7 @@ where
                         data,
                     } => (kind::WARNING, message, class, data),
                     crate::condition::RCondition::Message { message, data } => {
-                        (kind::MESSAGE, message, None, data)
+                        (kind::MESSAGE, message, Vec::new(), data)
                     }
                     crate::condition::RCondition::Condition {
                         message,
@@ -689,11 +680,7 @@ where
                 // SAFETY: on the R main thread inside R_UnwindProtect.
                 return unsafe {
                     crate::error_value::make_rust_condition_value_with_data(
-                        &message,
-                        kind,
-                        class.as_deref(),
-                        call,
-                        data,
+                        &message, kind, &class, call, data,
                     )
                 };
             }
