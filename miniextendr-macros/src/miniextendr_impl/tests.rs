@@ -3683,7 +3683,10 @@ fn consuming_self_fallible_clones_and_overwrites_on_success() {
     let parsed = parse_impl(ClassSystem::R6, consuming_builder_impl());
     let tokens = c_wrapper_tokens(&parsed, "try_step");
     assert!(tokens.contains("clone_for_consuming"), "{tokens}");
-    assert!(tokens.contains("RESULT_ERR"), "Err must raise: {tokens}");
+    assert!(
+        tokens.contains("__mx_result_err_parts"),
+        "Err must raise through the classed result_err path: {tokens}"
+    );
     assert!(
         !tokens.contains("take_for_consuming"),
         "fallible step must not empty the slot: {tokens}"
@@ -3751,7 +3754,7 @@ fn fallible_self_ref_builders_use_self_handle() {
         );
     }
     let tokens = c_wrapper_tokens(&parsed, "checked_bump");
-    assert!(tokens.contains("RESULT_ERR"), "{tokens}");
+    assert!(tokens.contains("__mx_result_err_parts"), "{tokens}");
     let tokens = c_wrapper_tokens(&parsed, "maybe_bump");
     assert!(tokens.contains("NONE_ERR"), "{tokens}");
 }

@@ -759,8 +759,8 @@ impl CWrapperContext {
                 quote! {
                     let __result: ::core::result::Result<(), _> = #call_expr;
                     if let Err(e) = __result {
-                        return unsafe { ::miniextendr_api::error_value::make_rust_condition_value(
-                            &format!("{:?}", e), ::miniextendr_api::error_value::kind::RESULT_ERR, ::core::option::Option::None, Some(__miniextendr_call),
+                        return unsafe { ::miniextendr_api::error_value::result_err_condition_value(
+                            ::miniextendr_api::__mx_result_err_parts!(e), Some(__miniextendr_call),
                         ) };
                     }
                     self_sexp
