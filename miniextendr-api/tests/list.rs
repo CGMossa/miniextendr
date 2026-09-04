@@ -150,3 +150,29 @@ fn prefer_list_changes_intor() {
         assert!(sexp.is_list());
     });
 }
+
+/// `get_named` / `get_index` are generic over any `TryFromSexp` error type, so
+/// a nested list is fetched as `List` directly (its error is
+/// `ListFromSexpError`, not `SexpError`). Regression test for the bound relaxed
+/// in #865; surfaced again while building a nested-config walker downstream.
+#[test]
+fn get_named_fetches_nested_list() {
+    r_test_utils::with_r_thread(|| {
+        let inner = List::from_pairs(vec![("b", 1i32)]);
+        let outer = List::from_raw_pairs(vec![("inner", inner.as_sexp()), ("n", 2i32.into_sexp())]);
+
+        let fetched: List = outer
+            .get_named("inner")
+            .expect("nested list element is fetched as List");
+        assert_eq!(fetched.len(), 1);
+        assert_eq!(fetched.get_named::<i32>("b"), Some(1));
+
+        // Same relaxation on the positional accessor.
+        assert_eq!(outer.get_index::<List>(0).map(|l| l.len()), Some(1));
+
+        // A non-list element fails the conversion and yields None rather than
+        // a type error; a missing name yields None too.
+        assert!(outer.get_named::<List>("n").is_none());
+        assert!(outer.get_named::<List>("missing").is_none());
+    });
+}
