@@ -320,7 +320,20 @@ jobs:
           # `file` is used by the "Verify wasm side-module landed" step below to
           # confirm the output is wasm and not ELF; the webR base image doesn't
           # ship it. `autoconf` is needed by rpkg/configure.
-          apt-get update && apt-get install -y --no-install-recommends autoconf file
+          #
+          # The base image ships rig's apt source (/etc/apt/sources.list.d/rig.list)
+          # with a signing key that rotates on rig's own schedule, so
+          # `apt-get update` fails on a stale key regardless of the digest pin
+          # (#1430). Nothing in this job installs anything from that source, so
+          # remove it (and the stale key) instead of refreshing the key: that
+          # drops the dependency on rig.r-pkg.org being reachable and on its
+          # next key rotation. Keep update and install as separate statements:
+          # `a && b` under `set -e` does not abort when `a` fails, which is how
+          # a failed update surfaced as `file: command not found` many steps
+          # later instead of here.
+          rm -f /etc/apt/sources.list.d/rig.list /etc/apt/trusted.gpg.d/rig.gpg
+          apt-get update
+          apt-get install -y --no-install-recommends autoconf file
           mkdir -p "$R_LIBS_USER"
           # Derive the Imports list from rpkg/DESCRIPTION (minus base-R
           # packages) instead of hand-enumerating it — tests/webr-node-smoke/
