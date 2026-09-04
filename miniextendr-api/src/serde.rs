@@ -20,9 +20,10 @@
 //! |-----------|--------|
 //! | `bool` | `logical(1)` |
 //! | `i8/i16/i32` | `integer(1)` |
-//! | `i64/u64/f32/f64` | `numeric(1)` |
+//! | `i64/u64` | `integer(1)` when the value fits i32, else `numeric(1)` (lossy above 2^53) |
+//! | `f32/f64` | `numeric(1)` |
 //! | `String/&str` | `character(1)` |
-//! | `Option<T>::None` | NA or NULL |
+//! | `Option<T>::None` | `NULL` (always — never a typed NA) |
 //! | `Vec<primitive>` | atomic vector (smart dispatch) |
 //! | `Vec<struct>` | list of lists |
 //! | `HashMap<String, T>` | named list |
@@ -55,16 +56,20 @@
 //! - `Vec<String>` → `character` vector
 //! - `Vec<struct>` → list of lists
 //!
-//! # NA Roundtrip
+//! # NA and NULL Roundtrip
 //!
-//! NA values are preserved through `Option<T>`:
+//! The absence encoding is asymmetric (pinned by
+//! `rpkg/tests/testthat/test-serde-hostile-probes.R`): serialization always
+//! emits `NULL` for `None` (the macro scalar `IntoR` path is the one that
+//! emits typed NAs — don't conflate them); deserialization accepts both
+//! `NULL` and a typed scalar NA as `None`:
 //!
 //! ```rust,ignore
 //! // Serialization
 //! let v: Option<i32> = None;
-//! // → NA_integer_
+//! // → NULL (not NA_integer_)
 //!
-//! // Deserialization
+//! // Deserialization: NULL and NA_integer_ both come back as None
 //! let v: Option<i32> = from_r(na_integer_sexp)?;
 //! assert!(v.is_none());
 //! ```
@@ -231,6 +236,7 @@ pub mod columnar;
 pub mod dataframe_de;
 mod de;
 mod error;
+mod externalptr;
 #[cfg(feature = "serde_json")]
 pub mod json_string;
 mod ser;
