@@ -237,7 +237,9 @@ Absent-variant rows produce `NULL` in both columns (not NA). An empty map produc
 
 **Detection caveats**: `classify_field_type` detects `HashMap` / `BTreeMap` by matching the last path segment (`HashMap` or `BTreeMap`) and requiring exactly two generic type arguments. It also detects struct-typed fields by matching bare path types (single- or multi-segment, e.g. `Point` or `crate::geom::Point`) whose last segment has no generic arguments.
 
-**Rejected wrapper types** — the following shapes produce a compile error (since #484) because they cannot be automatically expanded and would otherwise silently produce a confusing opaque list-column:
+#### Rejected wrapper types
+
+The following shapes produce a compile error (since #484) because they cannot be automatically expanded and would otherwise silently produce a confusing opaque list-column:
 
 - `Option<T>` for a **non-scalar** `T` — `Option<HashMap<K,V>>`, `Option<UserStruct>`, `Option<Vec<T>>`, etc. (`Option<f64>`, `Option<String>` and the other scalar payloads are the NA contract and are accepted; see [Missing data](#missing-data))
 - `Cow<T>`, `Rc<T>`, `Arc<T>`, `RefCell<T>`, `Cell<T>`, `Mutex<T>`, `RwLock<T>`
