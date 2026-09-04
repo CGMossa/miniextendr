@@ -1,4 +1,7 @@
-//! Test: impl method with self by value should fail (needs &self or &mut self).
+//! Test: a smart-pointer `self` receiver is rejected (the R handle stores the
+//! value itself, so only `self`, `&self`, `&mut self`, or `ExternalPtr<Self>`
+//! receivers can be handed over). Bare `self` (consuming) is supported since
+//! #1432 and is covered by the pass tests / rpkg fixtures instead.
 
 use miniextendr_macros::miniextendr;
 
@@ -6,7 +9,7 @@ struct Counter(i32);
 
 #[miniextendr]
 impl Counter {
-    fn consume(self) -> i32 {
+    fn consume(self: Box<Self>) -> i32 {
         self.0
     }
 }

@@ -326,3 +326,77 @@ test_that("EnvPipeBuilder chains via $ and preserves identity", {
   expect_identical(stepped, b2)
   expect_equal(b2$total(), 5L)
 })
+
+# ---------------------------------------------------------------------------
+# Consuming `self` builders (#1432) and fallible in-place steps (#1433)
+# ---------------------------------------------------------------------------
+
+test_that("S3 consuming `self -> Self` steps write back into the same object", {
+  b <- new_consumingbuilder()
+  out <- with_amount(b, 3L)
+  expect_identical(out, b)
+  expect_equal(total(b), 3L)
+  chained <- new_consumingbuilder() |> with_amount(1L) |> with_amount(2L)
+  expect_equal(total(chained), 3L)
+})
+
+test_that("S3 consuming `self -> Result<Self, E>` leaves the object untouched on Err", {
+  b <- new_consumingbuilder() |> try_amount(5L)
+  expect_equal(total(b), 5L)
+  expect_identical(try_amount(b, 1L), b)
+  expect_error(try_amount(b, -1L), "non-negative", class = "rust_error")
+  expect_equal(total(b), 6L)   # 5 + 1, the failed step did not apply
+  expect_equal(total(new_consumingbuilder() |> try_amount(2L) |> try_amount(3L)), 5L)
+})
+
+test_that("S3 consuming `self -> Option<Self>` raises on None and keeps the value", {
+  b <- new_consumingbuilder() |> maybe_amount(60L)
+  expect_equal(total(b), 60L)
+  expect_error(maybe_amount(b, 50L), "returned no value")
+  expect_equal(total(b), 60L)
+})
+
+test_that("fallible in-place `&mut self -> Result<&mut Self, E>` returns the same handle", {
+  b <- new_consumingbuilder()
+  expect_identical(checked_bump(b, 4L), b)
+  expect_equal(total(b), 4L)
+  expect_error(checked_bump(b, -4L), "non-negative", class = "rust_error")
+  expect_equal(total(b), 4L)
+  expect_identical(maybe_bump(b, 6L), b)
+  expect_equal(total(b), 10L)
+  expect_error(maybe_bump(b, 100L), "returned no value")
+  expect_equal(total(b), 10L)
+})
+
+test_that("a terminal consuming method leaves the handle consumed", {
+  b <- new_consumingbuilder() |> with_amount(7L)
+  expect_equal(finish(b), 7L)
+  e <- tryCatch(total(b), error = function(e) e)
+  expect_s3_class(e, "rust_error")
+  expect_match(conditionMessage(e), "consumed")
+  e <- tryCatch(with_amount(b, 1L), error = function(e) e)
+  expect_match(conditionMessage(e), "consumed")
+})
+
+test_that("R6 consuming builders chain via invisible(self) and keep identity", {
+  b <- R6ConsumingBuilder$new()
+  expect_identical(b$with_amount(2L), b)
+  expect_equal(b$with_amount(1L)$try_amount(3L)$total(), 6L)
+  expect_error(b$try_amount(-1L), "non-negative")
+  expect_equal(b$total(), 6L)
+  expect_identical(b$checked_bump(4L), b)
+  expect_equal(b$total(), 10L)
+  expect_equal(b$finish(), 10L)
+  expect_error(b$total(), "consumed")
+})
+
+test_that("Env consuming builders chain and keep identity", {
+  b <- EnvConsumingBuilder$new()
+  expect_identical(b$with_amount(2L), b)
+  expect_equal(b$with_amount(1L)$try_amount(3L)$total(), 6L)
+  expect_error(b$try_amount(-1L), "non-negative")
+  expect_equal(b$total(), 6L)
+  expect_identical(b$checked_bump(4L), b)
+  expect_equal(b$finish(), 10L)
+  expect_error(b$total(), "consumed")
+})

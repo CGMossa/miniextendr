@@ -80,12 +80,12 @@
 //! | `self: &ExternalPtr<Self>` | `ExternalPtrRef` | Instance method (immutable, full ExternalPtr access) |
 //! | `self: &mut ExternalPtr<Self>` | `ExternalPtrRefMut` | Instance method (mutable, full ExternalPtr access) |
 //! | `self: ExternalPtr<Self>` | `ExternalPtrValue` | Instance method (owned ExternalPtr, full access) |
-//! | `self` | `Value` | Consuming method (not supported in v1) |
+//! | `self` | `Value` | Consuming method: `-> Self` writes the result back into the same handle; `-> Result<Self, E>` / `Option<Self>` run on a clone (`T: Clone`) and overwrite on success; any other return consumes the handle (later use errors) |
 //! | (none) | `None` | Static method or constructor |
 //!
 //! Special methods:
-//! - **Constructor**: Returns `Self`, marked with `#[miniextendr(constructor)]` or named `new`
-//! - **Finalizer**: R6 only, marked with `#[miniextendr(r6(finalize))]`
+//! - **Constructor**: Returns `Self` with no receiver, marked with `#[miniextendr(constructor)]` or named `new`
+//! - **Finalizer**: R6 only, marked with `#[miniextendr(r6(finalize))]` (never inferred from the receiver)
 //! - **Private**: R6 only, marked with `#[miniextendr(r6(private))]`
 //!
 //! ## Shared Builders
@@ -378,7 +378,10 @@ pub enum ReceiverKind {
     Ref,
     /// `&mut self` - mutable borrow
     RefMut,
-    /// `self` - consuming (not supported in v1)
+    /// `self` (or `self: Self`) - consuming. The C wrapper moves the value out
+    /// of the R handle: `-> Self` writes the result back (same handle, in-place
+    /// semantics), `-> Result<Self, E>` / `-> Option<Self>` run on a clone and
+    /// overwrite on success, anything else leaves the handle consumed.
     Value,
     /// `self: &ExternalPtr<Self>` — immutable borrow of the wrapping ExternalPtr
     ExternalPtrRef,
@@ -389,12 +392,14 @@ pub enum ReceiverKind {
 }
 
 impl ReceiverKind {
-    /// Returns true if this is an instance method (has self).
+    /// Returns true if this is an instance method (has self), including the
+    /// consuming `self` receiver.
     pub fn is_instance(&self) -> bool {
         matches!(
             self,
             ReceiverKind::Ref
                 | ReceiverKind::RefMut
+                | ReceiverKind::Value
                 | ReceiverKind::ExternalPtrRef
                 | ReceiverKind::ExternalPtrRefMut
                 | ReceiverKind::ExternalPtrValue
@@ -2033,31 +2038,32 @@ impl ParsedMethod {
             }
         }
 
-        // Validate: `self` by value (consuming) methods are not fully supported
-        // They're either: constructor (returns Self), finalizer (marked or inferred), or error
+        // Consuming `self` receivers (#1432): supported for every return shape
+        // (see `ReceiverKind::Value`). Two things stay rejected: a receiver type
+        // the wrapper cannot hand over (`self: Box<Self>` / `Rc<Self>` ...), and
+        // the `constructor` marker, which describes receiverless `fn new()`.
         if env == ReceiverKind::Value {
-            let returns_self = matches!(&item.sig.output, syn::ReturnType::Type(_, ty)
-                if matches!(ty.as_ref(), syn::Type::Path(p)
-                    if p.path.segments.last().map(|s| s.ident == "Self").unwrap_or(false)));
-
-            // Allow if: constructor (returns Self) or explicitly marked as finalize
-            let is_allowed = returns_self || method_attrs.constructor || method_attrs.r6.finalize;
-
-            if !is_allowed {
+            if let Some(syn::FnArg::Receiver(r)) = item.sig.inputs.first()
+                && r.colon_token.is_some()
+                && !matches!(r.ty.as_ref(), syn::Type::Path(tp)
+                    if tp.path.segments.last().is_some_and(|seg| seg.ident == "Self")
+                        && tp.path.segments.len() == 1)
+            {
+                return Err(syn::Error::new_spanned(
+                    &r.ty,
+                    "unsupported receiver type: the R handle stores the value itself, so a \
+                     method can take `self`, `self: Self`, `&self`, `&mut self`, or an \
+                     `ExternalPtr<Self>` receiver — not a smart pointer around `Self`",
+                ));
+            }
+            if method_attrs.constructor {
                 return Err(syn::Error::new(
                     item.sig.fn_token.span,
                     format!(
-                        "method `{}` takes `self` by value (consuming), which is not fully supported.\n\
-                         \n\
-                         Methods that consume `self` cannot be called from R because R uses reference \
-                         semantics via ExternalPtr - the R object would remain alive after the Rust \
-                         value is consumed.\n\
-                         \n\
-                         Options:\n\
-                         1. Use `&self` or `&mut self` instead of `self`\n\
-                         2. If this is a finalizer (cleanup method), add `#[miniextendr(finalize)]`\n\
-                         3. If this returns a new Self (builder pattern), add `#[miniextendr(constructor)]`",
-                        item.sig.ident
+                        "method `{}` takes `self` and is marked `constructor`; a constructor has no \
+                         receiver (`fn new(...) -> Self`). A consuming builder step needs no marker: \
+                         `fn {}(self, ...) -> Self` writes its result back into the same R object.",
+                        item.sig.ident, item.sig.ident
                     ),
                 ));
             }
@@ -2099,10 +2105,14 @@ impl ParsedMethod {
             || (self.env == ReceiverKind::None && self.ident == "new" && self.returns_self())
     }
 
-    /// Returns true if this is likely a finalizer.
-    /// Inferred from: consumes self (by value) + doesn't return Self.
+    /// Returns true if this method is the R6 finalizer.
+    ///
+    /// Only the explicit `#[miniextendr(r6(finalize))]` marker qualifies. It
+    /// used to be inferred from "takes `self` by value and does not return
+    /// `Self`", which silently hid consuming methods on every class system
+    /// (#1432).
     pub fn is_finalizer(&self) -> bool {
-        self.method_attrs.r6.finalize || (self.env == ReceiverKind::Value && !self.returns_self())
+        self.method_attrs.r6.finalize
     }
 
     /// Returns true if this method should be an R6 active binding.
@@ -2387,10 +2397,52 @@ impl ParsedMethod {
     /// with in-place value semantics (no clone). See
     /// [`crate::c_wrapper_builder::ReturnHandling::SelfHandle`].
     pub fn returns_self_ref(&self) -> bool {
-        matches!(&self.sig.output, syn::ReturnType::Type(_, ty)
-            if matches!(ty.as_ref(), syn::Type::Reference(r)
-                if matches!(r.elem.as_ref(), syn::Type::Path(p)
-                    if p.path.segments.last().map(|s| s.ident == "Self").unwrap_or(false))))
+        matches!(&self.sig.output, syn::ReturnType::Type(_, ty) if Self::is_self_ref_type(ty))
+    }
+
+    /// `&Self` / `&mut Self` test shared by the bare and wrapped forms.
+    fn is_self_ref_type(ty: &syn::Type) -> bool {
+        matches!(ty, syn::Type::Reference(r)
+            if matches!(r.elem.as_ref(), syn::Type::Path(p)
+                if p.path.segments.last().map(|s| s.ident == "Self").unwrap_or(false)))
+    }
+
+    /// First type argument of `Wrapper<..>` when the output's last path segment
+    /// is `wrapper` (`Result` / `Option`).
+    fn wrapped_output_arg(&self, wrapper: &str) -> Option<&syn::Type> {
+        let syn::ReturnType::Type(_, ty) = &self.sig.output else {
+            return None;
+        };
+        let syn::Type::Path(p) = ty.as_ref() else {
+            return None;
+        };
+        let seg = p.path.segments.last()?;
+        if seg.ident != wrapper {
+            return None;
+        }
+        let syn::PathArguments::AngleBracketed(ab) = &seg.arguments else {
+            return None;
+        };
+        match ab.args.first()? {
+            syn::GenericArgument::Type(t) => Some(t),
+            _ => None,
+        }
+    }
+
+    /// `-> Result<&Self, E>` / `-> Result<&mut Self, E>`: a fallible in-place
+    /// builder step (#1433). `Ok` hands back the same handle like
+    /// [`Self::returns_self_ref`]; `Err` raises through the normal `Result`
+    /// error path.
+    pub fn returns_result_self_ref(&self) -> bool {
+        self.wrapped_output_arg("Result")
+            .is_some_and(Self::is_self_ref_type)
+    }
+
+    /// `-> Option<&Self>` / `-> Option<&mut Self>`: the `Option` sibling of
+    /// [`Self::returns_result_self_ref`]; `None` raises the usual absence error.
+    pub fn returns_option_self_ref(&self) -> bool {
+        self.wrapped_output_arg("Option")
+            .is_some_and(Self::is_self_ref_type)
     }
 
     /// Returns true if this method has no return type (returns unit `()`).
@@ -2864,6 +2916,24 @@ pub fn generate_method_c_wrapper(
         })
         .collect();
 
+    /// How a consuming (`self` by value) receiver is handled (#1432).
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    enum ValueMode {
+        /// `-> Self`: move out, call, write the result back into the same slot.
+        WriteBack,
+        /// `-> Result<Self, E>` / `-> Option<Self>`: call on a clone, overwrite on success.
+        Fallible,
+        /// Any other return: move out, call, leave the slot consumed.
+        Terminal,
+    }
+    let value_mode = if method.returns_self() {
+        ValueMode::WriteBack
+    } else if method.returns_result_self() || method.returns_option_self() {
+        ValueMode::Fallible
+    } else {
+        ValueMode::Terminal
+    };
+
     // Generate self extraction for instance methods
     // SEXP is now Send+Sync, so this works for both main and worker threads
     let pre_call = if method.env.is_instance() {
@@ -2873,8 +2943,10 @@ pub fn generate_method_c_wrapper(
                     let mut self_ptr = unsafe {
                         ::miniextendr_api::externalptr::ErasedExternalPtr::from_sexp(self_sexp)
                     };
-                    let self_ref = self_ptr.downcast_mut::<#type_ident>()
-                        .expect(concat!("expected ExternalPtr<", stringify!(#type_ident), ">"));
+                    let self_ref = match self_ptr.downcast_mut::<#type_ident>() {
+                        Some(r) => r,
+                        None => ::miniextendr_api::externalptr::handle_downcast_failed::<#type_ident>(&self_ptr),
+                    };
                 }
             }
             ReceiverKind::Ref => {
@@ -2882,10 +2954,38 @@ pub fn generate_method_c_wrapper(
                     let self_ptr = unsafe {
                         ::miniextendr_api::externalptr::ErasedExternalPtr::from_sexp(self_sexp)
                     };
-                    let self_ref = self_ptr.downcast_ref::<#type_ident>()
-                        .expect(concat!("expected ExternalPtr<", stringify!(#type_ident), ">"));
+                    let self_ref = match self_ptr.downcast_ref::<#type_ident>() {
+                        Some(r) => r,
+                        None => ::miniextendr_api::externalptr::handle_downcast_failed::<#type_ident>(&self_ptr),
+                    };
                 }
             }
+            ReceiverKind::Value => match value_mode {
+                // `self -> Result<Self, E>` / `Option<Self>`: keep the stored
+                // value; the call runs on a clone and the slot is overwritten
+                // only on success (`T: Clone`, see `ConsumingFallible`).
+                ValueMode::Fallible => quote! {
+                    let mut self_ptr = unsafe {
+                        ::miniextendr_api::externalptr::ErasedExternalPtr::from_sexp(self_sexp)
+                    };
+                    let self_slot = match self_ptr.downcast_mut::<#type_ident>() {
+                        Some(r) => r,
+                        None => ::miniextendr_api::externalptr::handle_downcast_failed::<#type_ident>(&self_ptr),
+                    };
+                },
+                // `self -> Self` and terminal `self -> T`: move the value out,
+                // leaving the `ConsumedSlot` marker until (and unless) the
+                // result is written back.
+                ValueMode::WriteBack | ValueMode::Terminal => quote! {
+                    let mut self_ptr = unsafe {
+                        ::miniextendr_api::externalptr::ErasedExternalPtr::from_sexp(self_sexp)
+                    };
+                    let __mx_taken = match self_ptr.take_for_consuming::<#type_ident>() {
+                        Some(v) => v,
+                        None => ::miniextendr_api::externalptr::handle_downcast_failed::<#type_ident>(&self_ptr),
+                    };
+                },
+            },
             ReceiverKind::ExternalPtrRef => {
                 quote! {
                     let __self_ptr = unsafe {
@@ -2917,11 +3017,37 @@ pub fn generate_method_c_wrapper(
         vec![]
     };
 
+    // Fallible in-place builders (#1433): `&mut self -> Result<&mut Self, E>` /
+    // `Option<&mut Self>` (and the `&self` forms). The returned borrow is
+    // dropped and the wrapper returns the same handle on success.
+    let fallible_self_ref = method.env.is_instance()
+        && !matches!(method.env, ReceiverKind::Value)
+        && (method.returns_result_self_ref() || method.returns_option_self_ref());
+
     // Generate call expression
     let call_expr = match method.env {
+        ReceiverKind::Ref | ReceiverKind::RefMut if fallible_self_ref => {
+            quote! { self_ref.#method_ident(#(#rust_args),*).map(|_| ()) }
+        }
         ReceiverKind::Ref | ReceiverKind::RefMut => {
             quote! { self_ref.#method_ident(#(#rust_args),*) }
         }
+        ReceiverKind::Value => match value_mode {
+            ValueMode::WriteBack => quote! {{
+                let __mx_out = #type_ident::#method_ident(__mx_taken, #(#rust_args),*);
+                self_ptr.restore_after_consuming::<#type_ident>(__mx_out);
+            }},
+            ValueMode::Fallible => quote! {
+                #type_ident::#method_ident(
+                    ::miniextendr_api::externalptr::clone_for_consuming::<#type_ident>(&*self_slot),
+                    #(#rust_args),*
+                )
+                .map(|__mx_v| { *self_slot = __mx_v; })
+            },
+            ValueMode::Terminal => {
+                quote! { #type_ident::#method_ident(__mx_taken, #(#rust_args),*) }
+            }
+        },
         ReceiverKind::ExternalPtrRef => {
             quote! { #type_ident::#method_ident(&__self_ptr, #(#rust_args),*) }
         }
@@ -2931,13 +3057,28 @@ pub fn generate_method_c_wrapper(
         ReceiverKind::ExternalPtrValue => {
             quote! { #type_ident::#method_ident(__self_ptr, #(#rust_args),*) }
         }
-        ReceiverKind::None | ReceiverKind::Value => {
+        ReceiverKind::None => {
             quote! { #type_ident::#method_ident(#(#rust_args),*) }
         }
     };
 
     // Determine return handling strategy
-    let return_handling = if method.returns_self() {
+    let return_handling = if method.env == ReceiverKind::Value && value_mode == ValueMode::WriteBack
+    {
+        // `self -> Self`: the call expression already wrote the result back;
+        // hand back the same handle (in-place semantics, like `&mut Self`).
+        ReturnHandling::SelfHandle
+    } else if (method.env == ReceiverKind::Value && value_mode == ValueMode::Fallible)
+        || fallible_self_ref
+    {
+        // Fallible in-place step: the call expression yields `Result<(), E>` /
+        // `Option<()>`; raise on failure, same handle on success.
+        if method.returns_result_self() || method.returns_result_self_ref() {
+            ReturnHandling::SelfHandleResult
+        } else {
+            ReturnHandling::SelfHandleOption
+        }
+    } else if method.returns_self() {
         ReturnHandling::ExternalPtr
     } else if method.returns_self_ref() && method.env.is_instance() {
         // In-place builder (`&mut self -> &mut Self` / `&self -> Self`): the

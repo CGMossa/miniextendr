@@ -201,6 +201,22 @@ impl MyType { /* ... */ }
 // Registration is automatic via #[miniextendr].
 ```
 
+### "takes `self` and is marked `constructor`"
+
+`#[miniextendr(<system>(constructor))]` describes a receiverless `fn new(...) ->
+Self`. A consuming builder step needs no marker: `fn step(self, ...) -> Self`
+writes its result back into the same R object, `-> Result<Self, E>` /
+`Option<Self>` run on a clone and overwrite on success (the type must be
+`Clone`). Drop the attribute. See
+[CLASS_SYSTEMS.md](CLASS_SYSTEMS.md#consuming-receivers-self).
+
+### "unsupported receiver type"
+
+The R handle stores the value itself, so a method can take `self`,
+`self: Self`, `&self`, `&mut self`, or an `ExternalPtr<Self>` receiver.
+`self: Box<Self>`, `Rc<Self>`, `Arc<Self>` and friends cannot be handed over;
+unwrap to `self` or take `&self`.
+
 ## Debugging Tips
 
 1. **Run [`just lint`](https://github.com/A2-ai/miniextendr/blob/main/justfile)** before building: it catches attribute issues earlier than compile errors

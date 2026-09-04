@@ -746,6 +746,52 @@ pub fn increment(&mut self) {
 
 Modifies the underlying data in place. The R object reference remains valid.
 
+### Consuming Receivers (`self`)
+
+Methods taking `self` by value are supported on every class system; what the
+wrapper does depends on the return type:
+
+| Signature | Wrapper behaviour | R result |
+|---|---|---|
+| `fn step(self, ..) -> Self` | moves the value out, calls, writes the result back into the **same** handle | the receiver object (identity preserved, like `&mut Self`) |
+| `fn step(self, ..) -> Result<Self, E>` / `-> Option<Self>` | calls on a **clone** (`T: Clone` required), overwrites the handle only on `Ok` / `Some` | the receiver object; `Err` / `None` raise and leave the object untouched |
+| `fn finish(self, ..) -> T` (anything else) | moves the value out and converts `T` as usual; the handle is left **consumed** | the converted value; later use of the object errors with "was consumed" |
+
+```rust
+#[derive(Clone, ExternalPtr)]
+pub struct Pipeline { steps: Vec<String> }
+
+#[miniextendr(s3)]
+impl Pipeline {
+    pub fn new() -> Self { Pipeline { steps: vec![] } }
+    pub fn with_step(mut self, name: String) -> Self { self.steps.push(name); self }
+    pub fn try_step(mut self, name: String) -> Result<Self, String> {
+        if name.is_empty() { return Err("empty step".into()); }
+        self.steps.push(name);
+        Ok(self)
+    }
+    pub fn run(self) -> i32 { self.steps.len() as i32 }
+}
+```
+
+```r
+p <- new_pipeline() |> with_step("load") |> try_step("fit")
+try_step(p, "")     # Error: empty step   (p still has two steps)
+run(p)              # 2; p is now consumed
+with_step(p, "x")   # Error: this `Pipeline` object was consumed ...
+```
+
+`self: Self` is the same as `self`. `self: Box<Self>` / `Rc<Self>` and the
+other smart-pointer receivers are rejected (the handle stores the value
+itself). The former `#[miniextendr(constructor)]` escape hatch on a `self`
+method is an error: a constructor has no receiver. The R6 finalizer is never
+inferred from a `self` receiver any more; mark it with `r6(finalize)`.
+
+Fallible in-place steps, `&mut self -> Result<&mut Self, E>` and
+`-> Option<&mut Self>`, are recognised alongside `&mut self -> &mut Self`:
+success hands back the same handle, failure raises through the normal error
+paths.
+
 ---
 
 ## Multiple Impl Blocks
