@@ -202,6 +202,7 @@ NULL
 #' @param x An object.
 #' @param ... Additional arguments.
 #' @name finish
+NULL
 
 # ClassedChecker fixture generic (classed `Result` errors). Exported by the
 # auto-generated wrappers under @rdname ClassedChecker, aliased here for
