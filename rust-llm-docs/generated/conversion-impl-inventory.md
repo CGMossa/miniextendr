@@ -14,9 +14,9 @@ Traits with impls: 9
 | `TryCoerce` | 95 | 93 |
 | `Coerce` | 53 | 53 |
 | `AltrepSerialize` | 27 | 27 |
-| `RSerializeNative` | 6 | 1 |
+| `RSerializeNative` | 7 | 1 |
 | `IntoRAltrep` | 3 | 1 |
-| `RDeserializeNative` | 1 | 1 |
+| `RDeserializeNative` | 2 | 1 |
 
 ## `TryFromSexp` — 469 impls
 
@@ -127,14 +127,14 @@ Traits with impls: 9
 | `Vec<Option<&'static str>>` | `` | concrete | 2 | miniextendr-api/src/from_r/cow_and_paths.rs:168 |
 | `std::collections::HashSet<String>` | `` | concrete | 2 | miniextendr-api/src/from_r/cow_and_paths.rs:198 |
 | `std::collections::BTreeSet<String>` | `` | concrete | 2 | miniextendr-api/src/from_r/cow_and_paths.rs:202 |
-| `Option<std::path::PathBuf>` | `` | concrete | 3 | miniextendr-api/src/from_r/cow_and_paths.rs:289 |
 | `Vec<Option<std::path::PathBuf>>` | `` | concrete | 3 | miniextendr-api/src/from_r/cow_and_paths.rs:289 |
-| `Vec<std::path::PathBuf>` | `` | concrete | 3 | miniextendr-api/src/from_r/cow_and_paths.rs:289 |
 | `std::path::PathBuf` | `` | concrete | 3 | miniextendr-api/src/from_r/cow_and_paths.rs:289 |
+| `Vec<std::path::PathBuf>` | `` | concrete | 3 | miniextendr-api/src/from_r/cow_and_paths.rs:289 |
+| `Option<std::path::PathBuf>` | `` | concrete | 3 | miniextendr-api/src/from_r/cow_and_paths.rs:289 |
+| `std::ffi::OsString` | `` | concrete | 3 | miniextendr-api/src/from_r/cow_and_paths.rs:312 |
+| `Vec<std::ffi::OsString>` | `` | concrete | 3 | miniextendr-api/src/from_r/cow_and_paths.rs:312 |
 | `Option<std::ffi::OsString>` | `` | concrete | 3 | miniextendr-api/src/from_r/cow_and_paths.rs:312 |
 | `Vec<Option<std::ffi::OsString>>` | `` | concrete | 3 | miniextendr-api/src/from_r/cow_and_paths.rs:312 |
-| `Vec<std::ffi::OsString>` | `` | concrete | 3 | miniextendr-api/src/from_r/cow_and_paths.rs:312 |
-| `std::ffi::OsString` | `` | concrete | 3 | miniextendr-api/src/from_r/cow_and_paths.rs:312 |
 | `std::borrow::Cow<'static, [T]>` | `<T> +1wc` | concrete | 3 | miniextendr-api/src/from_r/cow_and_paths.rs:36 |
 | `std::borrow::Cow<'static, str>` | `` | concrete | 3 | miniextendr-api/src/from_r/cow_and_paths.rs:62 |
 | `Vec<std::borrow::Cow<'static, str>>` | `` | concrete | 2 | miniextendr-api/src/from_r/cow_and_paths.rs:86 |
@@ -165,66 +165,66 @@ Traits with impls: 9
 | `Vec<Option<f64>>` | `` | concrete | 2 | miniextendr-api/src/from_r/na_vectors.rs:62 |
 | `Vec<Option<i32>>` | `` | concrete | 2 | miniextendr-api/src/from_r/na_vectors.rs:63 |
 | `Vec<Option<bool>>` | `` | concrete | 3 | miniextendr-api/src/from_r/na_vectors.rs:66 |
-| `&'static i32` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:321 |
 | `&'static mut i32` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:321 |
-| `Option<&'static i32>` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:321 |
+| `&'static i32` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:321 |
 | `Option<&'static mut i32>` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:321 |
-| `Vec<&'static [i32]>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:321 |
 | `Vec<&'static i32>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:321 |
-| `Vec<&'static mut [i32]>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:321 |
-| `Vec<&'static mut i32>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:321 |
-| `Vec<Option<&'static [i32]>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:321 |
 | `Vec<Option<&'static i32>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:321 |
-| `Vec<Option<&'static mut [i32]>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:321 |
+| `Vec<&'static mut i32>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:321 |
 | `Vec<Option<&'static mut i32>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:321 |
+| `Vec<&'static [i32]>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:321 |
+| `Vec<Option<&'static [i32]>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:321 |
+| `Vec<&'static mut [i32]>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:321 |
+| `Vec<Option<&'static mut [i32]>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:321 |
+| `Option<&'static i32>` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:321 |
 | `&'static f64` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:322 |
-| `&'static mut f64` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:322 |
-| `Option<&'static f64>` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:322 |
 | `Option<&'static mut f64>` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:322 |
-| `Vec<&'static [f64]>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:322 |
 | `Vec<&'static f64>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:322 |
-| `Vec<&'static mut [f64]>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:322 |
-| `Vec<&'static mut f64>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:322 |
-| `Vec<Option<&'static [f64]>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:322 |
 | `Vec<Option<&'static f64>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:322 |
-| `Vec<Option<&'static mut [f64]>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:322 |
+| `Vec<&'static mut f64>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:322 |
 | `Vec<Option<&'static mut f64>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:322 |
-| `&'static mut u8` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:323 |
+| `Vec<&'static [f64]>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:322 |
+| `Vec<Option<&'static [f64]>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:322 |
+| `Vec<&'static mut [f64]>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:322 |
+| `Vec<Option<&'static mut [f64]>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:322 |
+| `Option<&'static f64>` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:322 |
+| `&'static mut f64` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:322 |
 | `&'static u8` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:323 |
 | `Option<&'static mut u8>` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:323 |
-| `Option<&'static u8>` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:323 |
-| `Vec<&'static [u8]>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:323 |
-| `Vec<&'static mut [u8]>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:323 |
-| `Vec<&'static mut u8>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:323 |
 | `Vec<&'static u8>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:323 |
-| `Vec<Option<&'static [u8]>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:323 |
-| `Vec<Option<&'static mut [u8]>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:323 |
-| `Vec<Option<&'static mut u8>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:323 |
 | `Vec<Option<&'static u8>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:323 |
-| `&'static crate::RLogical` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:324 |
+| `Vec<&'static mut u8>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:323 |
+| `Vec<Option<&'static mut u8>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:323 |
+| `Vec<&'static [u8]>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:323 |
+| `Vec<Option<&'static [u8]>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:323 |
+| `Vec<&'static mut [u8]>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:323 |
+| `Vec<Option<&'static mut [u8]>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:323 |
+| `Option<&'static u8>` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:323 |
+| `&'static mut u8` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:323 |
 | `&'static mut crate::RLogical` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:324 |
-| `Option<&'static crate::RLogical>` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:324 |
+| `&'static crate::RLogical` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:324 |
 | `Option<&'static mut crate::RLogical>` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:324 |
-| `Vec<&'static [crate::RLogical]>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:324 |
 | `Vec<&'static crate::RLogical>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:324 |
-| `Vec<&'static mut [crate::RLogical]>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:324 |
-| `Vec<&'static mut crate::RLogical>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:324 |
-| `Vec<Option<&'static [crate::RLogical]>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:324 |
 | `Vec<Option<&'static crate::RLogical>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:324 |
-| `Vec<Option<&'static mut [crate::RLogical]>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:324 |
+| `Vec<&'static mut crate::RLogical>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:324 |
 | `Vec<Option<&'static mut crate::RLogical>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:324 |
-| `&'static crate::Rcomplex` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:325 |
+| `Vec<&'static [crate::RLogical]>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:324 |
+| `Vec<Option<&'static [crate::RLogical]>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:324 |
+| `Vec<&'static mut [crate::RLogical]>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:324 |
+| `Vec<Option<&'static mut [crate::RLogical]>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:324 |
+| `Option<&'static crate::RLogical>` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:324 |
 | `&'static mut crate::Rcomplex` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:325 |
-| `Option<&'static crate::Rcomplex>` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:325 |
 | `Option<&'static mut crate::Rcomplex>` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:325 |
-| `Vec<&'static [crate::Rcomplex]>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:325 |
 | `Vec<&'static crate::Rcomplex>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:325 |
-| `Vec<&'static mut [crate::Rcomplex]>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:325 |
-| `Vec<&'static mut crate::Rcomplex>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:325 |
-| `Vec<Option<&'static [crate::Rcomplex]>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:325 |
 | `Vec<Option<&'static crate::Rcomplex>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:325 |
-| `Vec<Option<&'static mut [crate::Rcomplex]>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:325 |
+| `Vec<&'static mut crate::Rcomplex>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:325 |
 | `Vec<Option<&'static mut crate::Rcomplex>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:325 |
+| `Vec<&'static [crate::Rcomplex]>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:325 |
+| `Vec<Option<&'static [crate::Rcomplex]>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:325 |
+| `Vec<&'static mut [crate::Rcomplex]>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:325 |
+| `Vec<Option<&'static mut [crate::Rcomplex]>>` | `` | concrete | 2 | miniextendr-api/src/from_r/references.rs:325 |
+| `&'static crate::Rcomplex` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:325 |
+| `Option<&'static crate::Rcomplex>` | `` | concrete | 3 | miniextendr-api/src/from_r/references.rs:325 |
 | `char` | `` | concrete | 3 | miniextendr-api/src/from_r/strings.rs:125 |
 | `String` | `` | concrete | 3 | miniextendr-api/src/from_r/strings.rs:171 |
 | `Option<String>` | `` | concrete | 3 | miniextendr-api/src/from_r/strings.rs:207 |
@@ -291,22 +291,22 @@ Traits with impls: 9
 | `Option<Zoned>` | `` | concrete | 2 | miniextendr-api/src/optionals/jiff_impl.rs:206 |
 | `Vec<Zoned>` | `` | concrete | 2 | miniextendr-api/src/optionals/jiff_impl.rs:261 |
 | `Vec<Option<Zoned>>` | `` | concrete | 2 | miniextendr-api/src/optionals/jiff_impl.rs:365 |
-| `Option<SignedDuration>` | `` | concrete | 3 | miniextendr-api/src/optionals/jiff_impl.rs:476 |
 | `SignedDuration` | `` | concrete | 3 | miniextendr-api/src/optionals/jiff_impl.rs:476 |
-| `Vec<Option<SignedDuration>>` | `` | concrete | 3 | miniextendr-api/src/optionals/jiff_impl.rs:476 |
 | `Vec<SignedDuration>` | `` | concrete | 3 | miniextendr-api/src/optionals/jiff_impl.rs:476 |
-| `Option<Timestamp>` | `` | concrete | 3 | miniextendr-api/src/optionals/jiff_impl.rs:81 |
-| `Timestamp` | `` | concrete | 3 | miniextendr-api/src/optionals/jiff_impl.rs:81 |
+| `Option<SignedDuration>` | `` | concrete | 3 | miniextendr-api/src/optionals/jiff_impl.rs:476 |
+| `Vec<Option<SignedDuration>>` | `` | concrete | 3 | miniextendr-api/src/optionals/jiff_impl.rs:476 |
 | `Vec<Option<Timestamp>>` | `` | concrete | 3 | miniextendr-api/src/optionals/jiff_impl.rs:81 |
+| `Timestamp` | `` | concrete | 3 | miniextendr-api/src/optionals/jiff_impl.rs:81 |
 | `Vec<Timestamp>` | `` | concrete | 3 | miniextendr-api/src/optionals/jiff_impl.rs:81 |
+| `Option<Timestamp>` | `` | concrete | 3 | miniextendr-api/src/optionals/jiff_impl.rs:81 |
 | `JiffTimestampVecMut` | `` | concrete | 2 | miniextendr-api/src/optionals/jiff_impl.rs:874 |
 | `JiffTimestampVecRef` | `` | concrete | 2 | miniextendr-api/src/optionals/jiff_impl.rs:874 |
-| `JiffZonedVecMut` | `` | concrete | 2 | miniextendr-api/src/optionals/jiff_impl.rs:915 |
 | `JiffZonedVecRef` | `` | concrete | 2 | miniextendr-api/src/optionals/jiff_impl.rs:915 |
-| `Date` | `` | concrete | 3 | miniextendr-api/src/optionals/jiff_impl.rs:98 |
+| `JiffZonedVecMut` | `` | concrete | 2 | miniextendr-api/src/optionals/jiff_impl.rs:915 |
 | `Option<Date>` | `` | concrete | 3 | miniextendr-api/src/optionals/jiff_impl.rs:98 |
-| `Vec<Date>` | `` | concrete | 3 | miniextendr-api/src/optionals/jiff_impl.rs:98 |
 | `Vec<Option<Date>>` | `` | concrete | 3 | miniextendr-api/src/optionals/jiff_impl.rs:98 |
+| `Date` | `` | concrete | 3 | miniextendr-api/src/optionals/jiff_impl.rs:98 |
+| `Vec<Date>` | `` | concrete | 3 | miniextendr-api/src/optionals/jiff_impl.rs:98 |
 | `JiffZonedVec` | `` | concrete | 2 | miniextendr-api/src/optionals/jiff_impl.rs:985 |
 | `log::LevelFilter` | `` | concrete | 2 | miniextendr-api/src/optionals/log_impl.rs:319 |
 | `RDVector<T>` | `<T>` | concrete | 3 | miniextendr-api/src/optionals/nalgebra_impl.rs:1307 |
@@ -328,91 +328,91 @@ Traits with impls: 9
 | `RndVec<T>` | `<T>` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:3205 |
 | `RndMat<T>` | `<T>` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:3350 |
 | `Array1<i8>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:668 |
-| `Array2<i8>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:668 |
-| `Array3<i8>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:668 |
 | `Array4<i8>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:668 |
-| `Array5<i8>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:668 |
-| `Array6<i8>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:668 |
 | `ArrayD<i8>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:668 |
-| `Array1<i16>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:669 |
-| `Array2<i16>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:669 |
-| `Array3<i16>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:669 |
+| `Array3<i8>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:668 |
+| `Array6<i8>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:668 |
+| `Array2<i8>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:668 |
+| `Array5<i8>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:668 |
 | `Array4<i16>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:669 |
-| `Array5<i16>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:669 |
-| `Array6<i16>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:669 |
 | `ArrayD<i16>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:669 |
-| `Array1<i64>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:670 |
-| `Array2<i64>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:670 |
+| `Array3<i16>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:669 |
+| `Array6<i16>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:669 |
+| `Array2<i16>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:669 |
+| `Array5<i16>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:669 |
+| `Array1<i16>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:669 |
 | `Array3<i64>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:670 |
-| `Array4<i64>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:670 |
-| `Array5<i64>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:670 |
 | `Array6<i64>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:670 |
+| `Array2<i64>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:670 |
+| `Array5<i64>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:670 |
+| `Array1<i64>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:670 |
+| `Array4<i64>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:670 |
 | `ArrayD<i64>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:670 |
-| `Array1<isize>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:671 |
 | `Array2<isize>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:671 |
-| `Array3<isize>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:671 |
-| `Array4<isize>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:671 |
 | `Array5<isize>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:671 |
-| `Array6<isize>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:671 |
+| `Array1<isize>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:671 |
+| `Array4<isize>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:671 |
 | `ArrayD<isize>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:671 |
-| `Array1<u16>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:672 |
+| `Array3<isize>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:671 |
+| `Array6<isize>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:671 |
 | `Array2<u16>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:672 |
-| `Array3<u16>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:672 |
-| `Array4<u16>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:672 |
 | `Array5<u16>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:672 |
-| `Array6<u16>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:672 |
+| `Array1<u16>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:672 |
+| `Array4<u16>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:672 |
 | `ArrayD<u16>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:672 |
+| `Array3<u16>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:672 |
+| `Array6<u16>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:672 |
 | `Array1<u32>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:673 |
-| `Array2<u32>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:673 |
-| `Array3<u32>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:673 |
 | `Array4<u32>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:673 |
-| `Array5<u32>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:673 |
-| `Array6<u32>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:673 |
 | `ArrayD<u32>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:673 |
-| `Array1<u64>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:674 |
-| `Array2<u64>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:674 |
-| `Array3<u64>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:674 |
-| `Array4<u64>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:674 |
-| `Array5<u64>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:674 |
-| `Array6<u64>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:674 |
+| `Array3<u32>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:673 |
+| `Array6<u32>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:673 |
+| `Array2<u32>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:673 |
+| `Array5<u32>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:673 |
 | `ArrayD<u64>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:674 |
-| `Array1<usize>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:675 |
-| `Array2<usize>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:675 |
+| `Array3<u64>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:674 |
+| `Array6<u64>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:674 |
+| `Array2<u64>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:674 |
+| `Array5<u64>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:674 |
+| `Array1<u64>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:674 |
+| `Array4<u64>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:674 |
 | `Array3<usize>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:675 |
-| `Array4<usize>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:675 |
-| `Array5<usize>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:675 |
 | `Array6<usize>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:675 |
+| `Array2<usize>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:675 |
+| `Array5<usize>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:675 |
+| `Array1<usize>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:675 |
+| `Array4<usize>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:675 |
 | `ArrayD<usize>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:675 |
-| `Array1<f32>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:679 |
 | `Array2<f32>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:679 |
-| `Array3<f32>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:679 |
-| `Array4<f32>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:679 |
 | `Array5<f32>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:679 |
-| `Array6<f32>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:679 |
+| `Array1<f32>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:679 |
+| `Array4<f32>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:679 |
 | `ArrayD<f32>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:679 |
-| `Array1<bool>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:683 |
+| `Array3<f32>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:679 |
+| `Array6<f32>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:679 |
 | `Array2<bool>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:683 |
-| `Array3<bool>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:683 |
-| `Array4<bool>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:683 |
 | `Array5<bool>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:683 |
-| `Array6<bool>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:683 |
+| `Array1<bool>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:683 |
+| `Array4<bool>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:683 |
 | `ArrayD<bool>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:683 |
+| `Array3<bool>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:683 |
+| `Array6<bool>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:683 |
 | `Array0<String>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:866 |
-| `Array1<String>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:866 |
-| `Array2<String>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:866 |
 | `Array3<String>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:866 |
-| `Array4<String>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:866 |
-| `Array5<String>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:866 |
 | `Array6<String>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:866 |
+| `Array2<String>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:866 |
+| `Array5<String>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:866 |
+| `Array1<String>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:866 |
+| `Array4<String>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:866 |
 | `ArrayD<String>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:866 |
-| `Array0<Option<String>>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:867 |
-| `Array1<Option<String>>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:867 |
-| `Array2<Option<String>>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:867 |
-| `Array3<Option<String>>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:867 |
-| `Array4<Option<String>>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:867 |
 | `Array5<Option<String>>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:867 |
-| `Array6<Option<String>>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:867 |
+| `Array1<Option<String>>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:867 |
+| `Array4<Option<String>>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:867 |
 | `ArrayD<Option<String>>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:867 |
+| `Array0<Option<String>>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:867 |
+| `Array3<Option<String>>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:867 |
+| `Array6<Option<String>>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:867 |
+| `Array2<Option<String>>` | `` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:867 |
 | `BigInt` | `` | concrete | 2 | miniextendr-api/src/optionals/num_bigint_impl.rs:193 |
 | `Option<BigInt>` | `` | concrete | 2 | miniextendr-api/src/optionals/num_bigint_impl.rs:193 |
 | `Vec<BigInt>` | `` | concrete | 2 | miniextendr-api/src/optionals/num_bigint_impl.rs:193 |
@@ -434,9 +434,9 @@ Traits with impls: 9
 | `Vec<Option<OrderedFloat<f64>>>` | `` | concrete | 2 | miniextendr-api/src/optionals/ordered_float_impl.rs:203 |
 | `Vec<Option<OrderedFloat<f32>>>` | `` | concrete | 2 | miniextendr-api/src/optionals/ordered_float_impl.rs:212 |
 | `Option<Regex>` | `` | concrete | 2 | miniextendr-api/src/optionals/regex_impl.rs:67 |
-| `Regex` | `` | concrete | 2 | miniextendr-api/src/optionals/regex_impl.rs:67 |
-| `Vec<Option<Regex>>` | `` | concrete | 2 | miniextendr-api/src/optionals/regex_impl.rs:67 |
 | `Vec<Regex>` | `` | concrete | 2 | miniextendr-api/src/optionals/regex_impl.rs:67 |
+| `Vec<Option<Regex>>` | `` | concrete | 2 | miniextendr-api/src/optionals/regex_impl.rs:67 |
+| `Regex` | `` | concrete | 2 | miniextendr-api/src/optionals/regex_impl.rs:67 |
 | `Decimal` | `` | concrete | 2 | miniextendr-api/src/optionals/rust_decimal_impl.rs:146 |
 | `Option<Decimal>` | `` | concrete | 2 | miniextendr-api/src/optionals/rust_decimal_impl.rs:179 |
 | `Vec<Decimal>` | `` | concrete | 2 | miniextendr-api/src/optionals/rust_decimal_impl.rs:206 |
@@ -445,13 +445,13 @@ Traits with impls: 9
 | `Option<JsonValue>` | `` | concrete | 3 | miniextendr-api/src/optionals/serde_impl.rs:590 |
 | `Vec<JsonValue>` | `` | concrete | 3 | miniextendr-api/src/optionals/serde_impl.rs:591 |
 | `Vec<Option<JsonValue>>` | `` | concrete | 3 | miniextendr-api/src/optionals/serde_impl.rs:592 |
-| `OffsetDateTime` | `` | concrete | 3 | miniextendr-api/src/optionals/time_impl.rs:69 |
 | `Option<OffsetDateTime>` | `` | concrete | 3 | miniextendr-api/src/optionals/time_impl.rs:69 |
-| `Vec<OffsetDateTime>` | `` | concrete | 3 | miniextendr-api/src/optionals/time_impl.rs:69 |
 | `Vec<Option<OffsetDateTime>>` | `` | concrete | 3 | miniextendr-api/src/optionals/time_impl.rs:69 |
+| `OffsetDateTime` | `` | concrete | 3 | miniextendr-api/src/optionals/time_impl.rs:69 |
+| `Vec<OffsetDateTime>` | `` | concrete | 3 | miniextendr-api/src/optionals/time_impl.rs:69 |
 | `Date` | `` | concrete | 3 | miniextendr-api/src/optionals/time_impl.rs:97 |
-| `Option<Date>` | `` | concrete | 3 | miniextendr-api/src/optionals/time_impl.rs:97 |
 | `Vec<Date>` | `` | concrete | 3 | miniextendr-api/src/optionals/time_impl.rs:97 |
+| `Option<Date>` | `` | concrete | 3 | miniextendr-api/src/optionals/time_impl.rs:97 |
 | `Vec<Option<Date>>` | `` | concrete | 3 | miniextendr-api/src/optionals/time_impl.rs:97 |
 | `ArrayVec<[T; N]>` | `<T, N> +2wc` | concrete | 3 | miniextendr-api/src/optionals/tinyvec_impl.rs:102 |
 | `Option<TinyVec<[T; N]>>` | `<T, N> +2wc` | concrete | 3 | miniextendr-api/src/optionals/tinyvec_impl.rs:178 |
@@ -464,13 +464,13 @@ Traits with impls: 9
 | `Vec<TomlValue>` | `` | concrete | 2 | miniextendr-api/src/optionals/toml_impl.rs:170 |
 | `Vec<Option<TomlValue>>` | `` | concrete | 2 | miniextendr-api/src/optionals/toml_impl.rs:193 |
 | `Option<Url>` | `` | concrete | 2 | miniextendr-api/src/optionals/url_impl.rs:48 |
-| `Url` | `` | concrete | 2 | miniextendr-api/src/optionals/url_impl.rs:48 |
-| `Vec<Option<Url>>` | `` | concrete | 2 | miniextendr-api/src/optionals/url_impl.rs:48 |
 | `Vec<Url>` | `` | concrete | 2 | miniextendr-api/src/optionals/url_impl.rs:48 |
+| `Vec<Option<Url>>` | `` | concrete | 2 | miniextendr-api/src/optionals/url_impl.rs:48 |
+| `Url` | `` | concrete | 2 | miniextendr-api/src/optionals/url_impl.rs:48 |
 | `Option<Uuid>` | `` | concrete | 2 | miniextendr-api/src/optionals/uuid_impl.rs:43 |
-| `Uuid` | `` | concrete | 2 | miniextendr-api/src/optionals/uuid_impl.rs:43 |
-| `Vec<Option<Uuid>>` | `` | concrete | 2 | miniextendr-api/src/optionals/uuid_impl.rs:43 |
 | `Vec<Uuid>` | `` | concrete | 2 | miniextendr-api/src/optionals/uuid_impl.rs:43 |
+| `Vec<Option<Uuid>>` | `` | concrete | 2 | miniextendr-api/src/optionals/uuid_impl.rs:43 |
+| `Uuid` | `` | concrete | 2 | miniextendr-api/src/optionals/uuid_impl.rs:43 |
 | `RArray<T, NDIM>` | `<T, NDIM>` | concrete | 3 | miniextendr-api/src/rarray.rs:671 |
 | `RArray<i8, NDIM>` | `<NDIM>` | concrete | 3 | miniextendr-api/src/rarray.rs:778 |
 | `RArray<i16, NDIM>` | `<NDIM>` | concrete | 3 | miniextendr-api/src/rarray.rs:779 |
@@ -494,37 +494,37 @@ Traits with impls: 9
 
 ### `TryFromSexp` — for-types sharing a source span (likely macro-expanded / co-located)
 
-- **miniextendr-api/src/from_r/references.rs:321** (12 impls): `&'static i32`, `&'static mut i32`, `Option<&'static i32>`, `Option<&'static mut i32>`, `Vec<&'static [i32]>`, `Vec<&'static i32>`, `Vec<&'static mut [i32]>`, `Vec<&'static mut i32>`, `Vec<Option<&'static [i32]>>`, `Vec<Option<&'static i32>>`, `Vec<Option<&'static mut [i32]>>`, `Vec<Option<&'static mut i32>>`
-- **miniextendr-api/src/from_r/references.rs:322** (12 impls): `&'static f64`, `&'static mut f64`, `Option<&'static f64>`, `Option<&'static mut f64>`, `Vec<&'static [f64]>`, `Vec<&'static f64>`, `Vec<&'static mut [f64]>`, `Vec<&'static mut f64>`, `Vec<Option<&'static [f64]>>`, `Vec<Option<&'static f64>>`, `Vec<Option<&'static mut [f64]>>`, `Vec<Option<&'static mut f64>>`
-- **miniextendr-api/src/from_r/references.rs:323** (12 impls): `&'static mut u8`, `&'static u8`, `Option<&'static mut u8>`, `Option<&'static u8>`, `Vec<&'static [u8]>`, `Vec<&'static mut [u8]>`, `Vec<&'static mut u8>`, `Vec<&'static u8>`, `Vec<Option<&'static [u8]>>`, `Vec<Option<&'static mut [u8]>>`, `Vec<Option<&'static mut u8>>`, `Vec<Option<&'static u8>>`
-- **miniextendr-api/src/from_r/references.rs:324** (12 impls): `&'static crate::RLogical`, `&'static mut crate::RLogical`, `Option<&'static crate::RLogical>`, `Option<&'static mut crate::RLogical>`, `Vec<&'static [crate::RLogical]>`, `Vec<&'static crate::RLogical>`, `Vec<&'static mut [crate::RLogical]>`, `Vec<&'static mut crate::RLogical>`, `Vec<Option<&'static [crate::RLogical]>>`, `Vec<Option<&'static crate::RLogical>>`, `Vec<Option<&'static mut [crate::RLogical]>>`, `Vec<Option<&'static mut crate::RLogical>>`
-- **miniextendr-api/src/from_r/references.rs:325** (12 impls): `&'static crate::Rcomplex`, `&'static mut crate::Rcomplex`, `Option<&'static crate::Rcomplex>`, `Option<&'static mut crate::Rcomplex>`, `Vec<&'static [crate::Rcomplex]>`, `Vec<&'static crate::Rcomplex>`, `Vec<&'static mut [crate::Rcomplex]>`, `Vec<&'static mut crate::Rcomplex>`, `Vec<Option<&'static [crate::Rcomplex]>>`, `Vec<Option<&'static crate::Rcomplex>>`, `Vec<Option<&'static mut [crate::Rcomplex]>>`, `Vec<Option<&'static mut crate::Rcomplex>>`
-- **miniextendr-api/src/optionals/ndarray_impl.rs:866** (8 impls): `Array0<String>`, `Array1<String>`, `Array2<String>`, `Array3<String>`, `Array4<String>`, `Array5<String>`, `Array6<String>`, `ArrayD<String>`
-- **miniextendr-api/src/optionals/ndarray_impl.rs:867** (8 impls): `Array0<Option<String>>`, `Array1<Option<String>>`, `Array2<Option<String>>`, `Array3<Option<String>>`, `Array4<Option<String>>`, `Array5<Option<String>>`, `Array6<Option<String>>`, `ArrayD<Option<String>>`
-- **miniextendr-api/src/optionals/ndarray_impl.rs:668** (7 impls): `Array1<i8>`, `Array2<i8>`, `Array3<i8>`, `Array4<i8>`, `Array5<i8>`, `Array6<i8>`, `ArrayD<i8>`
-- **miniextendr-api/src/optionals/ndarray_impl.rs:669** (7 impls): `Array1<i16>`, `Array2<i16>`, `Array3<i16>`, `Array4<i16>`, `Array5<i16>`, `Array6<i16>`, `ArrayD<i16>`
-- **miniextendr-api/src/optionals/ndarray_impl.rs:670** (7 impls): `Array1<i64>`, `Array2<i64>`, `Array3<i64>`, `Array4<i64>`, `Array5<i64>`, `Array6<i64>`, `ArrayD<i64>`
-- **miniextendr-api/src/optionals/ndarray_impl.rs:671** (7 impls): `Array1<isize>`, `Array2<isize>`, `Array3<isize>`, `Array4<isize>`, `Array5<isize>`, `Array6<isize>`, `ArrayD<isize>`
-- **miniextendr-api/src/optionals/ndarray_impl.rs:672** (7 impls): `Array1<u16>`, `Array2<u16>`, `Array3<u16>`, `Array4<u16>`, `Array5<u16>`, `Array6<u16>`, `ArrayD<u16>`
-- **miniextendr-api/src/optionals/ndarray_impl.rs:673** (7 impls): `Array1<u32>`, `Array2<u32>`, `Array3<u32>`, `Array4<u32>`, `Array5<u32>`, `Array6<u32>`, `ArrayD<u32>`
-- **miniextendr-api/src/optionals/ndarray_impl.rs:674** (7 impls): `Array1<u64>`, `Array2<u64>`, `Array3<u64>`, `Array4<u64>`, `Array5<u64>`, `Array6<u64>`, `ArrayD<u64>`
-- **miniextendr-api/src/optionals/ndarray_impl.rs:675** (7 impls): `Array1<usize>`, `Array2<usize>`, `Array3<usize>`, `Array4<usize>`, `Array5<usize>`, `Array6<usize>`, `ArrayD<usize>`
-- **miniextendr-api/src/optionals/ndarray_impl.rs:679** (7 impls): `Array1<f32>`, `Array2<f32>`, `Array3<f32>`, `Array4<f32>`, `Array5<f32>`, `Array6<f32>`, `ArrayD<f32>`
-- **miniextendr-api/src/optionals/ndarray_impl.rs:683** (7 impls): `Array1<bool>`, `Array2<bool>`, `Array3<bool>`, `Array4<bool>`, `Array5<bool>`, `Array6<bool>`, `ArrayD<bool>`
-- **miniextendr-api/src/from_r/cow_and_paths.rs:289** (4 impls): `Option<std::path::PathBuf>`, `Vec<Option<std::path::PathBuf>>`, `Vec<std::path::PathBuf>`, `std::path::PathBuf`
-- **miniextendr-api/src/from_r/cow_and_paths.rs:312** (4 impls): `Option<std::ffi::OsString>`, `Vec<Option<std::ffi::OsString>>`, `Vec<std::ffi::OsString>`, `std::ffi::OsString`
-- **miniextendr-api/src/optionals/jiff_impl.rs:476** (4 impls): `Option<SignedDuration>`, `SignedDuration`, `Vec<Option<SignedDuration>>`, `Vec<SignedDuration>`
-- **miniextendr-api/src/optionals/jiff_impl.rs:81** (4 impls): `Option<Timestamp>`, `Timestamp`, `Vec<Option<Timestamp>>`, `Vec<Timestamp>`
-- **miniextendr-api/src/optionals/jiff_impl.rs:98** (4 impls): `Date`, `Option<Date>`, `Vec<Date>`, `Vec<Option<Date>>`
-- **miniextendr-api/src/optionals/num_bigint_impl.rs:193** (4 impls): `BigInt`, `Option<BigInt>`, `Vec<BigInt>`, `Vec<Option<BigInt>>`
+- **miniextendr-api/src/from_r/references.rs:325** (12 impls): `&'static mut crate::Rcomplex`, `Option<&'static mut crate::Rcomplex>`, `Vec<&'static crate::Rcomplex>`, `Vec<Option<&'static crate::Rcomplex>>`, `Vec<&'static mut crate::Rcomplex>`, `Vec<Option<&'static mut crate::Rcomplex>>`, `Vec<&'static [crate::Rcomplex]>`, `Vec<Option<&'static [crate::Rcomplex]>>`, `Vec<&'static mut [crate::Rcomplex]>`, `Vec<Option<&'static mut [crate::Rcomplex]>>`, `&'static crate::Rcomplex`, `Option<&'static crate::Rcomplex>`
+- **miniextendr-api/src/from_r/references.rs:321** (12 impls): `&'static mut i32`, `&'static i32`, `Option<&'static mut i32>`, `Vec<&'static i32>`, `Vec<Option<&'static i32>>`, `Vec<&'static mut i32>`, `Vec<Option<&'static mut i32>>`, `Vec<&'static [i32]>`, `Vec<Option<&'static [i32]>>`, `Vec<&'static mut [i32]>`, `Vec<Option<&'static mut [i32]>>`, `Option<&'static i32>`
+- **miniextendr-api/src/from_r/references.rs:323** (12 impls): `&'static u8`, `Option<&'static mut u8>`, `Vec<&'static u8>`, `Vec<Option<&'static u8>>`, `Vec<&'static mut u8>`, `Vec<Option<&'static mut u8>>`, `Vec<&'static [u8]>`, `Vec<Option<&'static [u8]>>`, `Vec<&'static mut [u8]>`, `Vec<Option<&'static mut [u8]>>`, `Option<&'static u8>`, `&'static mut u8`
+- **miniextendr-api/src/from_r/references.rs:324** (12 impls): `&'static mut crate::RLogical`, `&'static crate::RLogical`, `Option<&'static mut crate::RLogical>`, `Vec<&'static crate::RLogical>`, `Vec<Option<&'static crate::RLogical>>`, `Vec<&'static mut crate::RLogical>`, `Vec<Option<&'static mut crate::RLogical>>`, `Vec<&'static [crate::RLogical]>`, `Vec<Option<&'static [crate::RLogical]>>`, `Vec<&'static mut [crate::RLogical]>`, `Vec<Option<&'static mut [crate::RLogical]>>`, `Option<&'static crate::RLogical>`
+- **miniextendr-api/src/from_r/references.rs:322** (12 impls): `&'static f64`, `Option<&'static mut f64>`, `Vec<&'static f64>`, `Vec<Option<&'static f64>>`, `Vec<&'static mut f64>`, `Vec<Option<&'static mut f64>>`, `Vec<&'static [f64]>`, `Vec<Option<&'static [f64]>>`, `Vec<&'static mut [f64]>`, `Vec<Option<&'static mut [f64]>>`, `Option<&'static f64>`, `&'static mut f64`
+- **miniextendr-api/src/optionals/ndarray_impl.rs:867** (8 impls): `Array5<Option<String>>`, `Array1<Option<String>>`, `Array4<Option<String>>`, `ArrayD<Option<String>>`, `Array0<Option<String>>`, `Array3<Option<String>>`, `Array6<Option<String>>`, `Array2<Option<String>>`
+- **miniextendr-api/src/optionals/ndarray_impl.rs:866** (8 impls): `Array0<String>`, `Array3<String>`, `Array6<String>`, `Array2<String>`, `Array5<String>`, `Array1<String>`, `Array4<String>`, `ArrayD<String>`
+- **miniextendr-api/src/optionals/ndarray_impl.rs:683** (7 impls): `Array2<bool>`, `Array5<bool>`, `Array1<bool>`, `Array4<bool>`, `ArrayD<bool>`, `Array3<bool>`, `Array6<bool>`
+- **miniextendr-api/src/optionals/ndarray_impl.rs:669** (7 impls): `Array4<i16>`, `ArrayD<i16>`, `Array3<i16>`, `Array6<i16>`, `Array2<i16>`, `Array5<i16>`, `Array1<i16>`
+- **miniextendr-api/src/optionals/ndarray_impl.rs:672** (7 impls): `Array2<u16>`, `Array5<u16>`, `Array1<u16>`, `Array4<u16>`, `ArrayD<u16>`, `Array3<u16>`, `Array6<u16>`
+- **miniextendr-api/src/optionals/ndarray_impl.rs:674** (7 impls): `ArrayD<u64>`, `Array3<u64>`, `Array6<u64>`, `Array2<u64>`, `Array5<u64>`, `Array1<u64>`, `Array4<u64>`
+- **miniextendr-api/src/optionals/ndarray_impl.rs:675** (7 impls): `Array3<usize>`, `Array6<usize>`, `Array2<usize>`, `Array5<usize>`, `Array1<usize>`, `Array4<usize>`, `ArrayD<usize>`
+- **miniextendr-api/src/optionals/ndarray_impl.rs:670** (7 impls): `Array3<i64>`, `Array6<i64>`, `Array2<i64>`, `Array5<i64>`, `Array1<i64>`, `Array4<i64>`, `ArrayD<i64>`
+- **miniextendr-api/src/optionals/ndarray_impl.rs:673** (7 impls): `Array1<u32>`, `Array4<u32>`, `ArrayD<u32>`, `Array3<u32>`, `Array6<u32>`, `Array2<u32>`, `Array5<u32>`
+- **miniextendr-api/src/optionals/ndarray_impl.rs:668** (7 impls): `Array1<i8>`, `Array4<i8>`, `ArrayD<i8>`, `Array3<i8>`, `Array6<i8>`, `Array2<i8>`, `Array5<i8>`
+- **miniextendr-api/src/optionals/ndarray_impl.rs:679** (7 impls): `Array2<f32>`, `Array5<f32>`, `Array1<f32>`, `Array4<f32>`, `ArrayD<f32>`, `Array3<f32>`, `Array6<f32>`
+- **miniextendr-api/src/optionals/ndarray_impl.rs:671** (7 impls): `Array2<isize>`, `Array5<isize>`, `Array1<isize>`, `Array4<isize>`, `ArrayD<isize>`, `Array3<isize>`, `Array6<isize>`
 - **miniextendr-api/src/optionals/num_bigint_impl.rs:194** (4 impls): `BigUint`, `Option<BigUint>`, `Vec<BigUint>`, `Vec<Option<BigUint>>`
-- **miniextendr-api/src/optionals/regex_impl.rs:67** (4 impls): `Option<Regex>`, `Regex`, `Vec<Option<Regex>>`, `Vec<Regex>`
-- **miniextendr-api/src/optionals/time_impl.rs:69** (4 impls): `OffsetDateTime`, `Option<OffsetDateTime>`, `Vec<OffsetDateTime>`, `Vec<Option<OffsetDateTime>>`
-- **miniextendr-api/src/optionals/time_impl.rs:97** (4 impls): `Date`, `Option<Date>`, `Vec<Date>`, `Vec<Option<Date>>`
-- **miniextendr-api/src/optionals/url_impl.rs:48** (4 impls): `Option<Url>`, `Url`, `Vec<Option<Url>>`, `Vec<Url>`
-- **miniextendr-api/src/optionals/uuid_impl.rs:43** (4 impls): `Option<Uuid>`, `Uuid`, `Vec<Option<Uuid>>`, `Vec<Uuid>`
+- **miniextendr-api/src/optionals/time_impl.rs:69** (4 impls): `Option<OffsetDateTime>`, `Vec<Option<OffsetDateTime>>`, `OffsetDateTime`, `Vec<OffsetDateTime>`
+- **miniextendr-api/src/optionals/jiff_impl.rs:476** (4 impls): `SignedDuration`, `Vec<SignedDuration>`, `Option<SignedDuration>`, `Vec<Option<SignedDuration>>`
+- **miniextendr-api/src/from_r/cow_and_paths.rs:312** (4 impls): `std::ffi::OsString`, `Vec<std::ffi::OsString>`, `Option<std::ffi::OsString>`, `Vec<Option<std::ffi::OsString>>`
+- **miniextendr-api/src/optionals/time_impl.rs:97** (4 impls): `Date`, `Vec<Date>`, `Option<Date>`, `Vec<Option<Date>>`
+- **miniextendr-api/src/optionals/url_impl.rs:48** (4 impls): `Option<Url>`, `Vec<Url>`, `Vec<Option<Url>>`, `Url`
+- **miniextendr-api/src/optionals/jiff_impl.rs:81** (4 impls): `Vec<Option<Timestamp>>`, `Timestamp`, `Vec<Timestamp>`, `Option<Timestamp>`
+- **miniextendr-api/src/optionals/jiff_impl.rs:98** (4 impls): `Option<Date>`, `Vec<Option<Date>>`, `Date`, `Vec<Date>`
+- **miniextendr-api/src/optionals/num_bigint_impl.rs:193** (4 impls): `BigInt`, `Option<BigInt>`, `Vec<BigInt>`, `Vec<Option<BigInt>>`
+- **miniextendr-api/src/from_r/cow_and_paths.rs:289** (4 impls): `Vec<Option<std::path::PathBuf>>`, `std::path::PathBuf`, `Vec<std::path::PathBuf>`, `Option<std::path::PathBuf>`
+- **miniextendr-api/src/optionals/regex_impl.rs:67** (4 impls): `Option<Regex>`, `Vec<Regex>`, `Vec<Option<Regex>>`, `Regex`
+- **miniextendr-api/src/optionals/uuid_impl.rs:43** (4 impls): `Option<Uuid>`, `Vec<Uuid>`, `Vec<Option<Uuid>>`, `Uuid`
+- **miniextendr-api/src/optionals/jiff_impl.rs:915** (2 impls): `JiffZonedVecRef`, `JiffZonedVecMut`
 - **miniextendr-api/src/optionals/jiff_impl.rs:874** (2 impls): `JiffTimestampVecMut`, `JiffTimestampVecRef`
-- **miniextendr-api/src/optionals/jiff_impl.rs:915** (2 impls): `JiffZonedVecMut`, `JiffZonedVecRef`
 
 ## `IntoR` — 353 impls
 
@@ -553,10 +553,10 @@ Traits with impls: 9
 | `FactorOptionVec<T>` | `<T>` | concrete | 4 | miniextendr-api/src/factor.rs:610 |
 | `BTreeSet<i8>` | `` | concrete | 4 | miniextendr-api/src/into_r.rs:1038 |
 | `HashSet<i8>` | `` | concrete | 4 | miniextendr-api/src/into_r.rs:1038 |
-| `BTreeSet<i16>` | `` | concrete | 4 | miniextendr-api/src/into_r.rs:1039 |
 | `HashSet<i16>` | `` | concrete | 4 | miniextendr-api/src/into_r.rs:1039 |
-| `BTreeSet<u16>` | `` | concrete | 4 | miniextendr-api/src/into_r.rs:1040 |
+| `BTreeSet<i16>` | `` | concrete | 4 | miniextendr-api/src/into_r.rs:1039 |
 | `HashSet<u16>` | `` | concrete | 4 | miniextendr-api/src/into_r.rs:1040 |
+| `BTreeSet<u16>` | `` | concrete | 4 | miniextendr-api/src/into_r.rs:1040 |
 | `Option<Vec<T>>` | `<T>` | concrete | 5 | miniextendr-api/src/into_r.rs:1049 |
 | `Option<Vec<String>>` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:1076 |
 | `Option<std::collections::HashMap<String, V>>` | `<V>` | concrete | 5 | miniextendr-api/src/into_r.rs:1103 |
@@ -647,14 +647,14 @@ Traits with impls: 9
 | `Vec<crate::Rcomplex>` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:411 |
 | `&[T]` | `<T> +1wc` | concrete | 5 | miniextendr-api/src/into_r.rs:413 |
 | `Box<[T]>` | `<T> +1wc` | concrete | 5 | miniextendr-api/src/into_r.rs:443 |
-| `&[i8]` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:604 |
 | `Vec<i8>` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:604 |
-| `&[i16]` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:605 |
+| `&[i8]` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:604 |
 | `Vec<i16>` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:605 |
-| `&[u16]` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:606 |
+| `&[i16]` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:605 |
 | `Vec<u16>` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:606 |
-| `&[f32]` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:609 |
+| `&[u16]` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:606 |
 | `Vec<f32>` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:609 |
+| `&[f32]` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:609 |
 | `Vec<i64>` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:667 |
 | `Vec<u64>` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:668 |
 | `Vec<isize>` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:669 |
@@ -665,16 +665,16 @@ Traits with impls: 9
 | `std::collections::BinaryHeap<T>` | `<T> +1wc` | concrete | 5 | miniextendr-api/src/into_r.rs:746 |
 | `std::borrow::Cow<'_, [T]>` | `<T> +1wc` | concrete | 5 | miniextendr-api/src/into_r.rs:782 |
 | `std::borrow::Cow<'_, str>` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:802 |
-| `&std::path::Path` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:969 |
 | `Option<std::path::PathBuf>` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:969 |
-| `Vec<Option<std::path::PathBuf>>` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:969 |
 | `Vec<std::path::PathBuf>` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:969 |
+| `Vec<Option<std::path::PathBuf>>` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:969 |
 | `std::path::PathBuf` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:969 |
-| `&std::ffi::OsStr` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:985 |
+| `&std::path::Path` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:969 |
 | `Option<std::ffi::OsString>` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:985 |
-| `Vec<Option<std::ffi::OsString>>` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:985 |
 | `Vec<std::ffi::OsString>` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:985 |
+| `Vec<Option<std::ffi::OsString>>` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:985 |
 | `std::ffi::OsString` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:985 |
+| `&std::ffi::OsStr` | `` | concrete | 5 | miniextendr-api/src/into_r.rs:985 |
 | `Altrep<T>` | `<T> +1wc` | concrete | 5 | miniextendr-api/src/into_r/altrep.rs:152 |
 | `crate::altrep_sexp::AltrepSexp` | `` | concrete | 4 | miniextendr-api/src/into_r/altrep.rs:192 |
 | `std::collections::HashSet<T>` | `<T> +1wc` | concrete | 5 | miniextendr-api/src/into_r/collections.rs:118 |
@@ -759,20 +759,20 @@ Traits with impls: 9
 | `Option<Zoned>` | `` | concrete | 4 | miniextendr-api/src/optionals/jiff_impl.rs:235 |
 | `Vec<Zoned>` | `` | concrete | 4 | miniextendr-api/src/optionals/jiff_impl.rs:310 |
 | `Vec<Option<Zoned>>` | `` | concrete | 4 | miniextendr-api/src/optionals/jiff_impl.rs:413 |
-| `Option<SignedDuration>` | `` | concrete | 4 | miniextendr-api/src/optionals/jiff_impl.rs:476 |
 | `SignedDuration` | `` | concrete | 4 | miniextendr-api/src/optionals/jiff_impl.rs:476 |
 | `Vec<Option<SignedDuration>>` | `` | concrete | 4 | miniextendr-api/src/optionals/jiff_impl.rs:476 |
+| `Option<SignedDuration>` | `` | concrete | 4 | miniextendr-api/src/optionals/jiff_impl.rs:476 |
 | `Vec<SignedDuration>` | `` | concrete | 4 | miniextendr-api/src/optionals/jiff_impl.rs:476 |
-| `Option<Timestamp>` | `` | concrete | 4 | miniextendr-api/src/optionals/jiff_impl.rs:81 |
-| `Timestamp` | `` | concrete | 4 | miniextendr-api/src/optionals/jiff_impl.rs:81 |
 | `Vec<Option<Timestamp>>` | `` | concrete | 4 | miniextendr-api/src/optionals/jiff_impl.rs:81 |
+| `Option<Timestamp>` | `` | concrete | 4 | miniextendr-api/src/optionals/jiff_impl.rs:81 |
 | `Vec<Timestamp>` | `` | concrete | 4 | miniextendr-api/src/optionals/jiff_impl.rs:81 |
+| `Timestamp` | `` | concrete | 4 | miniextendr-api/src/optionals/jiff_impl.rs:81 |
 | `JiffTimestampVec` | `` | concrete | 5 | miniextendr-api/src/optionals/jiff_impl.rs:874 |
 | `JiffZonedVec` | `` | concrete | 5 | miniextendr-api/src/optionals/jiff_impl.rs:915 |
-| `Date` | `` | concrete | 4 | miniextendr-api/src/optionals/jiff_impl.rs:98 |
-| `Option<Date>` | `` | concrete | 4 | miniextendr-api/src/optionals/jiff_impl.rs:98 |
 | `Vec<Date>` | `` | concrete | 4 | miniextendr-api/src/optionals/jiff_impl.rs:98 |
+| `Date` | `` | concrete | 4 | miniextendr-api/src/optionals/jiff_impl.rs:98 |
 | `Vec<Option<Date>>` | `` | concrete | 4 | miniextendr-api/src/optionals/jiff_impl.rs:98 |
+| `Option<Date>` | `` | concrete | 4 | miniextendr-api/src/optionals/jiff_impl.rs:98 |
 | `log::LevelFilter` | `` | concrete | 4 | miniextendr-api/src/optionals/log_impl.rs:332 |
 | `RDVector<T>` | `<T>` | concrete | 3 | miniextendr-api/src/optionals/nalgebra_impl.rs:1334 |
 | `RDMatrix<T>` | `<T>` | concrete | 3 | miniextendr-api/src/optionals/nalgebra_impl.rs:1347 |
@@ -785,22 +785,22 @@ Traits with impls: 9
 | `Array5<T>` | `<T>` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1010 |
 | `Array6<T>` | `<T>` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1054 |
 | `ArrayD<T>` | `<T>` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1097 |
-| `Array0<Option<String>>` | `` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1264 |
 | `Array0<String>` | `` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1264 |
-| `Array1<Option<String>>` | `` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1265 |
+| `Array0<Option<String>>` | `` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1264 |
 | `Array1<String>` | `` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1265 |
-| `Array2<Option<String>>` | `` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1266 |
+| `Array1<Option<String>>` | `` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1265 |
 | `Array2<String>` | `` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1266 |
-| `Array3<Option<String>>` | `` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1267 |
+| `Array2<Option<String>>` | `` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1266 |
 | `Array3<String>` | `` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1267 |
-| `Array4<Option<String>>` | `` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1268 |
+| `Array3<Option<String>>` | `` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1267 |
 | `Array4<String>` | `` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1268 |
-| `Array5<Option<String>>` | `` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1269 |
+| `Array4<Option<String>>` | `` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1268 |
 | `Array5<String>` | `` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1269 |
-| `Array6<Option<String>>` | `` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1270 |
+| `Array5<Option<String>>` | `` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1269 |
 | `Array6<String>` | `` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1270 |
-| `ArrayD<Option<String>>` | `` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1271 |
+| `Array6<Option<String>>` | `` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1270 |
 | `ArrayD<String>` | `` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1271 |
+| `ArrayD<Option<String>>` | `` | concrete | 2 | miniextendr-api/src/optionals/ndarray_impl.rs:1271 |
 | `ArcArray1<T>` | `<T>` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:1277 |
 | `ArcArray2<T>` | `<T>` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:1294 |
 | `ArrayView1<'a, T>` | `<'a, T>` | concrete | 3 | miniextendr-api/src/optionals/ndarray_impl.rs:1315 |
@@ -844,13 +844,13 @@ Traits with impls: 9
 | `Vec<Option<JsonValue>>` | `` | concrete | 4 | miniextendr-api/src/optionals/serde_impl.rs:653 |
 | `Table` | `` | concrete | 4 | miniextendr-api/src/optionals/tabled_impl.rs:197 |
 | `OffsetDateTime` | `` | concrete | 4 | miniextendr-api/src/optionals/time_impl.rs:69 |
+| `Vec<Option<OffsetDateTime>>` | `` | concrete | 4 | miniextendr-api/src/optionals/time_impl.rs:69 |
 | `Option<OffsetDateTime>` | `` | concrete | 4 | miniextendr-api/src/optionals/time_impl.rs:69 |
 | `Vec<OffsetDateTime>` | `` | concrete | 4 | miniextendr-api/src/optionals/time_impl.rs:69 |
-| `Vec<Option<OffsetDateTime>>` | `` | concrete | 4 | miniextendr-api/src/optionals/time_impl.rs:69 |
-| `Date` | `` | concrete | 4 | miniextendr-api/src/optionals/time_impl.rs:97 |
-| `Option<Date>` | `` | concrete | 4 | miniextendr-api/src/optionals/time_impl.rs:97 |
 | `Vec<Date>` | `` | concrete | 4 | miniextendr-api/src/optionals/time_impl.rs:97 |
+| `Date` | `` | concrete | 4 | miniextendr-api/src/optionals/time_impl.rs:97 |
 | `Vec<Option<Date>>` | `` | concrete | 4 | miniextendr-api/src/optionals/time_impl.rs:97 |
+| `Option<Date>` | `` | concrete | 4 | miniextendr-api/src/optionals/time_impl.rs:97 |
 | `TinyVec<[T; N]>` | `<T, N> +2wc` | concrete | 3 | miniextendr-api/src/optionals/tinyvec_impl.rs:140 |
 | `ArrayVec<[T; N]>` | `<T, N> +2wc` | concrete | 3 | miniextendr-api/src/optionals/tinyvec_impl.rs:159 |
 | `Option<TinyVec<[T; N]>>` | `<T, N> +2wc` | concrete | 3 | miniextendr-api/src/optionals/tinyvec_impl.rs:202 |
@@ -886,28 +886,28 @@ Traits with impls: 9
 
 ### `IntoR` — for-types sharing a source span (likely macro-expanded / co-located)
 
-- **miniextendr-api/src/into_r.rs:969** (5 impls): `&std::path::Path`, `Option<std::path::PathBuf>`, `Vec<Option<std::path::PathBuf>>`, `Vec<std::path::PathBuf>`, `std::path::PathBuf`
-- **miniextendr-api/src/into_r.rs:985** (5 impls): `&std::ffi::OsStr`, `Option<std::ffi::OsString>`, `Vec<Option<std::ffi::OsString>>`, `Vec<std::ffi::OsString>`, `std::ffi::OsString`
-- **miniextendr-api/src/optionals/jiff_impl.rs:476** (4 impls): `Option<SignedDuration>`, `SignedDuration`, `Vec<Option<SignedDuration>>`, `Vec<SignedDuration>`
-- **miniextendr-api/src/optionals/jiff_impl.rs:81** (4 impls): `Option<Timestamp>`, `Timestamp`, `Vec<Option<Timestamp>>`, `Vec<Timestamp>`
-- **miniextendr-api/src/optionals/jiff_impl.rs:98** (4 impls): `Date`, `Option<Date>`, `Vec<Date>`, `Vec<Option<Date>>`
-- **miniextendr-api/src/optionals/time_impl.rs:69** (4 impls): `OffsetDateTime`, `Option<OffsetDateTime>`, `Vec<OffsetDateTime>`, `Vec<Option<OffsetDateTime>>`
-- **miniextendr-api/src/optionals/time_impl.rs:97** (4 impls): `Date`, `Option<Date>`, `Vec<Date>`, `Vec<Option<Date>>`
+- **miniextendr-api/src/into_r.rs:985** (5 impls): `Option<std::ffi::OsString>`, `Vec<std::ffi::OsString>`, `Vec<Option<std::ffi::OsString>>`, `std::ffi::OsString`, `&std::ffi::OsStr`
+- **miniextendr-api/src/into_r.rs:969** (5 impls): `Option<std::path::PathBuf>`, `Vec<std::path::PathBuf>`, `Vec<Option<std::path::PathBuf>>`, `std::path::PathBuf`, `&std::path::Path`
+- **miniextendr-api/src/optionals/jiff_impl.rs:81** (4 impls): `Vec<Option<Timestamp>>`, `Option<Timestamp>`, `Vec<Timestamp>`, `Timestamp`
+- **miniextendr-api/src/optionals/jiff_impl.rs:98** (4 impls): `Vec<Date>`, `Date`, `Vec<Option<Date>>`, `Option<Date>`
+- **miniextendr-api/src/optionals/time_impl.rs:69** (4 impls): `OffsetDateTime`, `Vec<Option<OffsetDateTime>>`, `Option<OffsetDateTime>`, `Vec<OffsetDateTime>`
+- **miniextendr-api/src/optionals/jiff_impl.rs:476** (4 impls): `SignedDuration`, `Vec<Option<SignedDuration>>`, `Option<SignedDuration>`, `Vec<SignedDuration>`
+- **miniextendr-api/src/optionals/time_impl.rs:97** (4 impls): `Vec<Date>`, `Date`, `Vec<Option<Date>>`, `Option<Date>`
 - **miniextendr-api/src/into_r.rs:1038** (2 impls): `BTreeSet<i8>`, `HashSet<i8>`
-- **miniextendr-api/src/into_r.rs:1039** (2 impls): `BTreeSet<i16>`, `HashSet<i16>`
-- **miniextendr-api/src/into_r.rs:1040** (2 impls): `BTreeSet<u16>`, `HashSet<u16>`
-- **miniextendr-api/src/into_r.rs:604** (2 impls): `&[i8]`, `Vec<i8>`
-- **miniextendr-api/src/into_r.rs:605** (2 impls): `&[i16]`, `Vec<i16>`
-- **miniextendr-api/src/into_r.rs:606** (2 impls): `&[u16]`, `Vec<u16>`
-- **miniextendr-api/src/into_r.rs:609** (2 impls): `&[f32]`, `Vec<f32>`
-- **miniextendr-api/src/optionals/ndarray_impl.rs:1264** (2 impls): `Array0<Option<String>>`, `Array0<String>`
-- **miniextendr-api/src/optionals/ndarray_impl.rs:1265** (2 impls): `Array1<Option<String>>`, `Array1<String>`
-- **miniextendr-api/src/optionals/ndarray_impl.rs:1266** (2 impls): `Array2<Option<String>>`, `Array2<String>`
-- **miniextendr-api/src/optionals/ndarray_impl.rs:1267** (2 impls): `Array3<Option<String>>`, `Array3<String>`
-- **miniextendr-api/src/optionals/ndarray_impl.rs:1268** (2 impls): `Array4<Option<String>>`, `Array4<String>`
-- **miniextendr-api/src/optionals/ndarray_impl.rs:1269** (2 impls): `Array5<Option<String>>`, `Array5<String>`
-- **miniextendr-api/src/optionals/ndarray_impl.rs:1270** (2 impls): `Array6<Option<String>>`, `Array6<String>`
-- **miniextendr-api/src/optionals/ndarray_impl.rs:1271** (2 impls): `ArrayD<Option<String>>`, `ArrayD<String>`
+- **miniextendr-api/src/into_r.rs:1040** (2 impls): `HashSet<u16>`, `BTreeSet<u16>`
+- **miniextendr-api/src/into_r.rs:604** (2 impls): `Vec<i8>`, `&[i8]`
+- **miniextendr-api/src/into_r.rs:1039** (2 impls): `HashSet<i16>`, `BTreeSet<i16>`
+- **miniextendr-api/src/into_r.rs:605** (2 impls): `Vec<i16>`, `&[i16]`
+- **miniextendr-api/src/into_r.rs:606** (2 impls): `Vec<u16>`, `&[u16]`
+- **miniextendr-api/src/into_r.rs:609** (2 impls): `Vec<f32>`, `&[f32]`
+- **miniextendr-api/src/optionals/ndarray_impl.rs:1264** (2 impls): `Array0<String>`, `Array0<Option<String>>`
+- **miniextendr-api/src/optionals/ndarray_impl.rs:1265** (2 impls): `Array1<String>`, `Array1<Option<String>>`
+- **miniextendr-api/src/optionals/ndarray_impl.rs:1266** (2 impls): `Array2<String>`, `Array2<Option<String>>`
+- **miniextendr-api/src/optionals/ndarray_impl.rs:1267** (2 impls): `Array3<String>`, `Array3<Option<String>>`
+- **miniextendr-api/src/optionals/ndarray_impl.rs:1268** (2 impls): `Array4<String>`, `Array4<Option<String>>`
+- **miniextendr-api/src/optionals/ndarray_impl.rs:1269** (2 impls): `Array5<String>`, `Array5<Option<String>>`
+- **miniextendr-api/src/optionals/ndarray_impl.rs:1270** (2 impls): `Array6<String>`, `Array6<Option<String>>`
+- **miniextendr-api/src/optionals/ndarray_impl.rs:1271** (2 impls): `ArrayD<String>`, `ArrayD<Option<String>>`
 
 ## `IntoRAs` — 135 impls
 
@@ -971,26 +971,26 @@ Traits with impls: 9
 | `crate::RLogical` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:607 |
 | `Vec<i32>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:681 |
 | `&[i32]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:688 |
-| `&[i8]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:695 |
 | `Vec<i8>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:695 |
+| `&[i8]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:695 |
 | `&[i16]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:696 |
 | `Vec<i16>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:696 |
-| `&[u8]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:697 |
 | `Vec<u8>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:697 |
-| `&[u16]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:698 |
+| `&[u8]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:697 |
 | `Vec<u16>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:698 |
+| `&[u16]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:698 |
 | `&[i64]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:699 |
 | `Vec<i64>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:699 |
-| `&[isize]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:700 |
 | `Vec<isize>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:700 |
-| `&[u32]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:701 |
+| `&[isize]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:700 |
 | `Vec<u32>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:701 |
+| `&[u32]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:701 |
 | `&[u64]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:702 |
 | `Vec<u64>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:702 |
-| `&[usize]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:703 |
 | `Vec<usize>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:703 |
-| `&[f32]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:704 |
+| `&[usize]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:703 |
 | `Vec<f32>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:704 |
+| `&[f32]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:704 |
 | `&[f64]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:705 |
 | `Vec<f64>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:705 |
 | `Vec<bool>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:708 |
@@ -1001,22 +1001,22 @@ Traits with impls: 9
 | `&[f32]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:808 |
 | `&[i8]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:856 |
 | `Vec<i8>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:856 |
-| `&[i16]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:857 |
 | `Vec<i16>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:857 |
-| `&[u8]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:858 |
+| `&[i16]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:857 |
 | `Vec<u8>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:858 |
+| `&[u8]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:858 |
 | `&[u16]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:859 |
 | `Vec<u16>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:859 |
-| `&[u32]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:860 |
 | `Vec<u32>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:860 |
+| `&[u32]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:860 |
 | `Vec<i32>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:865 |
 | `&[i32]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:894 |
 | `&[i64]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:924 |
 | `Vec<i64>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:924 |
-| `&[u64]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:925 |
 | `Vec<u64>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:925 |
-| `&[isize]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:926 |
+| `&[u64]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:925 |
 | `Vec<isize>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:926 |
+| `&[isize]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:926 |
 | `&[usize]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:927 |
 | `Vec<usize>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:927 |
 | `Vec<bool>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:930 |
@@ -1025,24 +1025,24 @@ Traits with impls: 9
 | `&[u8]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:958 |
 | `&[i8]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:965 |
 | `Vec<i8>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:965 |
-| `&[i16]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:966 |
 | `Vec<i16>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:966 |
-| `&[i32]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:967 |
+| `&[i16]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:966 |
 | `Vec<i32>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:967 |
+| `&[i32]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:967 |
 | `&[i64]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:968 |
 | `Vec<i64>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:968 |
-| `&[isize]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:969 |
 | `Vec<isize>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:969 |
-| `&[u16]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:970 |
+| `&[isize]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:969 |
 | `Vec<u16>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:970 |
-| `&[u32]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:971 |
+| `&[u16]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:970 |
 | `Vec<u32>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:971 |
+| `&[u32]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:971 |
 | `&[u64]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:972 |
 | `Vec<u64>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:972 |
-| `&[usize]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:973 |
 | `Vec<usize>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:973 |
-| `&[f32]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:974 |
+| `&[usize]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:973 |
 | `Vec<f32>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:974 |
+| `&[f32]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:974 |
 | `&[f64]` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:975 |
 | `Vec<f64>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:975 |
 | `Vec<bool>` | `` | concrete | 1 | miniextendr-api/src/into_r_as.rs:980 |
@@ -1051,37 +1051,37 @@ Traits with impls: 9
 
 ### `IntoRAs` — for-types sharing a source span (likely macro-expanded / co-located)
 
-- **miniextendr-api/src/into_r_as.rs:695** (2 impls): `&[i8]`, `Vec<i8>`
-- **miniextendr-api/src/into_r_as.rs:696** (2 impls): `&[i16]`, `Vec<i16>`
-- **miniextendr-api/src/into_r_as.rs:697** (2 impls): `&[u8]`, `Vec<u8>`
-- **miniextendr-api/src/into_r_as.rs:698** (2 impls): `&[u16]`, `Vec<u16>`
-- **miniextendr-api/src/into_r_as.rs:699** (2 impls): `&[i64]`, `Vec<i64>`
-- **miniextendr-api/src/into_r_as.rs:700** (2 impls): `&[isize]`, `Vec<isize>`
-- **miniextendr-api/src/into_r_as.rs:701** (2 impls): `&[u32]`, `Vec<u32>`
-- **miniextendr-api/src/into_r_as.rs:702** (2 impls): `&[u64]`, `Vec<u64>`
-- **miniextendr-api/src/into_r_as.rs:703** (2 impls): `&[usize]`, `Vec<usize>`
-- **miniextendr-api/src/into_r_as.rs:704** (2 impls): `&[f32]`, `Vec<f32>`
-- **miniextendr-api/src/into_r_as.rs:705** (2 impls): `&[f64]`, `Vec<f64>`
+- **miniextendr-api/src/into_r_as.rs:971** (2 impls): `Vec<u32>`, `&[u32]`
 - **miniextendr-api/src/into_r_as.rs:856** (2 impls): `&[i8]`, `Vec<i8>`
-- **miniextendr-api/src/into_r_as.rs:857** (2 impls): `&[i16]`, `Vec<i16>`
-- **miniextendr-api/src/into_r_as.rs:858** (2 impls): `&[u8]`, `Vec<u8>`
-- **miniextendr-api/src/into_r_as.rs:859** (2 impls): `&[u16]`, `Vec<u16>`
-- **miniextendr-api/src/into_r_as.rs:860** (2 impls): `&[u32]`, `Vec<u32>`
-- **miniextendr-api/src/into_r_as.rs:924** (2 impls): `&[i64]`, `Vec<i64>`
-- **miniextendr-api/src/into_r_as.rs:925** (2 impls): `&[u64]`, `Vec<u64>`
-- **miniextendr-api/src/into_r_as.rs:926** (2 impls): `&[isize]`, `Vec<isize>`
-- **miniextendr-api/src/into_r_as.rs:927** (2 impls): `&[usize]`, `Vec<usize>`
-- **miniextendr-api/src/into_r_as.rs:965** (2 impls): `&[i8]`, `Vec<i8>`
-- **miniextendr-api/src/into_r_as.rs:966** (2 impls): `&[i16]`, `Vec<i16>`
-- **miniextendr-api/src/into_r_as.rs:967** (2 impls): `&[i32]`, `Vec<i32>`
-- **miniextendr-api/src/into_r_as.rs:968** (2 impls): `&[i64]`, `Vec<i64>`
-- **miniextendr-api/src/into_r_as.rs:969** (2 impls): `&[isize]`, `Vec<isize>`
-- **miniextendr-api/src/into_r_as.rs:970** (2 impls): `&[u16]`, `Vec<u16>`
-- **miniextendr-api/src/into_r_as.rs:971** (2 impls): `&[u32]`, `Vec<u32>`
 - **miniextendr-api/src/into_r_as.rs:972** (2 impls): `&[u64]`, `Vec<u64>`
-- **miniextendr-api/src/into_r_as.rs:973** (2 impls): `&[usize]`, `Vec<usize>`
-- **miniextendr-api/src/into_r_as.rs:974** (2 impls): `&[f32]`, `Vec<f32>`
+- **miniextendr-api/src/into_r_as.rs:858** (2 impls): `Vec<u8>`, `&[u8]`
+- **miniextendr-api/src/into_r_as.rs:974** (2 impls): `Vec<f32>`, `&[f32]`
+- **miniextendr-api/src/into_r_as.rs:859** (2 impls): `&[u16]`, `Vec<u16>`
+- **miniextendr-api/src/into_r_as.rs:695** (2 impls): `Vec<i8>`, `&[i8]`
 - **miniextendr-api/src/into_r_as.rs:975** (2 impls): `&[f64]`, `Vec<f64>`
+- **miniextendr-api/src/into_r_as.rs:696** (2 impls): `&[i16]`, `Vec<i16>`
+- **miniextendr-api/src/into_r_as.rs:924** (2 impls): `&[i64]`, `Vec<i64>`
+- **miniextendr-api/src/into_r_as.rs:698** (2 impls): `Vec<u16>`, `&[u16]`
+- **miniextendr-api/src/into_r_as.rs:926** (2 impls): `Vec<isize>`, `&[isize]`
+- **miniextendr-api/src/into_r_as.rs:699** (2 impls): `&[i64]`, `Vec<i64>`
+- **miniextendr-api/src/into_r_as.rs:927** (2 impls): `&[usize]`, `Vec<usize>`
+- **miniextendr-api/src/into_r_as.rs:701** (2 impls): `Vec<u32>`, `&[u32]`
+- **miniextendr-api/src/into_r_as.rs:702** (2 impls): `&[u64]`, `Vec<u64>`
+- **miniextendr-api/src/into_r_as.rs:965** (2 impls): `&[i8]`, `Vec<i8>`
+- **miniextendr-api/src/into_r_as.rs:704** (2 impls): `Vec<f32>`, `&[f32]`
+- **miniextendr-api/src/into_r_as.rs:967** (2 impls): `Vec<i32>`, `&[i32]`
+- **miniextendr-api/src/into_r_as.rs:705** (2 impls): `&[f64]`, `Vec<f64>`
+- **miniextendr-api/src/into_r_as.rs:968** (2 impls): `&[i64]`, `Vec<i64>`
+- **miniextendr-api/src/into_r_as.rs:970** (2 impls): `Vec<u16>`, `&[u16]`
+- **miniextendr-api/src/into_r_as.rs:857** (2 impls): `Vec<i16>`, `&[i16]`
+- **miniextendr-api/src/into_r_as.rs:973** (2 impls): `Vec<usize>`, `&[usize]`
+- **miniextendr-api/src/into_r_as.rs:860** (2 impls): `Vec<u32>`, `&[u32]`
+- **miniextendr-api/src/into_r_as.rs:697** (2 impls): `Vec<u8>`, `&[u8]`
+- **miniextendr-api/src/into_r_as.rs:925** (2 impls): `Vec<u64>`, `&[u64]`
+- **miniextendr-api/src/into_r_as.rs:700** (2 impls): `Vec<isize>`, `&[isize]`
+- **miniextendr-api/src/into_r_as.rs:703** (2 impls): `Vec<usize>`, `&[usize]`
+- **miniextendr-api/src/into_r_as.rs:966** (2 impls): `Vec<i16>`, `&[i16]`
+- **miniextendr-api/src/into_r_as.rs:969** (2 impls): `Vec<isize>`, `&[isize]`
 
 ## `TryCoerce` — 93 impls
 
@@ -1113,44 +1113,44 @@ Traits with impls: 9
 | `i32` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:500 |
 | `crate::Rboolean` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:515 |
 | `crate::RLogical` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:524 |
-| `i64` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:536 |
-| `isize` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:536 |
 | `u32` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:536 |
 | `u64` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:536 |
 | `usize` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:536 |
+| `i64` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:536 |
+| `isize` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:536 |
+| `i8` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:541 |
 | `i16` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:541 |
 | `i32` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:541 |
 | `i64` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:541 |
-| `i8` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:541 |
-| `isize` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:541 |
 | `u16` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:541 |
 | `u32` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:541 |
 | `u64` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:541 |
 | `usize` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:541 |
+| `isize` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:541 |
+| `i8` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:551 |
 | `i16` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:551 |
 | `i32` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:551 |
 | `i64` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:551 |
-| `i8` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:551 |
-| `isize` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:551 |
 | `u32` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:551 |
 | `u64` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:551 |
 | `usize` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:551 |
+| `isize` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:551 |
 | `i32` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:556 |
 | `i64` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:556 |
-| `isize` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:556 |
 | `u16` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:556 |
 | `u32` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:556 |
 | `u64` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:556 |
 | `usize` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:556 |
+| `isize` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:556 |
 | `i16` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:561 |
 | `i32` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:561 |
 | `i64` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:561 |
-| `isize` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:561 |
+| `u8` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:561 |
 | `u16` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:561 |
 | `u32` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:561 |
 | `u64` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:561 |
-| `u8` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:561 |
 | `usize` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:561 |
+| `isize` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:561 |
 | `f64` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:566 |
 | `f64` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:587 |
 | `f64` | `` | concrete | 2 | miniextendr-api/src/coerce.rs:608 |
@@ -1183,11 +1183,11 @@ Traits with impls: 9
 
 ### `TryCoerce` — for-types sharing a source span (likely macro-expanded / co-located)
 
-- **miniextendr-api/src/coerce.rs:541** (9 impls): `i16`, `i32`, `i64`, `i8`, `isize`, `u16`, `u32`, `u64`, `usize`
-- **miniextendr-api/src/coerce.rs:561** (9 impls): `i16`, `i32`, `i64`, `isize`, `u16`, `u32`, `u64`, `u8`, `usize`
-- **miniextendr-api/src/coerce.rs:551** (8 impls): `i16`, `i32`, `i64`, `i8`, `isize`, `u32`, `u64`, `usize`
-- **miniextendr-api/src/coerce.rs:556** (7 impls): `i32`, `i64`, `isize`, `u16`, `u32`, `u64`, `usize`
-- **miniextendr-api/src/coerce.rs:536** (5 impls): `i64`, `isize`, `u32`, `u64`, `usize`
+- **miniextendr-api/src/coerce.rs:541** (9 impls): `i8`, `i16`, `i32`, `i64`, `u16`, `u32`, `u64`, `usize`, `isize`
+- **miniextendr-api/src/coerce.rs:561** (9 impls): `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `usize`, `isize`
+- **miniextendr-api/src/coerce.rs:551** (8 impls): `i8`, `i16`, `i32`, `i64`, `u32`, `u64`, `usize`, `isize`
+- **miniextendr-api/src/coerce.rs:556** (7 impls): `i32`, `i64`, `u16`, `u32`, `u64`, `usize`, `isize`
+- **miniextendr-api/src/coerce.rs:536** (5 impls): `u32`, `u64`, `usize`, `i64`, `isize`
 
 ## `Coerce` — 53 impls
 
@@ -1225,11 +1225,11 @@ Traits with impls: 9
 | `Option<crate::Rboolean>` | `` | concrete | 1 | miniextendr-api/src/coerce.rs:288 |
 | `i32` | `` | concrete | 1 | miniextendr-api/src/coerce.rs:302 |
 | `i32` | `` | concrete | 1 | miniextendr-api/src/coerce.rs:310 |
+| `u8` | `` | concrete | 1 | miniextendr-api/src/coerce.rs:546 |
+| `u8` | `` | concrete | 1 | miniextendr-api/src/coerce.rs:546 |
+| `u8` | `` | concrete | 1 | miniextendr-api/src/coerce.rs:546 |
 | `i8` | `` | concrete | 1 | miniextendr-api/src/coerce.rs:546 |
 | `u16` | `` | concrete | 1 | miniextendr-api/src/coerce.rs:546 |
-| `u8` | `` | concrete | 1 | miniextendr-api/src/coerce.rs:546 |
-| `u8` | `` | concrete | 1 | miniextendr-api/src/coerce.rs:546 |
-| `u8` | `` | concrete | 1 | miniextendr-api/src/coerce.rs:546 |
 | `f64` | `` | concrete | 1 | miniextendr-api/src/coerce.rs:663 |
 | `&[T]` | `<T, R>` | concrete | 1 | miniextendr-api/src/coerce.rs:974 |
 | `Vec<T>` | `<T, R>` | concrete | 1 | miniextendr-api/src/coerce.rs:982 |
@@ -1250,7 +1250,7 @@ Traits with impls: 9
 ### `Coerce` — for-types sharing a source span (likely macro-expanded / co-located)
 
 - **miniextendr-api/src/coerce.rs:212** (5 impls): `u8`, `u8`, `u8`, `u8`, `u8`
-- **miniextendr-api/src/coerce.rs:546** (5 impls): `i8`, `u16`, `u8`, `u8`, `u8`
+- **miniextendr-api/src/coerce.rs:546** (5 impls): `u8`, `u8`, `u8`, `i8`, `u16`
 
 ## `AltrepSerialize` — 27 impls
 

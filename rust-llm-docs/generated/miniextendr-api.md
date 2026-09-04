@@ -5570,9 +5570,10 @@ miniextendr-api = { version = "0.1", features = ["serde"] }
 |-----------|--------|
 | `bool` | `logical(1)` |
 | `i8/i16/i32` | `integer(1)` |
-| `i64/u64/f32/f64` | `numeric(1)` |
+| `i64/u64` | `integer(1)` when the value fits i32, else `numeric(1)` (lossy above 2^53) |
+| `f32/f64` | `numeric(1)` |
 | `String/&str` | `character(1)` |
-| `Option<T>::None` | NA or NULL |
+| `Option<T>::None` | `NULL` (always — never a typed NA) |
 | `Vec<primitive>` | atomic vector (smart dispatch) |
 | `Vec<struct>` | list of lists |
 | `HashMap<String, T>` | named list |
@@ -5605,16 +5606,20 @@ When serializing `Vec<T>`, the serializer uses smart dispatch:
 - `Vec<String>` → `character` vector
 - `Vec<struct>` → list of lists
 
-#### NA Roundtrip
+#### NA and NULL Roundtrip
 
-NA values are preserved through `Option<T>`:
+The absence encoding is asymmetric (pinned by
+`rpkg/tests/testthat/test-serde-hostile-probes.R`): serialization always
+emits `NULL` for `None` (the macro scalar `IntoR` path is the one that
+emits typed NAs — don't conflate them); deserialization accepts both
+`NULL` and a typed scalar NA as `None`:
 
 ```rust,ignore
 // Serialization
 let v: Option<i32> = None;
-// → NA_integer_
+// → NULL (not NA_integer_)
 
-// Deserialization
+// Deserialization: NULL and NA_integer_ both come back as None
 let v: Option<i32> = from_r(na_integer_sexp)?;
 assert!(v.is_none());
 ```
@@ -6620,6 +6625,520 @@ R FFI APIs. Typically done in `R_init_<pkgname>()`.
 
 ## Re-exports
 
+### `pub use convert::AsListExt;`
+
+### `pub use arrow_schema::Schema;`
+
+### `pub use vctrs::new_list_of;`
+
+### `pub use optionals::Ix4;`
+
+### `pub use jiff;`
+
+### `pub use dataframe_de::BorrowedRows;`
+
+### `pub use crate::IntoList;`
+
+### `pub use optionals::Borsh;`
+
+### `pub use ndarray_impl::Array3;`
+
+### `pub use crate::RBigUintOps;`
+
+### `pub use factor::RFactor;`
+
+### `pub use regex_impl::RRegexOps;`
+
+### `pub use crate::AhoCorasick;`
+
+### `pub use bytes_impl::RBufMut;`
+
+### `pub use worker::with_r_thread;`
+
+### `pub use ndarray::ArrayViewD;`
+
+### `pub use convert::AsNamedVector;`
+
+### `pub use abi::mx_base_vtable;`
+
+### `pub use optionals::Ix5;`
+
+### `pub use optionals::JiffDate;`
+
+### `pub use dataframe_de::dataframe_to_vec_borrowed;`
+
+### `pub use crate::Lazy;`
+
+### `pub use optionals::borsh_to_raw;`
+
+### `pub use ndarray_impl::Array6;`
+
+### `pub use crate::Decimal;`
+
+### `pub use rayon;`
+
+### `pub use factor::build_levels_sexp;`
+
+### `pub use url_impl::Url;`
+
+### `pub use sha2_impl::sha512_bytes;`
+
+### `pub use miniextendr_macros::PreferRNativeType;`
+
+### `pub use thread::DEFAULT_R_STACK_SIZE;`
+
+### `pub use ndarray::ArrayViewMut1;`
+
+### `pub use core::AltrepExtractSubset;`
+
+### `pub use convert::AsRNativeExt;`
+
+### `pub use abi::mx_tag;`
+
+### `pub use optionals::IxDyn;`
+
+### `pub use optionals::JiffTimestampVec;`
+
+### `pub use dataframe_de::dataframe_to_vec_with_struct_fields;`
+
+### `pub use crate::ListMut;`
+
+### `pub use optionals::Flags;`
+
+### `pub use ndarray_impl::ArrayView1;`
+
+### `pub use aho_corasick_impl::RAhoCorasickOps;`
+
+### `pub use blake3_impl::blake3_hex;`
+
+### `pub use miniextendr_macros::TryFromList;`
+
+### `pub use thread::scope_with_r;`
+
+### `pub use core::InferBase;`
+
+### `pub use convert::CollectNAInt;`
+
+### `pub use adapter_traits::RCopy;`
+
+### `pub use optionals::RNdIndex;`
+
+### `pub use group::group_rows;`
+
+### `pub use optionals::RDateTime;`
+
+### `pub use log;`
+
+### `pub use error::RSerdeError;`
+
+### `pub use crate::OwnedProtect;`
+
+### `pub use optionals::BitVec;`
+
+### `pub use ndarray_impl::ArrayView4;`
+
+### `pub use num_complex;`
+
+### `pub use aho_corasick_impl::aho_find_all;`
+
+### `pub use md5_impl::md5_hex;`
+
+### `pub use sexp::SEXP;`
+
+### `pub use ffi_guard::GuardMode;`
+
+### `pub use ndarray::ArrayViewMut4;`
+
+### `pub use core::materialize_altrep_data2;`
+
+### `pub use convert::AsVctrsExt;`
+
+### `pub use adapter_traits::RDisplay;`
+
+### `pub use optionals::ShapeBuilder;`
+
+### `pub use optionals::RTime;`
+
+### `pub use json_string::AsJsonVec;`
+
+### `pub use crate::ProtectedStrVec;`
+
+### `pub use optionals::RBitVec;`
+
+### `pub use ndarray_impl::ArrayViewD;`
+
+### `pub use crate::RNum;`
+
+### `pub use aho_corasick_impl::aho_is_match;`
+
+### `pub use borsh;`
+
+### `pub use zstd_impl::zstd_decompress;`
+
+### `pub use sexp_types::R_CFinalizer_t;`
+
+### `pub use dataframe::BuiltDataFrame;`
+
+### `pub use traits::*;`
+
+### `pub use list::List;`
+
+### `pub use adapter_traits::RFromIter;`
+
+### `pub use optionals::DVector;`
+
+### `pub use optionals::SignedDuration;`
+
+### `pub use aho_corasick::AhoCorasick;`
+
+### `pub use traits::AsSerialize;`
+
+### `pub use crate::StrVecBuilder;`
+
+### `pub use optionals::Table;`
+
+### `pub use ndarray_impl::ArrayViewMut2;`
+
+### `pub use crate::dataframe_builder::RDataFrameBuilder;`
+
+### `pub use globset_impl::GlobBuilder;`
+
+### `pub use crate::Pod;`
+
+### `pub use bitvec_impl::BitVec;`
+
+### `pub use sexp_types::RNativeType;`
+
+### `pub use dataframe::DataFrameError;`
+
+### `pub use ndarray::ArrayViewMutD;`
+
+### `pub use list::ListMut;`
+
+### `pub use adapter_traits::RIterator;`
+
+### `pub use serde_json::Value as JsonValue;`
+
+### `pub use optionals::SMatrix;`
+
+### `pub use optionals::Zoned;`
+
+### `pub use traits::from_r;`
+
+### `pub use crate::DataFrame;`
+
+### `pub use optionals::table_from_vecs;`
+
+### `pub use ndarray_impl::ArrayViewMut5;`
+
+### `pub use crate::Array3;`
+
+### `pub use globset_impl::GlobSetBuilder;`
+
+### `pub use crate::Zeroable;`
+
+### `pub use bitvec_impl::RBitVec;`
+
+### `pub use sexp_types::Rcomplex;`
+
+### `pub use dataframe::GroupedDataFrame;`
+
+### `pub use tabled::settings::Alignment;`
+
+### `pub use list::collect_list;`
+
+### `pub use adapter_traits::RPartialOrd;`
+
+### `pub use optionals::BigInt;`
+
+### `pub use optionals::FactorHandling;`
+
+### `pub use bytemuck::Pod;`
+
+### `pub use crate::FromDataFrame;`
+
+### `pub use optionals::table_to_string_styled;`
+
+### `pub use ndarray_impl::Ix0;`
+
+### `pub use crate::Array6;`
+
+### `pub use globset_impl::globset_matches;`
+
+### `pub use tabled_impl::Tabled;`
+
+### `pub use altrep_data::AltComplexData;`
+
+### `pub use dataframe::NamedDataFrameListBuilder;`
+
+### `pub use ndarray::Ix1;`
+
+### `pub use named_vector::AtomicElement;`
+
+### `pub use optionals::rayon_bridge;`
+
+### `pub use optionals::RBigIntOps;`
+
+### `pub use crate::AltrepInteger;`
+
+### `pub use optionals::NaHandling;`
+
+### `pub use crate::AsVctrsExt;`
+
+### `pub use optionals::ArrayVec;`
+
+### `pub use ndarray_impl::Ix1;`
+
+### `pub use crate::ArrayView2;`
+
+### `pub use time_impl::Date;`
+
+### `pub use crate::sha512_bytes;`
+
+### `pub use tabled_impl::table_to_string;`
+
+### `pub use altrep_data::AltLogicalData;`
+
+### `pub use error::r_warning;`
+
+### `pub use tabled::settings::Width;`
+
+### `pub use rcow::RCow;`
+
+### `pub use optionals::rand;`
+
+### `pub use optionals::rust_decimal_impl;`
+
+### `pub use optionals::RJsonValueOps;`
+
+### `pub use nalgebra::DMatrix;`
+
+### `pub use crate::AsListExt;`
+
+### `pub use optionals::ArrayRef;`
+
+### `pub use ndarray_impl::Ix3;`
+
+### `pub use crate::ArrayViewMut2;`
+
+### `pub use time_impl::RDateTimeFormat;`
+
+### `pub use tinyvec_impl::Array;`
+
+### `pub use altrep_data::AltStringData;`
+
+### `pub use from_r::SexpError;`
+
+### `pub use ndarray::Ix2;`
+
+### `pub use tabled::Tabled;`
+
+### `pub use strvec::ProtectedStrVecIter;`
+
+### `pub use optionals::RDistributionOps;`
+
+### `pub use optionals::ordered_float_impl;`
+
+### `pub use crate::AltrepRaw;`
+
+### `pub use optionals::json_from_sexp;`
+
+### `pub use nalgebra::SVector;`
+
+### `pub use crate::AsRNativeExt;`
+
+### `pub use optionals::DataType;`
+
+### `pub use ndarray_impl::Ix4;`
+
+### `pub use ndarray;`
+
+### `pub use jiff_impl::DateTime as JiffDateTime;`
+
+### `pub use crate::table_to_string;`
+
+### `pub use sha2::Sha512;`
+
+### `pub use arrow_impl::Array as ArrowArray;`
+
+### `pub use altrep_data::AltrepLen;`
+
+### `pub use conv::extract_arg;`
+
+### `pub use from_r::SexpTypeError;`
+
+### `pub use strvec::StrVecCowIter;`
+
+### `pub use optionals::RRngOps;`
+
+### `pub use optionals::num_complex_impl;`
+
+### `pub use optionals::json_from_sexp_with;`
+
+### `pub use optionals::Field;`
+
+### `pub use ndarray_impl::Ix6;`
+
+### `pub use crate::DVector;`
+
+### `pub use jiff::civil::Time;`
+
+### `pub use jiff_impl::RDate;`
+
+### `pub use crate::ArrayVec;`
+
+### `pub use arrow_impl::DataType;`
+
+### `pub use altrep_data::IterIntData;`
+
+### `pub use conv::rf_error;`
+
+### `pub use expression::REnv;`
+
+### `pub use ndarray::Ix4;`
+
+### `pub use typed_list::TypedEntry;`
+
+### `pub use optionals::Left;`
+
+### `pub use optionals::num_traits_impl;`
+
+### `pub use crate::ExternalPtr;`
+
+### `pub use optionals::TomlValue;`
+
+### `pub use crate::r_warning;`
+
+### `pub use optionals::RecordBatch;`
+
+### `pub use ndarray_impl::IxDyn;`
+
+### `pub use crate::SMatrix;`
+
+### `pub use jiff::Timestamp;`
+
+### `pub use jiff_impl::RSpan;`
+
+### `pub use arrow_impl::Field;`
+
+### `pub use altrep_data::IterLogicalData;`
+
+### `pub use crate::condition::repanic_if_rust_error;`
+
+### `pub use expression::r_eval_str_global;`
+
+### `pub use tinyvec::ArrayVec;`
+
+### `pub use typed_list::TypedListSpec;`
+
+### `pub use optionals::ArcArray1;`
+
+### `pub use uuid::Uuid;`
+
+### `pub use optionals::RSigned;`
+
+### `pub use crate::MatchArg;`
+
+### `pub use optionals::toml_to_string_pretty;`
+
+### `pub use crate::r_str;`
+
+### `pub use optionals::StringDictionaryArray;`
+
+### `pub use ndarray_impl::RNdSlice;`
+
+### `pub use bytes::Buf;`
+
+### `pub use jiff_impl::RZoned;`
+
+### `pub use arrow_impl::RecordBatch;`
+
+### `pub use altrep_data::IterRealData;`
+
+### `pub use coerce::Coerced;`
+
+### `pub use ndarray::Ix5;`
+
+### `pub use typed_list::validate_list;`
+
+### `pub use optionals::Array1;`
+
+### `pub use cetype_t::CE_UTF8;`
+
+### `pub use optionals::Uuid;`
+
+### `pub use crate::RFactor;`
+
+### `pub use optionals::BufMut;`
+
+### `pub use globset::Glob;`
+
+### `pub use crate::Either;`
+
+### `pub use optionals::RSessionContext;`
+
+### `pub use ndarray_impl::RndMat;`
+
+### `pub use indexmap;`
+
+### `pub use jiff_impl::Time as JiffTime;`
+
+### `pub use miniextendr_macros::ExternalPtr;`
+
+### `pub use blake3::Hash;`
+
+### `pub use arrow_impl::StringDictionaryArray;`
+
+### `pub use altrep_data::Logical;`
+
+### `pub use r_coerce::RCoerceComplex;`
+
+### `pub use arrow_array::Array;`
+
+### `pub use externalptr::ExternalSlice;`
+
+### `pub use optionals::Array4;`
+
+### `pub use optionals::CaptureGroups;`
+
+### `pub use crate::list;`
+
+### `pub use optionals::RBuf;`
+
+### `pub use either;`
+
+### `pub use rarray::RArray3D;`
+
+### `pub use nalgebra_impl::DVector;`
+
+### `pub use crate::RParallelIterator;`
+
+### `pub use serde_impl::FactorHandling;`
+
+### `pub use miniextendr_macros::impl_typed_external;`
+
+### `pub use datafusion_impl::RDataFrame;`
+
+### `pub use altrep_data::SparseIterIntData;`
+
+### `pub use r_coerce::RCoerceEnvironment;`
+
+### `pub use ndarray::IxDyn;`
+
+### `pub use arrow_array::BooleanArray;`
+
+### `pub use externalptr::altrep_data1_as;`
+
+### `pub use optionals::ArrayD;`
+
+### `pub use optionals::Regex;`
+
+### `pub use crate::miniextendr;`
+
+### `pub use optionals::sha256_bytes;`
+
+### `pub use crate::Uuid;`
+
 ### `pub use ::serde as serde_crate;`
 
 Re-export the upstream `serde` crate (aliased to avoid conflict with [`mod serde`]).
@@ -6627,1139 +7146,1068 @@ Re-export the upstream `serde` crate (aliased to avoid conflict with [`mod serde
 Downstream crates can use `miniextendr_api::serde_crate::{Serialize, Deserialize}`
 and `#[serde(crate = "miniextendr_api::serde_crate")]` to avoid a direct `serde` dep.
 
-### `pub use ::serde::Deserialize;`
-
-### `pub use ::serde::Deserialize;`
-
-### `pub use ::serde::Serialize;`
-
-### `pub use ::serde::Serialize;`
-
-### `pub use abi::mx_base_vtable;`
-
-### `pub use abi::mx_erased;`
-
-### `pub use abi::mx_meth;`
-
-### `pub use abi::mx_tag;`
-
-### `pub use accumulator::*;`
-
-### `pub use adapter_traits::RClone;`
-
-### `pub use adapter_traits::RCopy;`
-
-### `pub use adapter_traits::RDebug;`
-
-### `pub use adapter_traits::RDefault;`
-
-### `pub use adapter_traits::RDisplay;`
-
-### `pub use adapter_traits::RError;`
-
-### `pub use adapter_traits::RExtend;`
-
-### `pub use adapter_traits::RFromIter;`
-
-### `pub use adapter_traits::RFromStr;`
-
-### `pub use adapter_traits::RHash;`
-
-### `pub use adapter_traits::RIterator;`
-
-### `pub use adapter_traits::RMakeIter;`
-
-### `pub use adapter_traits::ROrd;`
-
-### `pub use adapter_traits::RPartialOrd;`
-
-### `pub use adapter_traits::RToVec;`
-
-### `pub use aho_corasick;`
-
-### `pub use aho_corasick::AhoCorasick;`
-
-### `pub use aho_corasick::MatchKind;`
-
-### `pub use aho_corasick_impl::AhoCorasick;`
-
-### `pub use aho_corasick_impl::RAhoCorasickOps;`
-
-### `pub use aho_corasick_impl::aho_compile;`
-
-### `pub use aho_corasick_impl::aho_count_matches;`
-
-### `pub use aho_corasick_impl::aho_find_all;`
-
-### `pub use aho_corasick_impl::aho_find_all_flat;`
-
-### `pub use aho_corasick_impl::aho_find_first;`
-
-### `pub use aho_corasick_impl::aho_is_match;`
-
-### `pub use aho_corasick_impl::aho_replace_all;`
-
-### `pub use allocator::RAllocator;`
-
-### `pub use altrep::*;`
-
-### `pub use altrep::RBase;`
-
-### `pub use altrep_data::AltComplexData;`
-
-### `pub use altrep_data::AltIntegerData;`
-
-### `pub use altrep_data::AltListData;`
-
-### `pub use altrep_data::AltLogicalData;`
-
-### `pub use altrep_data::AltRawData;`
-
-### `pub use altrep_data::AltRealData;`
-
-### `pub use altrep_data::AltStringData;`
-
-### `pub use altrep_data::AltrepDataptr;`
-
-### `pub use altrep_data::AltrepExtract;`
-
-### `pub use altrep_data::AltrepLen;`
-
-### `pub use altrep_data::IterComplexData;`
-
-### `pub use altrep_data::IterIntCoerceData;`
-
-### `pub use altrep_data::IterIntData;`
-
-### `pub use altrep_data::IterIntFromBoolData;`
-
-### `pub use altrep_data::IterListData;`
-
-### `pub use altrep_data::IterLogicalData;`
-
-### `pub use altrep_data::IterRawData;`
-
-### `pub use altrep_data::IterRealCoerceData;`
-
-### `pub use altrep_data::IterRealData;`
-
-### `pub use altrep_data::IterState;`
-
-### `pub use altrep_data::IterStringData;`
-
-### `pub use altrep_data::Logical;`
-
-### `pub use altrep_data::Sortedness;`
-
-### `pub use altrep_data::SparseIterComplexData;`
-
-### `pub use altrep_data::SparseIterIntData;`
-
-### `pub use altrep_data::SparseIterLogicalData;`
-
-### `pub use altrep_data::SparseIterRawData;`
-
-### `pub use altrep_data::SparseIterRealData;`
-
-### `pub use altrep_data::SparseIterState;`
-
-### `pub use altrep_data::StreamingIntData;`
-
-### `pub use altrep_data::StreamingRealData;`
-
-### `pub use altrep_data::WindowedIterIntData;`
-
-### `pub use altrep_data::WindowedIterRealData;`
-
-### `pub use altrep_data::WindowedIterState;`
-
-### `pub use altrep_helpers::*;`
-
-### `pub use altrep_sexp::AltrepSexp;`
-
-### `pub use altrep_sexp::ensure_materialized;`
-
-### `pub use altrep_traits::AltrepGuard;`
-
-### `pub use arrow_array;`
-
-### `pub use arrow_array::Array;`
-
-### `pub use arrow_array::ArrayRef;`
-
-### `pub use arrow_array::BooleanArray;`
-
-### `pub use arrow_array::Date32Array;`
-
-### `pub use arrow_array::DictionaryArray;`
-
-### `pub use arrow_array::Float64Array;`
-
-### `pub use arrow_array::Int32Array;`
-
-### `pub use arrow_array::RecordBatch;`
-
-### `pub use arrow_array::StringArray;`
-
-### `pub use arrow_array::TimestampSecondArray;`
-
-### `pub use arrow_array::UInt8Array;`
-
-### `pub use arrow_array::types::Date32Type;`
-
-### `pub use arrow_array::types::Float64Type;`
-
-### `pub use arrow_array::types::Int32Type;`
-
-### `pub use arrow_array::types::TimestampSecondType;`
-
-### `pub use arrow_array::types::UInt8Type;`
-
-### `pub use arrow_buffer;`
-
-### `pub use arrow_impl::Array as ArrowArray;`
-
-### `pub use arrow_impl::ArrayRef;`
-
-### `pub use arrow_impl::BooleanArray;`
-
-### `pub use arrow_impl::DataType;`
-
-### `pub use arrow_impl::Date32Array;`
-
-### `pub use arrow_impl::DictionaryArray;`
-
-### `pub use arrow_impl::Field;`
-
-### `pub use arrow_impl::Float64Array;`
-
-### `pub use arrow_impl::Int32Array;`
-
-### `pub use arrow_impl::RecordBatch;`
-
-### `pub use arrow_impl::Schema;`
-
-### `pub use arrow_impl::StringArray;`
-
-### `pub use arrow_impl::StringDictionaryArray;`
-
-### `pub use arrow_impl::TimestampSecondArray;`
-
-### `pub use arrow_impl::UInt8Array;`
-
-### `pub use arrow_schema;`
-
-### `pub use arrow_schema::DataType;`
-
-### `pub use arrow_schema::Field;`
-
-### `pub use arrow_schema::Schema;`
-
-### `pub use bitflags;`
-
-### `pub use bitflags;`
-
-### `pub use bitflags::Flags;`
-
-### `pub use bitflags_impl::Flags;`
-
-### `pub use bitflags_impl::RFlags;`
-
-### `pub use bitvec;`
-
-### `pub use bitvec::order::Lsb0;`
-
-### `pub use bitvec::order::Msb0;`
-
-### `pub use bitvec::vec::BitVec;`
-
-### `pub use bitvec_impl::BitVec;`
-
-### `pub use bitvec_impl::Lsb0;`
-
-### `pub use bitvec_impl::Msb0;`
-
-### `pub use bitvec_impl::RBitVec;`
-
-### `pub use blake3::Hash;`
-
-### `pub use blake3::Hasher;`
-
-### `pub use blake3_impl::blake3_bytes;`
-
-### `pub use blake3_impl::blake3_hex;`
-
-### `pub use blake3_impl::blake3_str;`
-
-### `pub use borsh;`
-
-### `pub use borsh_impl::Borsh;`
-
-### `pub use borsh_impl::RBorshOps;`
-
-### `pub use borsh_impl::borsh_from_raw;`
-
-### `pub use borsh_impl::borsh_to_raw;`
-
-### `pub use bytemuck;`
-
-### `pub use bytemuck::Pod;`
-
-### `pub use bytemuck::Pod;`
-
-### `pub use bytemuck::Zeroable;`
-
-### `pub use bytemuck::Zeroable;`
-
-### `pub use bytes;`
-
-### `pub use bytes::Buf;`
-
-### `pub use bytes::BufMut;`
-
-### `pub use bytes::Bytes;`
-
-### `pub use bytes::BytesMut;`
-
-### `pub use bytes_impl::Buf;`
-
-### `pub use bytes_impl::BufMut;`
-
-### `pub use bytes_impl::Bytes;`
-
-### `pub use bytes_impl::BytesMut;`
-
-### `pub use bytes_impl::RBuf;`
-
-### `pub use bytes_impl::RBufMut;`
-
-### `pub use cetype_t::CE_UTF8;`
-
-### `pub use coerce::*;`
-
-### `pub use coerce::Coerce;`
-
-### `pub use coerce::CoerceError;`
-
-### `pub use coerce::Coerced;`
-
-### `pub use coerce::TryCoerce;`
-
-### `pub use columnar::DataFrameShape;`
-
-### `pub use columnar::DispatchNames;`
-
-### `pub use columnar::ResultShape;`
-
-### `pub use columnar::RootedSentinel;`
-
-### `pub use columnar::SerdeRowBuilder;`
-
-### `pub use columnar::SplitResults;`
-
-### `pub use columnar::SplitShape;`
-
-### `pub use columnar::TypeSpec;`
-
-### `pub use columnar::dispatch_to_dataframes;`
-
-### `pub use columnar::hashmap_to_dataframe;`
-
-### `pub use columnar::iter_to_dataframe;`
-
-### `pub use columnar::map_to_dataframe;`
-
-### `pub use columnar::par_iter_to_dataframe;`
-
-### `pub use columnar::par_iter_to_dataframe_growing;`
-
-### `pub use columnar::result_to_dataframe;`
-
-### `pub use columnar::vec_to_dataframe;`
-
-### `pub use columnar::vec_to_dataframe_flatten_enums;`
-
-### `pub use columnar::vec_to_dataframe_flatten_enums_with_tags;`
-
-### `pub use columnar::vec_to_dataframe_split;`
-
-### `pub use condition::AsRError;`
-
-### `pub use conv::check_arity;`
-
-### `pub use conv::extract_arg;`
-
-### `pub use conv::from_sexp;`
-
-### `pub use conv::nil;`
-
-### `pub use conv::rf_error;`
-
-### `pub use conv::to_sexp;`
-
-### `pub use conv::try_from_sexp;`
-
-### `pub use convert::AsDataFrame;`
-
-### `pub use convert::AsDataFrameExt;`
-
-### `pub use convert::AsDisplay;`
-
-### `pub use convert::AsDisplayVec;`
-
-### `pub use convert::AsExternalPtr;`
-
-### `pub use convert::AsExternalPtrExt;`
-
-### `pub use convert::AsFromStr;`
-
-### `pub use convert::AsFromStrVec;`
-
-### `pub use convert::AsList;`
-
-### `pub use convert::AsListExt;`
-
-### `pub use convert::AsNamedList;`
-
-### `pub use convert::AsNamedListExt;`
-
-### `pub use convert::AsNamedVector;`
-
-### `pub use convert::AsNamedVectorExt;`
-
-### `pub use convert::AsRNative;`
-
-### `pub use convert::AsRNativeExt;`
-
-### `pub use convert::AsVctrs;`
-
-### `pub use convert::AsVctrsExt;`
-
-### `pub use convert::Collect;`
-
-### `pub use convert::CollectNA;`
-
-### `pub use convert::CollectNAInt;`
-
-### `pub use convert::CollectStrings;`
-
-### `pub use core::AltrepDataptr;`
-
-### `pub use core::AltrepExtract;`
-
-### `pub use core::AltrepExtractSubset;`
-
-### `pub use core::AltrepLen;`
-
-### `pub use core::AltrepSerialize;`
-
-### `pub use core::InferBase;`
-
-### `pub use core::Logical;`
-
-### `pub use core::Sortedness;`
-
-### `pub use core::materialize_altrep_data2;`
-
-### `pub use crate::AhoCorasick;`
-
-### `pub use crate::AltComplexData;`
-
-### `pub use crate::AltIntegerData;`
-
-### `pub use crate::AltListData;`
-
-### `pub use crate::AltLogicalData;`
-
-### `pub use crate::AltRawData;`
-
-### `pub use crate::AltRealData;`
-
-### `pub use crate::AltStringData;`
-
-### `pub use crate::Altrep;`
-
-### `pub use crate::Altrep;`
-
-### `pub use crate::AltrepComplex;`
-
-### `pub use crate::AltrepExtract;`
-
-### `pub use crate::AltrepInteger;`
-
-### `pub use crate::AltrepLen;`
-
-### `pub use crate::AltrepList;`
-
-### `pub use crate::AltrepLogical;`
-
-### `pub use crate::AltrepRaw;`
-
-### `pub use crate::AltrepReal;`
-
-### `pub use crate::AltrepString;`
-
-### `pub use crate::Array1;`
-
-### `pub use crate::Array2;`
-
-### `pub use crate::Array3;`
-
-### `pub use crate::Array4;`
-
-### `pub use crate::Array5;`
-
-### `pub use crate::Array6;`
-
-### `pub use crate::ArrayD;`
-
-### `pub use crate::ArrayVec;`
-
-### `pub use crate::ArrayView1;`
-
-### `pub use crate::ArrayView2;`
-
-### `pub use crate::ArrayViewD;`
-
-### `pub use crate::ArrayViewMut1;`
-
-### `pub use crate::ArrayViewMut2;`
-
-### `pub use crate::ArrayViewMutD;`
-
-### `pub use crate::AsDataFrameExt;`
-
-### `pub use crate::AsExternalPtrExt;`
-
-### `pub use crate::AsListExt;`
-
-### `pub use crate::AsNamedListExt;`
-
-### `pub use crate::AsNamedVectorExt;`
-
-### `pub use crate::AsRNativeExt;`
-
-### `pub use crate::AsVctrsExt;`
-
-### `pub use crate::BigInt;`
-
-### `pub use crate::BigUint;`
-
-### `pub use crate::Borsh;`
-
-### `pub use crate::BuiltDataFrame;`
-
-### `pub use crate::Bytes;`
-
-### `pub use crate::BytesMut;`
-
-### `pub use crate::CaptureGroups;`
-
-### `pub use crate::Coerce;`
-
-### `pub use crate::ColumnarFrame;`
-
-### `pub use crate::Complex;`
-
-### `pub use crate::DMatrix;`
-
-### `pub use crate::DVector;`
-
-### `pub use crate::DataFrame;`
-
-### `pub use crate::DataFrameError;`
-
-### `pub use crate::DataFrameRow;`
-
-### `pub use crate::Date;`
-
-### `pub use crate::Decimal;`
-
-### `pub use crate::Duration;`
-
-### `pub use crate::Either;`
-
-### `pub use crate::ExternalPtr;`
-
-### `pub use crate::ExternalPtr;`
-
-### `pub use crate::FromDataFrame;`
-
-### `pub use crate::IndexMap;`
-
-### `pub use crate::IntoDataFrame;`
-
-### `pub use crate::IntoDataFrameSplit;`
-
-### `pub use crate::IntoList;`
-
-### `pub use crate::IntoList;`
-
-### `pub use crate::IntoR;`
-
-### `pub use crate::IntoR;`
-
-### `pub use crate::IntoRAltrep;`
-
-### `pub use crate::IntoVctrs;`
-
-### `pub use crate::JsonOptions;`
-
-### `pub use crate::JsonValue;`
-
-### `pub use crate::Lazy;`
-
-### `pub use crate::Left;`
-
-### `pub use crate::List;`
-
-### `pub use crate::ListBuilder;`
-
-### `pub use crate::ListMut;`
-
-### `pub use crate::MatchArg;`
-
-### `pub use crate::MatchArg;`
-
-### `pub use crate::Missing;`
-
-### `pub use crate::NamedVector;`
-
-### `pub use crate::OffsetDateTime;`
-
-### `pub use crate::OrderedFloat;`
-
-### `pub use crate::OwnedProtect;`
-
-### `pub use crate::Pod;`
-
-### `pub use crate::Pod;`
-
-### `pub use crate::ProtectScope;`
-
-### `pub use crate::Protected;`
-
-### `pub use crate::ProtectedStrVec;`
-
-### `pub use crate::RBigIntOps;`
-
-### `pub use crate::RBigUintOps;`
-
-### `pub use crate::RBitVec;`
-
-### `pub use crate::RBorshOps;`
-
-### `pub use crate::RBuf;`
-
-### `pub use crate::RBufMut;`
-
-### `pub use crate::RComplexOps;`
-
-### `pub use crate::RCow;`
-
-### `pub use crate::RDecimalOps;`
-
-### `pub use crate::RDeserialize;`
-
-### `pub use crate::RDistributionOps;`
+### `pub use nalgebra_impl::RMatrixOps;`
 
 ### `pub use crate::RDistributions;`
 
-### `pub use crate::RDuration;`
-
-### `pub use crate::RFactor;`
-
-### `pub use crate::RFactor;`
-
-### `pub use crate::RFlags;`
-
-### `pub use crate::RFloat;`
-
-### `pub use crate::RIndexMapOps;`
-
-### `pub use crate::RMatrixOps;`
-
-### `pub use crate::RNdArrayOps;`
-
-### `pub use crate::RNum;`
-
-### `pub use crate::ROrderedFloatOps;`
-
-### `pub use crate::RParallelExtend;`
-
-### `pub use crate::RParallelIterator;`
-
-### `pub use crate::RRegexOps;`
-
-### `pub use crate::RRng;`
-
-### `pub use crate::RRngOps;`
-
-### `pub use crate::RSerialize;`
-
-### `pub use crate::RSigned;`
-
-### `pub use crate::RUrlOps;`
-
-### `pub use crate::RUuidOps;`
-
-### `pub use crate::RVectorOps;`
-
-### `pub use crate::Raw;`
-
-### `pub use crate::RawSlice;`
-
-### `pub use crate::Regex;`
-
-### `pub use crate::Right;`
-
-### `pub use crate::SEXP;`
-
-### `pub use crate::SMatrix;`
-
-### `pub use crate::SVector;`
-
-### `pub use crate::SexpExt;`
-
-### `pub use crate::StrVec;`
-
-### `pub use crate::StrVecBuilder;`
-
-### `pub use crate::Table;`
-
-### `pub use crate::Tabled;`
-
-### `pub use crate::TinyVec;`
-
-### `pub use crate::TomlValue;`
-
-### `pub use crate::TryCoerce;`
-
-### `pub use crate::TryFromSexp;`
-
-### `pub use crate::TryFromSexp;`
-
-### `pub use crate::Url;`
-
-### `pub use crate::Uuid;`
-
-### `pub use crate::VctrsClass;`
-
-### `pub use crate::Zeroable;`
-
-### `pub use crate::Zeroable;`
-
-### `pub use crate::aho_compile;`
-
-### `pub use crate::altrep::RegisterAltrep;`
-
-### `pub use crate::condition::repanic_if_rust_error;`
-
-### `pub use crate::dataframe_builder::RDataFrameBuilder;`
-
-### `pub use crate::expression::r_eval_str;`
-
-### `pub use crate::list;`
-
-### `pub use crate::list;`
-
-### `pub use crate::miniextendr;`
-
-### `pub use crate::progress;`
-
-### `pub use crate::r;`
-
-### `pub use crate::r_print;`
-
-### `pub use crate::r_println;`
-
-### `pub use crate::r_str;`
-
-### `pub use crate::r_warning;`
-
-### `pub use crate::serde::AsSerialize;`
-
-### `pub use crate::serde::RDeserializeNative;`
-
-### `pub use crate::serde::RSerializeNative;`
-
-### `pub use crate::sha256_bytes;`
-
-### `pub use crate::sha256_str;`
-
-### `pub use crate::sha512_bytes;`
-
-### `pub use crate::sha512_str;`
-
-### `pub use crate::table_to_string;`
-
-### `pub use crate::toml_from_str;`
-
-### `pub use crate::toml_to_string;`
-
-### `pub use crate::typed_dataframe;`
-
-### `pub use crate::typed_list;`
-
-### `pub use crate::typed_list;`
-
-### `pub use crate::with_r_thread;`
-
-### `pub use dataframe::BuiltDataFrame;`
-
-### `pub use dataframe::ColumnarFrame;`
-
-### `pub use dataframe::DataFrame;`
-
-### `pub use dataframe::DataFrameError;`
-
-### `pub use dataframe::FromDataFrame;`
-
-### `pub use dataframe::GroupKey;`
-
-### `pub use dataframe::GroupedDataFrame;`
-
-### `pub use dataframe::IntoDataFrame;`
-
-### `pub use dataframe::IntoDataFrameSplit;`
-
-### `pub use dataframe::NamedDataFrameListBuilder;`
-
-### `pub use dataframe::group_rows;`
-
-### `pub use dataframe_builder::RDataFrameBuilder;`
-
-### `pub use dataframe_de::BorrowedRows;`
-
-### `pub use dataframe_de::SerdeRows;`
-
-### `pub use dataframe_de::dataframe_to_vec;`
-
-### `pub use dataframe_de::dataframe_to_vec_borrowed;`
-
-### `pub use dataframe_de::dataframe_to_vec_collated;`
-
-### `pub use dataframe_de::dataframe_to_vec_with_enum_tags;`
-
-### `pub use dataframe_de::dataframe_to_vec_with_struct_fields;`
-
-### `pub use dataframe_de::with_dataframe_rows;`
-
-### `pub use datafusion;`
-
-### `pub use datafusion_impl::RDataFrame;`
-
-### `pub use datafusion_impl::RSessionContext;`
-
-### `pub use de::RDeserializer;`
-
-### `pub use either;`
-
-### `pub use either::Either;`
-
-### `pub use either::Left;`
-
-### `pub use either::Right;`
-
-### `pub use either_impl::Either;`
-
-### `pub use either_impl::Left;`
-
-### `pub use either_impl::Right;`
-
-### `pub use error::RSerdeError;`
-
-### `pub use error::r_warning;`
-
-### `pub use expression::RCall;`
-
-### `pub use expression::REnv;`
-
-### `pub use expression::RSymbol;`
-
-### `pub use expression::r_eval_str;`
-
-### `pub use expression::r_eval_str_global;`
-
-### `pub use externalptr::ErasedExternalPtr;`
-
-### `pub use externalptr::ExternalPtr;`
-
-### `pub use externalptr::ExternalSlice;`
-
-### `pub use externalptr::IntoExternalPtr;`
-
-### `pub use externalptr::TypedExternal;`
-
-### `pub use externalptr::altrep_data1_as;`
-
-### `pub use externalptr::altrep_data1_as_unchecked;`
-
-### `pub use externalptr::altrep_data1_mut;`
-
-### `pub use externalptr::altrep_data1_mut_unchecked;`
-
-### `pub use externalptr::altrep_data2_as;`
-
-### `pub use externalptr::altrep_data2_as_unchecked;`
-
-### `pub use factor::Factor;`
-
-### `pub use factor::FactorMut;`
-
-### `pub use factor::FactorOptionVec;`
-
-### `pub use factor::FactorVec;`
-
-### `pub use factor::RFactor;`
-
-### `pub use factor::UnitEnumFactor;`
-
-### `pub use factor::build_factor;`
-
-### `pub use factor::build_levels_sexp;`
-
-### `pub use factor::build_levels_sexp_cached;`
-
-### `pub use factor::factor_from_sexp;`
-
-### `pub use ffi_guard::GuardMode;`
-
-### `pub use ffi_guard::guarded_ffi_call;`
-
-### `pub use ffi_guard::guarded_ffi_call_with_fallback;`
-
-### `pub use from_r::SexpError;`
-
-### `pub use from_r::SexpLengthError;`
-
-### `pub use from_r::SexpNaError;`
-
-### `pub use from_r::SexpTypeError;`
-
-### `pub use from_r::TryFromSexp;`
-
-### `pub use gc_protect::OwnedProtect;`
-
-### `pub use gc_protect::ProtectIndex;`
-
-### `pub use gc_protect::ProtectScope;`
-
-### `pub use gc_protect::Protected;`
-
-### `pub use gc_protect::Protector;`
-
-### `pub use gc_protect::ReprotectSlot;`
-
-### `pub use gc_protect::Root;`
-
-### `pub use globset::Glob;`
-
-### `pub use globset::GlobBuilder;`
-
-### `pub use globset::GlobSet;`
-
-### `pub use globset::GlobSetBuilder;`
-
-### `pub use globset_impl::Glob;`
-
-### `pub use globset_impl::GlobBuilder;`
-
-### `pub use globset_impl::GlobOptions;`
-
-### `pub use globset_impl::GlobSet;`
-
-### `pub use globset_impl::GlobSetBuilder;`
-
-### `pub use globset_impl::build_globset;`
-
-### `pub use globset_impl::globset_is_match;`
-
-### `pub use globset_impl::globset_matches;`
-
-### `pub use group::GroupKey;`
-
-### `pub use group::GroupedDataFrame;`
-
-### `pub use group::group_rows;`
-
-### `pub use indexmap;`
-
-### `pub use indexmap::IndexMap;`
-
-### `pub use indexmap_impl::IndexMap;`
-
-### `pub use indexmap_impl::RIndexMapOps;`
-
-### `pub use indicatif;`
-
-### `pub use indicatif;`
-
-### `pub use into_r::Altrep;`
-
-### `pub use into_r::IntoR;`
-
-### `pub use into_r::IntoRAltrep;`
-
-### `pub use into_r::Lazy;`
-
-### `pub use into_r_as::IntoRAs;`
-
-### `pub use into_r_as::StorageCoerceError;`
-
-### `pub use into_r_error::IntoRError;`
-
-### `pub use io_adapters::*;`
-
-### `pub use iter::*;`
-
-### `pub use jiff;`
-
-### `pub use jiff::SignedDuration;`
-
-### `pub use jiff::Span;`
-
-### `pub use jiff::Timestamp;`
-
-### `pub use jiff::Zoned;`
-
-### `pub use jiff::civil::Date;`
-
-### `pub use jiff::civil::DateTime;`
-
-### `pub use jiff::civil::Time;`
-
-### `pub use jiff_impl::Date as JiffDate;`
-
-### `pub use jiff_impl::DateTime as JiffDateTime;`
-
-### `pub use jiff_impl::JiffTimestampVec;`
-
-### `pub use jiff_impl::JiffZonedVec;`
-
-### `pub use jiff_impl::RDate;`
-
-### `pub use jiff_impl::RDateTime;`
-
-### `pub use jiff_impl::RSignedDuration;`
-
-### `pub use jiff_impl::RSpan;`
-
-### `pub use jiff_impl::RTime;`
-
-### `pub use jiff_impl::RTimestamp;`
-
-### `pub use jiff_impl::RZoned;`
-
-### `pub use jiff_impl::SignedDuration;`
-
-### `pub use jiff_impl::Span;`
-
-### `pub use jiff_impl::Time as JiffTime;`
-
-### `pub use jiff_impl::Timestamp;`
-
-### `pub use jiff_impl::Zoned;`
-
-### `pub use json_string::AsJson;`
-
-### `pub use json_string::AsJsonPretty;`
-
-### `pub use json_string::AsJsonVec;`
-
-### `pub use json_string::FromJson;`
-
-### `pub use list::IntoList;`
-
-### `pub use list::List;`
-
-### `pub use list::ListAccumulator;`
-
-### `pub use list::ListBuilder;`
-
-### `pub use list::ListMut;`
-
-### `pub use list::NamedList;`
-
-### `pub use list::TryFromList;`
-
-### `pub use list::collect_list;`
-
-### `pub use log;`
-
-### `pub use match_arg::MatchArg;`
-
-### `pub use match_arg::MatchArgError;`
-
-### `pub use match_arg::choices_sexp;`
-
-### `pub use match_arg::match_arg_from_sexp;`
-
-### `pub use match_arg::match_arg_vec_from_sexp;`
-
-### `pub use match_arg::match_arg_vec_into_sexp;`
-
-### `pub use md5::Digest;`
-
-### `pub use md5_impl::md5_bytes;`
-
-### `pub use md5_impl::md5_hex;`
-
-### `pub use md5_impl::md5_str;`
-
-### `pub use miniextendr_macros::Altrep;`
-
-### `pub use miniextendr_macros::AltrepComplex;`
-
-### `pub use miniextendr_macros::AltrepInteger;`
-
-### `pub use miniextendr_macros::AltrepList;`
-
-### `pub use miniextendr_macros::AltrepLogical;`
-
-### `pub use miniextendr_macros::AltrepRaw;`
-
-### `pub use miniextendr_macros::AltrepReal;`
-
-### `pub use miniextendr_macros::AltrepString;`
-
-### `pub use miniextendr_macros::DataFrameRow;`
-
-### `pub use miniextendr_macros::ExternalPtr;`
-
-### `pub use miniextendr_macros::IntoList;`
-
-### `pub use miniextendr_macros::IntoR;`
-
-### `pub use miniextendr_macros::MatchArg;`
-
-### `pub use miniextendr_macros::PreferDataFrame;`
-
-### `pub use miniextendr_macros::PreferExternalPtr;`
-
-### `pub use miniextendr_macros::PreferList;`
-
-### `pub use miniextendr_macros::PreferRNativeType;`
-
-### `pub use miniextendr_macros::PreferVctrs;`
-
-### `pub use miniextendr_macros::RFactor;`
-
-### `pub use miniextendr_macros::RNativeType;`
-
-### `pub use miniextendr_macros::TryFromList;`
-
-### `pub use miniextendr_macros::TryFromSexp;`
-
-### `pub use miniextendr_macros::Vctrs;`
-
-### `pub use miniextendr_macros::impl_typed_external;`
-
-### `pub use miniextendr_macros::list;`
+### `pub use serde_impl::NaHandling;`
 
 ### `pub use miniextendr_macros::miniextendr;`
 
-### `pub use miniextendr_macros::miniextendr_init;`
+### `pub use altrep_data::SparseIterRealData;`
+
+### `pub use r_coerce::RCoerceFunction;`
+
+### `pub use externalptr::altrep_data1_mut_unchecked;`
+
+### `pub use optionals::ArrayView2;`
+
+### `pub use optionals::Url;`
+
+### `pub use ::serde::Deserialize;`
+
+### `pub use optionals::sha512_str;`
+
+### `pub use crate::CaptureGroups;`
+
+### `pub use raw_conversions::Raw;`
+
+### `pub use nalgebra_impl::SMatrix;`
+
+### `pub use rand;`
+
+### `pub use serde_impl::RJsonValueOps;`
+
+### `pub use miniextendr_macros::r_ffi_checked;`
+
+### `pub use md5::Digest;`
+
+### `pub use altrep_data::StreamingRealData;`
+
+### `pub use r_coerce::RCoerceLogical;`
+
+### `pub use arrow_array::RecordBatch;`
+
+### `pub use gc_protect::OwnedProtect;`
+
+### `pub use optionals::ArrayView5;`
+
+### `pub use optionals::AhoCorasick;`
+
+### `pub use columnar::DataFrameShape;`
+
+### `pub use crate::altrep::RegisterAltrep;`
+
+### `pub use optionals::blake3_hex;`
+
+### `pub use regex;`
+
+### `pub use raw_conversions::RawSlice;`
+
+### `pub use num_bigint_impl::BigUint;`
+
+### `pub use crate::serde::RDeserializeNative;`
+
+### `pub use num_bigint::BigUint;`
+
+### `pub use serde_impl::json_from_sexp;`
+
+### `pub use miniextendr_macros::PreferVctrs;`
+
+### `pub use altrep_data::WindowedIterState;`
+
+### `pub use ndarray::Array0;`
+
+### `pub use r_coerce::RCoercePOSIXct;`
+
+### `pub use arrow_array::UInt8Array;`
+
+### `pub use gc_protect::Protected;`
+
+### `pub use optionals::ArrayViewMut0;`
+
+### `pub use optionals::aho_count_matches;`
+
+### `pub use columnar::RootedSentinel;`
+
+### `pub use crate::AltListData;`
+
+### `pub use optionals::md5_bytes;`
+
+### `pub use state::*;`
+
+### `pub use rand_impl::RDistributionOps;`
+
+### `pub use crate::Url;`
+
+### `pub use raw_conversions::Zeroable;`
+
+### `pub use time::Date;`
+
+### `pub use num_bigint_impl::RBigUintBitOps;`
+
+### `pub use serde_impl::json_from_sexp_with;`
+
+### `pub use altrep_sexp::ensure_materialized;`
+
+### `pub use ndarray::Array3;`
+
+### `pub use r_coerce::SUPPORTED_AS_GENERICS;`
+
+### `pub use arrow_array::types::Float64Type;`
+
+### `pub use gc_protect::Root;`
+
+### `pub use optionals::ArrayViewMut3;`
+
+### `pub use optionals::aho_find_first;`
+
+### `pub use url::Url;`
+
+### `pub use columnar::SplitShape;`
+
+### `pub use crate::AltRealData;`
+
+### `pub use optionals::globset_impl;`
+
+### `pub use rand_impl::RRngOps;`
+
+### `pub use crate::Date;`
+
+### `pub use raw_conversions::raw_slice_from_bytes;`
+
+### `pub use rust_decimal_impl::RDecimalOps;`
+
+### `pub use crate::RDeserialize;`
+
+### `pub use borsh_impl::RBorshOps;`
+
+### `pub use miniextendr_macros::AltrepInteger;`
+
+### `pub use zstd::compression_level_range;`
+
+### `pub use ndarray::Array6;`
+
+### `pub use rvalue::RValue;`
+
+### `pub use refcount_protect::ArenaGuard;`
+
+### `pub use optionals::ArrayViewMut6;`
+
+### `pub use optionals::indexmap_impl;`
+
+### `pub use columnar::hashmap_to_dataframe;`
+
+### `pub use crate::AltrepLen;`
+
+### `pub use optionals::GlobOptions;`
+
+### `pub use rand_distr;`
+
+Re-export of `rand_distr` for probability distributions.
+
+Provides distributions like `Normal`, `Exp`, `Uniform`, etc. that work
+with [`RRng`]. Enable with `features = ["rand_distr"]`.
+
+### `pub use crate::RDuration;`
+
+### `pub use match_arg::MatchArg;`
+
+### `pub use num_complex_impl::Complex;`
+
+### `pub use crate::TomlValue;`
+
+### `pub use toml_impl::RTomlOps;`
+
+### `pub use miniextendr_macros::AltrepRaw;`
+
+### `pub use into_r::Altrep;`
+
+### `pub use convert::AsDisplay;`
+
+### `pub use allocator::RAllocator;`
+
+### `pub use optionals::Ix0;`
+
+### `pub use optionals::time_impl;`
+
+### `pub use columnar::result_to_dataframe;`
+
+### `pub use crate::IntoR;`
+
+### `pub use optionals::build_globset;`
+
+### `pub use either_impl::Left;`
+
+### `pub use crate::OrderedFloat;`
+
+### `pub use match_arg::match_arg_from_sexp;`
+
+### `pub use num_traits_impl::RNum;`
+
+### `pub use toml;`
+
+### `pub use toml_impl::toml_to_string;`
+
+### `pub use miniextendr_macros::DataFrameRow;`
+
+### `pub use into_r_error::IntoRError;`
+
+### `pub use ndarray::ArrayView3;`
+
+### `pub use convert::AsExternalPtrExt;`
+
+### `pub use arrow_schema::DataType;`
+
+### `pub use vctrs::VctrsClass;`
+
+### `pub use optionals::Ix2;`
+
+### `pub use optionals::OffsetDateTime;`
+
+### `pub use columnar::vec_to_dataframe_flatten_enums_with_tags;`
+
+### `pub use crate::TryCoerce;`
+
+### `pub use optionals::zstd_impl;`
+
+### `pub use ndarray_impl::ArcArray2;`
+
+### `pub use factor::Factor;`
+
+### `pub use uuid_impl::Uuid;`
+
+### `pub use crate::BytesMut;`
+
+### `pub use bytes_impl::BufMut;`
+
+### `pub use miniextendr_macros::MatchArg;`
+
+### `pub use newtype::IntoRVecElement;`
+
+### `pub use ndarray::ArrayView5;`
+
+### `pub use convert::AsList;`
+
+### `pub use vctrs::VctrsRecord;`
+
+### `pub use optionals::Ix3;`
+
+### `pub use datafusion;`
+
+### `pub use time;`
+
+### `pub use columnar::par_iter_to_dataframe_growing;`
+
+### `pub use optionals::borsh_impl;`
+
+### `pub use ndarray_impl::Array2;`
+
+### `pub use crate::RBigIntOps;`
+
+### `pub use factor::FactorVec;`
+
+### `pub use regex_impl::RCaptureGroups;`
+
+### `pub use bytes;`
+
+### `pub use bytes_impl::RBuf;`
+
+### `pub use miniextendr_macros::PreferExternalPtr;`
+
+### `pub use worker::is_r_main_thread;`
+
+### `pub use convert::AsNamedListExt;`
+
+### `pub use vctrs::new_vctr;`
+
+### `pub use optionals::Ix5;`
+
+### `pub use optionals::jiff_impl;`
+
+### `pub use dataframe_de::dataframe_to_vec;`
+
+### `pub use optionals::borsh_from_raw;`
+
+### `pub use ndarray_impl::Array5;`
+
+### `pub use factor::build_factor;`
+
+### `pub use url_impl::RUrlOps;`
+
+### `pub use aho_corasick;`
+
+### `pub use sha2_impl::sha256_str;`
+
+### `pub use indicatif;`
+
+### `pub use core::AltrepExtract;`
+
+### `pub use convert::AsRNative;`
+
+### `pub use abi::mx_meth;`
+
+### `pub use optionals::Ix6;`
+
+### `pub use optionals::JiffTime;`
+
+### `pub use dataframe_de::dataframe_to_vec_with_enum_tags;`
+
+### `pub use crate::ListBuilder;`
+
+### `pub use optionals::bitflags_impl;`
+
+### `pub use ndarray_impl::ArrayView0;`
+
+### `pub use rust_decimal;`
+
+### `pub use factor::factor_from_sexp;`
+
+### `pub use aho_corasick_impl::AhoCorasick;`
+
+### `pub use bitflags;`
+
+### `pub use blake3_impl::blake3_bytes;`
+
+### `pub use miniextendr_macros::RFactor;`
+
+### `pub use thread::StackCheckGuard;`
+
+### `pub use ndarray::ArrayViewMut2;`
+
+### `pub use bitvec::order::Lsb0;`
+
+### `pub use core::AltrepSerialize;`
+
+### `pub use convert::CollectNA;`
+
+### `pub use adapter_traits::RClone;`
+
+### `pub use optionals::RNdArrayOps;`
+
+### `pub use group::GroupedDataFrame;`
+
+### `pub use optionals::RDate;`
+
+### `pub use de::RDeserializer;`
+
+### `pub use crate::NamedVector;`
+
+### `pub use optionals::bitvec_impl;`
+
+### `pub use ndarray_impl::ArrayView3;`
+
+### `pub use crate::RComplexOps;`
+
+### `pub use result::*;`
+
+### `pub use aho_corasick_impl::aho_count_matches;`
+
+### `pub use bitvec;`
+
+### `pub use md5_impl::md5_bytes;`
+
+### `pub use miniextendr_macros::TryFromSexp;`
+
+### `pub use thread::with_stack_checking_disabled;`
+
+### `pub use bitvec::vec::BitVec;`
+
+### `pub use core::Sortedness;`
+
+### `pub use convert::AsVctrs;`
+
+### `pub use adapter_traits::RDefault;`
+
+### `pub use serde::Deserialize;`
+
+### `pub use optionals::RNdSlice2D;`
+
+### `pub use optionals::RSpan;`
+
+### `pub use json_string::AsJsonPretty;`
+
+### `pub use crate::Protected;`
+
+### `pub use optionals::Msb0;`
+
+### `pub use ndarray_impl::ArrayView6;`
+
+### `pub use crate::RFloat;`
+
+### `pub use aho_corasick_impl::aho_find_first;`
+
+### `pub use crate::RBorshOps;`
+
+### `pub use zstd_impl::zstd_compress;`
+
+### `pub use sexp_ext::SexpExt;`
+
+### `pub use ffi_guard::guarded_ffi_call_with_fallback;`
+
+### `pub use ndarray::ArrayViewMut5;`
+
+### `pub use stream::*;`
+
+### `pub use list::IntoList;`
+
+### `pub use adapter_traits::RExtend;`
+
+### `pub use serde::Serialize;`
+
+### `pub use optionals::DMatrix;`
+
+### `pub use optionals::RZoned;`
+
+### `pub use ser::RSerializer;`
+
+### `pub use crate::StrVec;`
+
+### `pub use optionals::Builder;`
+
+### `pub use ndarray_impl::ArrayViewMut1;`
+
+### `pub use num_traits;`
+
+### `pub use globset_impl::Glob;`
+
+### `pub use crate::Pod;`
+
+### `pub use bitflags_impl::RFlags;`
+
+### `pub use sexp_types::RLogical;`
+
+### `pub use dataframe::DataFrame;`
+
+### `pub use tabled::builder::Builder;`
+
+### `pub use list::ListBuilder;`
+
+### `pub use adapter_traits::RHash;`
+
+### `pub use optionals::RVectorOps;`
+
+### `pub use optionals::Timestamp;`
+
+### `pub use traits::RSerializeNative;`
+
+### `pub use crate::ColumnarFrame;`
+
+### `pub use optionals::builder_to_string;`
+
+### `pub use ndarray_impl::ArrayViewMut4;`
+
+### `pub use crate::Array2;`
+
+### `pub use globset_impl::GlobSet;`
+
+### `pub use crate::RawSlice;`
+
+### `pub use bitvec_impl::Msb0;`
+
+### `pub use sexp_types::Rbyte;`
+
+### `pub use dataframe::GroupKey;`
+
+### `pub use ndarray::Ix0;`
+
+### `pub use list::TryFromList;`
+
+### `pub use adapter_traits::ROrd;`
+
+### `pub use optionals::num_bigint_impl;`
+
+### `pub use crate::Altrep;`
+
+### `pub use optionals::toml_impl;`
+
+### `pub use bytemuck::Pod;`
+
+### `pub use crate::DataFrameRow;`
+
+### `pub use optionals::table_to_string_opts;`
+
+### `pub use ndarray_impl::ArrayViewMutD;`
+
+### `pub use crate::Array5;`
+
+### `pub use globset_impl::globset_is_match;`
+
+### `pub use bytemuck;`
+
+### `pub use tabled_impl::Table;`
+
+### `pub use sexp_types::cetype_t;`
+
+### `pub use rust_decimal::Decimal;`
+
+### `pub use dataframe::IntoDataFrameSplit;`
+
+### `pub use tabled::settings::Modify;`
+
+### `pub use missing::is_missing_arg;`
+
+### `pub use optionals::parallel;`
+
+### `pub use optionals::RBigIntBitOps;`
+
+### `pub use optionals::JsonValue;`
+
+### `pub use bytemuck::Zeroable;`
+
+### `pub use crate::IntoDataFrameSplit;`
+
+### `pub use optionals::Array;`
+
+### `pub use ndarray_impl::Ix1;`
+
+### `pub use crate::ArrayView1;`
+
+### `pub use indexmap_impl::RIndexMapOps;`
+
+### `pub use crate::sha256_str;`
+
+### `pub use tabled_impl::table_from_vecs;`
+
+### `pub use altrep_data::AltListData;`
+
+### `pub use dataframe_builder::RDataFrameBuilder;`
+
+### `pub use ndarray::Ix1;`
+
+### `pub use rcow::RBorrow;`
+
+### `pub use optionals::RParallelIterator;`
+
+### `pub use optionals::RBigUintOps;`
+
+### `pub use crate::AltrepList;`
+
+### `pub use optionals::RJsonBridge;`
+
+### `pub use crate::AsExternalPtrExt;`
+
+### `pub use optionals::arrow_impl;`
+
+### `pub use ndarray_impl::Ix2;`
+
+### `pub use crate::ArrayViewMut1;`
+
+### `pub use time_impl::OffsetDateTime;`
+
+### `pub use sha2;`
+
+### `pub use sha2::Digest;`
+
+### `pub use tabled_impl::table_to_string_styled;`
+
+### `pub use altrep_data::AltRealData;`
+
+### `pub use rng::with_rng;`
+
+### `pub use tabled::Table;`
+
+### `pub use strvec::ProtectedStrVecCowIter;`
+
+### `pub use optionals::rand_impl;`
+
+### `pub use optionals::RDecimalOps;`
+
+### `pub use optionals::SpecialFloatHandling;`
+
+### `pub use nalgebra::SMatrix;`
+
+### `pub use crate::AsNamedVectorExt;`
+
+### `pub use optionals::BooleanArray;`
+
+### `pub use ndarray_impl::Ix4;`
+
+### `pub use crate::RNdArrayOps;`
+
+### `pub use jiff_impl::Date as JiffDate;`
+
+### `pub use crate::Tabled;`
+
+### `pub use tinyvec_impl::TinyVec;`
+
+### `pub use altrep_data::AltrepExtract;`
+
+### `pub use conv::check_arity;`
+
+### `pub use from_r::SexpNaError;`
+
+### `pub use ndarray::Ix3;`
+
+### `pub use strvec::StrVecBuilder;`
+
+### `pub use optionals::RRng;`
+
+### `pub use optionals::ROrderedFloatOps;`
+
+### `pub use crate::AltrepReal;`
+
+### `pub use optionals::json_from_sexp_strict;`
+
+### `pub use crate::r_print;`
+
+### `pub use optionals::DictionaryArray;`
+
+### `pub use indexmap::IndexMap;`
+
+### `pub use ndarray_impl::Ix5;`
+
+### `pub use crate::DMatrix;`
+
+### `pub use jiff::civil::DateTime;`
+
+### `pub use jiff_impl::JiffZonedVec;`
+
+### `pub use arrow_impl::BooleanArray;`
+
+### `pub use altrep_data::IterIntCoerceData;`
+
+### `pub use conv::nil;`
+
+### `pub use expression::RCall;`
+
+### `pub use typed_list::TypeSpec;`
+
+### `pub use optionals::Either;`
+
+### `pub use optionals::RComplexOps;`
+
+### `pub use io_adapters::*;`
+
+### `pub use optionals::RTomlOps;`
+
+### `pub use optionals::Int32Array;`
+
+### `pub use ndarray_impl::IxDyn;`
+
+### `pub use crate::RVectorOps;`
+
+### `pub use jiff::Span;`
+
+### `pub use jiff_impl::RSignedDuration;`
+
+### `pub use tinyvec;`
+
+### `pub use arrow_impl::DictionaryArray;`
+
+### `pub use altrep_data::IterListData;`
+
+### `pub use conv::try_from_sexp;`
+
+### `pub use expression::r_eval_str;`
+
+### `pub use ndarray::Ix4;`
+
+### `pub use tinyvec::Array;`
+
+### `pub use typed_list::TypedListError;`
+
+### `pub use optionals::ndarray_impl;`
+
+### `pub use optionals::RNum;`
+
+### `pub use optionals::toml_to_string;`
+
+### `pub use crate::r;`
+
+### `pub use optionals::StringArray;`
+
+### `pub use ndarray_impl::RNdIndex;`
+
+### `pub use nalgebra;`
+
+### `pub use jiff_impl::RTimestamp;`
+
+### `pub use indicatif;`
+
+### `pub use arrow_impl::Int32Array;`
+
+### `pub use altrep_data::IterRealCoerceData;`
+
+### `pub use coerce::CoerceError;`
+
+### `pub use typed_list::sexptype_name;`
+
+### `pub use optionals::Array0;`
+
+### `pub use optionals::RUuidOps;`
+
+### `pub use optionals::Buf;`
+
+### `pub use crate::SexpExt;`
+
+### `pub use optionals::UInt8Array;`
+
+### `pub use ndarray_impl::ShapeBuilder;`
+
+### `pub use crate::RIndexMapOps;`
+
+### `pub use bytes::BufMut;`
+
+### `pub use jiff_impl::Span;`
+
+### `pub use crate::VctrsClass;`
+
+### `pub use arrow_impl::StringArray;`
+
+### `pub use altrep_data::IterStringData;`
+
+### `pub use r_coerce::RCoerceCharacter;`
+
+### `pub use ndarray::Ix6;`
+
+### `pub use externalptr::ExternalPtr;`
+
+### `pub use optionals::Array3;`
+
+### `pub use optionals::regex_impl;`
+
+### `pub use optionals::BytesMut;`
+
+### `pub use globset::GlobBuilder;`
+
+### `pub use crate::Right;`
+
+### `pub use rarray::RArray;`
+
+### `pub use nalgebra_impl::DMatrix;`
+
+### `pub use crate::RParallelExtend;`
+
+### `pub use bytes::BytesMut;`
+
+### `pub use jiff_impl::Zoned;`
+
+### `pub use blake3::Hasher;`
+
+### `pub use arrow_impl::UInt8Array;`
+
+### `pub use altrep_data::SparseIterComplexData;`
+
+### `pub use r_coerce::RCoerceDate;`
+
+### `pub use arrow_array::ArrayRef;`
+
+### `pub use externalptr::TypedExternal;`
+
+### `pub use optionals::Array6;`
+
+### `pub use optionals::RRegexOps;`
+
+### `pub use optionals::sha2_impl;`
+
+### `pub use globset::GlobSetBuilder;`
+
+### `pub use crate::RUuidOps;`
+
+### `pub use rarray::RVector;`
+
+### `pub use nalgebra_impl::RDVector;`
+
+### `pub use crate::RDistributionOps;`
+
+### `pub use serde_impl::JsonValue;`
+
+### `pub use miniextendr_macros::list;`
+
+### `pub use altrep_data::SparseIterRawData;`
+
+### `pub use either::Left;`
+
+### `pub use r_coerce::RCoerceFactor;`
+
+### `pub use ndarray::IxDyn;`
+
+### `pub use arrow_array::DictionaryArray;`
+
+### `pub use externalptr::altrep_data1_mut;`
+
+### `pub use optionals::ArrayView1;`
+
+### `pub use optionals::RUrlOps;`
+
+### `pub use ::serde::Deserialize;`
+
+### `pub use crate::typed_dataframe;`
+
+### `pub use optionals::sha512_bytes;`
+
+### `pub use raw_conversions::Pod;`
+
+### `pub use nalgebra_impl::RVectorOps;`
+
+### `pub use crate::RRngOps;`
+
+### `pub use serde_impl::RJsonBridge;`
+
+### `pub use altrep_data::StreamingIntData;`
+
+### `pub use r_coerce::RCoerceList;`
+
+### `pub use arrow_array::Int32Array;`
+
+### `pub use externalptr::altrep_data2_as_unchecked;`
+
+### `pub use optionals::ArrayView4;`
+
+### `pub use optionals::aho_corasick_impl;`
+
+### `pub use ::serde::Serialize;`
+
+### `pub use crate::typed_list;`
+
+### `pub use optionals::blake3_bytes;`
+
+### `pub use crate::Regex;`
+
+### `pub use raw_conversions::RawHeader;`
+
+### `pub use num_bigint_impl::BigInt;`
+
+### `pub use crate::serde::AsSerialize;`
+
+### `pub use num_bigint::BigInt;`
+
+### `pub use serde_impl::SpecialFloatHandling;`
+
+### `pub use miniextendr_macros::typed_list;`
+
+### `pub use altrep_data::WindowedIterRealData;`
+
+### `pub use ndarray::ArcArray2;`
+
+### `pub use named::*;`
+
+### `pub use r_coerce::RCoerceNumeric;`
+
+### `pub use arrow_array::TimestampSecondArray;`
+
+### `pub use gc_protect::ProtectScope;`
+
+### `pub use optionals::ArrayViewD;`
+
+### `pub use optionals::aho_compile;`
+
+### `pub use columnar::ResultShape;`
+
+### `pub use crate::AltIntegerData;`
+
+### `pub use optionals::md5_impl;`
+
+### `pub use sparse::*;`
+
+### `pub use rayon_bridge::RParallelIterator;`
+
+### `pub use crate::RUrlOps;`
+
+### `pub use raw_conversions::RawTagged;`
+
+### `pub use num_bigint_impl::RBigIntOps;`
+
+### `pub use serde;`
+
+### `pub use serde_impl::json_from_sexp_strict;`
+
+### `pub use miniextendr_macros::Vctrs;`
+
+### `pub use altrep_sexp::AltrepSexp;`
+
+### `pub use ndarray::Array2;`
+
+### `pub use r_coerce::RCoerceVector;`
+
+### `pub use gc_protect::ReprotectSlot;`
+
+### `pub use optionals::ArrayViewMut2;`
+
+### `pub use regex::Regex;`
+
+### `pub use optionals::aho_find_all_flat;`
+
+### `pub use columnar::SplitResults;`
+
+### `pub use crate::AltRawData;`
+
+### `pub use optionals::md5_str;`
+
+### `pub use rand_impl::RRng;`
+
+### `pub use raw_conversions::raw_from_bytes;`
+
+### `pub use rust_decimal_impl::Decimal;`
+
+### `pub use crate::JsonValue;`
+
+### `pub use borsh_impl::Borsh;`
+
+### `pub use miniextendr_macros::AltrepComplex;`
+
+### `pub use ndarray::Array5;`
+
+### `pub use condition::AsRError;`
+
+### `pub use arrow_array::types::TimestampSecondType;`
+
+### `pub use protect_pool::ProtectPool;`
+
+### `pub use optionals::ArrayViewMut5;`
+
+### `pub use optionals::aho_replace_all;`
+
+### `pub use columnar::dispatch_to_dataframes;`
+
+### `pub use crate::AltrepExtract;`
+
+### `pub use optionals::GlobBuilder;`
+
+### `pub use crate::OffsetDateTime;`
+
+### `pub use raw_conversions::raw_to_bytes;`
+
+### `pub use time::Duration;`
+
+### `pub use toml::Value as TomlValue;`
+
+### `pub use ordered_float_impl::ROrderedFloatOps;`
+
+### `pub use serde_json;`
+
+### `pub use borsh_impl::borsh_to_raw;`
+
+### `pub use miniextendr_macros::AltrepLogical;`
+
+### `pub use ndarray::ArrayView0;`
+
+### `pub use convert::AsDataFrameExt;`
+
+### `pub use arrow_buffer;`
+
+### `pub use refcount_protect::ThreadLocalArena;`
+
+### `pub use optionals::Ix0;`
+
+### `pub use optionals::RIndexMapOps;`
+
+### `pub use columnar::map_to_dataframe;`
+
+### `pub use crate::IntoR;`
+
+### `pub use optionals::GlobSetBuilder;`
+
+### `pub use either_impl::Either;`
+
+### `pub use match_arg::choices_sexp;`
+
+### `pub use num_traits_impl::RFloat;`
+
+### `pub use crate::toml_to_string;`
+
+### `pub use toml_impl::toml_from_str;`
+
+### `pub use miniextendr_macros::AltrepString;`
+
+### `pub use bitflags::Flags;`
+
+### `pub use into_r::IntoRAltrep;`
+
+### `pub use ndarray::ArrayView2;`
+
+### `pub use convert::AsExternalPtr;`
+
+### `pub use vctrs::VctrsBuildError;`
+
+### `pub use optionals::Ix1;`
+
+### `pub use optionals::Duration;`
+
+### `pub use columnar::vec_to_dataframe_flatten_enums;`
+
+### `pub use crate::IntoRAltrep;`
+
+### `pub use optionals::globset_matches;`
+
+### `pub use ndarray_impl::ArcArray1;`
+
+### `pub use ordered_float;`
+
+### `pub use match_arg::match_arg_vec_into_sexp;`
+
+### `pub use uuid_impl::RUuidOps;`
+
+### `pub use crate::Bytes;`
+
+### `pub use bytes_impl::Buf;`
+
+### `pub use miniextendr_macros::IntoR;`
+
+### `pub use newtype::IntoRNewtype;`
+
+### `pub use convert::AsFromStrVec;`
+
+### `pub use arrow_schema::Field;`
+
+### `pub use vctrs::VctrsListOf;`
+
+### `pub use optionals::Ix3;`
+
+### `pub use optionals::RDuration;`
+
+### `pub use columnar::par_iter_to_dataframe;`
+
+### `pub use crate::TryFromSexp;`
+
+### `pub use optionals::zstd_decompress;`
+
+### `pub use ndarray_impl::Array1;`
+
+### `pub use crate::BigUint;`
+
+### `pub use factor::FactorOptionVec;`
+
+### `pub use regex_impl::CaptureGroups;`
+
+### `pub use crate::RBufMut;`
+
+### `pub use bytes_impl::BytesMut;`
+
+### `pub use into_r_as::StorageCoerceError;`
+
+### `pub use ndarray::ArrayView6;`
+
+### `pub use ordered_float::OrderedFloat;`
+
+### `pub use convert::AsNamedList;`
+
+### `pub use vctrs::new_rcrd;`
+
+### `pub use optionals::Ix4;`
+
+### `pub use altrep_helpers::*;`
+
+### `pub use dataframe_de::SerdeRows;`
+
+### `pub use crate::IntoList;`
+
+### `pub use optionals::RBorshOps;`
+
+### `pub use ndarray_impl::Array4;`
+
+### `pub use num_bigint;`
+
+### `pub use factor::UnitEnumFactor;`
+
+### `pub use regex_impl::Regex;`
+
+### `pub use crate::aho_compile;`
+
+### `pub use sha2_impl::sha256_bytes;`
+
+### `pub use miniextendr_macros::PreferList;`
 
 ### `pub use miniextendr_macros::r;`
 
@@ -7830,797 +8278,629 @@ let rows = r!(getFromNamespace(".theoph_rows", "dataframeflows")())?;
 let in_env = r!(env: my_env; x + 1)?;
 ```
 
-### `pub use miniextendr_macros::r_ffi_checked;`
-
-### `pub use miniextendr_macros::typed_dataframe;`
-
-### `pub use miniextendr_macros::typed_list;`
-
-### `pub use missing::Missing;`
-
-### `pub use missing::is_missing_arg;`
-
-### `pub use nalgebra;`
-
-### `pub use nalgebra::DMatrix;`
-
-### `pub use nalgebra::DVector;`
-
-### `pub use nalgebra::SMatrix;`
-
-### `pub use nalgebra::SVector;`
-
-### `pub use nalgebra_impl::DMatrix;`
-
-### `pub use nalgebra_impl::DVector;`
-
-### `pub use nalgebra_impl::RDMatrix;`
-
-### `pub use nalgebra_impl::RDVector;`
-
-### `pub use nalgebra_impl::RMatrixOps;`
-
-### `pub use nalgebra_impl::RVecStorage;`
-
-### `pub use nalgebra_impl::RVectorOps;`
-
-### `pub use nalgebra_impl::SMatrix;`
-
-### `pub use nalgebra_impl::SVector;`
-
-### `pub use named::*;`
-
-### `pub use named_vector::AtomicElement;`
-
-### `pub use named_vector::NamedVector;`
-
-### `pub use ndarray;`
-
-### `pub use ndarray::ArcArray1;`
-
-### `pub use ndarray::ArcArray2;`
-
-### `pub use ndarray::Array0;`
-
-### `pub use ndarray::Array1;`
-
-### `pub use ndarray::Array2;`
-
-### `pub use ndarray::Array3;`
-
-### `pub use ndarray::Array4;`
-
-### `pub use ndarray::Array5;`
-
-### `pub use ndarray::Array6;`
-
-### `pub use ndarray::ArrayD;`
-
-### `pub use ndarray::ArrayView0;`
-
-### `pub use ndarray::ArrayView1;`
-
-### `pub use ndarray::ArrayView2;`
-
-### `pub use ndarray::ArrayView3;`
-
-### `pub use ndarray::ArrayView4;`
-
-### `pub use ndarray::ArrayView5;`
-
-### `pub use ndarray::ArrayView6;`
-
-### `pub use ndarray::ArrayViewD;`
-
 ### `pub use ndarray::ArrayViewMut0;`
 
-### `pub use ndarray::ArrayViewMut1;`
+### `pub use core::AltrepDataptr;`
 
-### `pub use ndarray::ArrayViewMut2;`
+### `pub use convert::AsNamedVectorExt;`
 
-### `pub use ndarray::ArrayViewMut3;`
-
-### `pub use ndarray::ArrayViewMut4;`
-
-### `pub use ndarray::ArrayViewMut5;`
-
-### `pub use ndarray::ArrayViewMut6;`
-
-### `pub use ndarray::ArrayViewMutD;`
-
-### `pub use ndarray::Ix0;`
-
-### `pub use ndarray::Ix0;`
-
-### `pub use ndarray::Ix1;`
-
-### `pub use ndarray::Ix1;`
-
-### `pub use ndarray::Ix2;`
-
-### `pub use ndarray::Ix2;`
-
-### `pub use ndarray::Ix3;`
-
-### `pub use ndarray::Ix3;`
-
-### `pub use ndarray::Ix4;`
-
-### `pub use ndarray::Ix4;`
-
-### `pub use ndarray::Ix5;`
-
-### `pub use ndarray::Ix5;`
-
-### `pub use ndarray::Ix6;`
-
-### `pub use ndarray::Ix6;`
-
-### `pub use ndarray::IxDyn;`
-
-### `pub use ndarray::IxDyn;`
-
-### `pub use ndarray::ShapeBuilder;`
-
-### `pub use ndarray_impl::ArcArray1;`
-
-### `pub use ndarray_impl::ArcArray2;`
-
-### `pub use ndarray_impl::Array0;`
-
-### `pub use ndarray_impl::Array1;`
-
-### `pub use ndarray_impl::Array2;`
-
-### `pub use ndarray_impl::Array3;`
-
-### `pub use ndarray_impl::Array4;`
-
-### `pub use ndarray_impl::Array5;`
-
-### `pub use ndarray_impl::Array6;`
-
-### `pub use ndarray_impl::ArrayD;`
-
-### `pub use ndarray_impl::ArrayView0;`
-
-### `pub use ndarray_impl::ArrayView1;`
-
-### `pub use ndarray_impl::ArrayView2;`
-
-### `pub use ndarray_impl::ArrayView3;`
-
-### `pub use ndarray_impl::ArrayView4;`
-
-### `pub use ndarray_impl::ArrayView5;`
-
-### `pub use ndarray_impl::ArrayView6;`
-
-### `pub use ndarray_impl::ArrayViewD;`
-
-### `pub use ndarray_impl::ArrayViewMut0;`
-
-### `pub use ndarray_impl::ArrayViewMut1;`
-
-### `pub use ndarray_impl::ArrayViewMut2;`
-
-### `pub use ndarray_impl::ArrayViewMut3;`
-
-### `pub use ndarray_impl::ArrayViewMut4;`
-
-### `pub use ndarray_impl::ArrayViewMut5;`
-
-### `pub use ndarray_impl::ArrayViewMut6;`
-
-### `pub use ndarray_impl::ArrayViewMutD;`
-
-### `pub use ndarray_impl::Ix0;`
-
-### `pub use ndarray_impl::Ix0;`
-
-### `pub use ndarray_impl::Ix1;`
-
-### `pub use ndarray_impl::Ix1;`
-
-### `pub use ndarray_impl::Ix2;`
-
-### `pub use ndarray_impl::Ix2;`
-
-### `pub use ndarray_impl::Ix3;`
-
-### `pub use ndarray_impl::Ix3;`
-
-### `pub use ndarray_impl::Ix4;`
-
-### `pub use ndarray_impl::Ix4;`
-
-### `pub use ndarray_impl::Ix5;`
-
-### `pub use ndarray_impl::Ix5;`
-
-### `pub use ndarray_impl::Ix6;`
-
-### `pub use ndarray_impl::Ix6;`
-
-### `pub use ndarray_impl::IxDyn;`
-
-### `pub use ndarray_impl::IxDyn;`
-
-### `pub use ndarray_impl::RNdArrayOps;`
-
-### `pub use ndarray_impl::RNdIndex;`
-
-### `pub use ndarray_impl::RNdSlice;`
-
-### `pub use ndarray_impl::RNdSlice2D;`
-
-### `pub use ndarray_impl::RndMat;`
-
-### `pub use ndarray_impl::RndVec;`
-
-### `pub use ndarray_impl::ShapeBuilder;`
-
-### `pub use newtype::FromRNewtype;`
-
-### `pub use newtype::IntoRNewtype;`
-
-### `pub use newtype::IntoRVecElement;`
-
-### `pub use num_bigint;`
-
-### `pub use num_bigint::BigInt;`
-
-### `pub use num_bigint::BigUint;`
-
-### `pub use num_bigint_impl::BigInt;`
-
-### `pub use num_bigint_impl::BigUint;`
-
-### `pub use num_bigint_impl::RBigIntBitOps;`
-
-### `pub use num_bigint_impl::RBigIntOps;`
-
-### `pub use num_bigint_impl::RBigUintBitOps;`
-
-### `pub use num_bigint_impl::RBigUintOps;`
-
-### `pub use num_complex;`
-
-### `pub use num_complex::Complex;`
-
-### `pub use num_complex_impl::Complex;`
-
-### `pub use num_complex_impl::RComplexOps;`
-
-### `pub use num_traits;`
-
-### `pub use num_traits_impl::RFloat;`
-
-### `pub use num_traits_impl::RNum;`
-
-### `pub use num_traits_impl::RSigned;`
-
-### `pub use optionals::AhoCorasick;`
-
-### `pub use optionals::ArcArray1;`
-
-### `pub use optionals::ArcArray2;`
-
-### `pub use optionals::Array;`
-
-### `pub use optionals::Array0;`
-
-### `pub use optionals::Array1;`
-
-### `pub use optionals::Array2;`
-
-### `pub use optionals::Array3;`
-
-### `pub use optionals::Array4;`
-
-### `pub use optionals::Array5;`
-
-### `pub use optionals::Array6;`
-
-### `pub use optionals::ArrayD;`
-
-### `pub use optionals::ArrayRef;`
-
-### `pub use optionals::ArrayVec;`
-
-### `pub use optionals::ArrayView0;`
-
-### `pub use optionals::ArrayView1;`
-
-### `pub use optionals::ArrayView2;`
-
-### `pub use optionals::ArrayView3;`
-
-### `pub use optionals::ArrayView4;`
-
-### `pub use optionals::ArrayView5;`
-
-### `pub use optionals::ArrayView6;`
-
-### `pub use optionals::ArrayViewD;`
-
-### `pub use optionals::ArrayViewMut0;`
-
-### `pub use optionals::ArrayViewMut1;`
-
-### `pub use optionals::ArrayViewMut2;`
-
-### `pub use optionals::ArrayViewMut3;`
-
-### `pub use optionals::ArrayViewMut4;`
-
-### `pub use optionals::ArrayViewMut5;`
-
-### `pub use optionals::ArrayViewMut6;`
-
-### `pub use optionals::ArrayViewMutD;`
-
-### `pub use optionals::ArrowArray;`
-
-### `pub use optionals::BigInt;`
-
-### `pub use optionals::BigUint;`
-
-### `pub use optionals::BitVec;`
-
-### `pub use optionals::BooleanArray;`
-
-### `pub use optionals::Borsh;`
-
-### `pub use optionals::Buf;`
-
-### `pub use optionals::BufMut;`
-
-### `pub use optionals::Builder;`
-
-### `pub use optionals::Bytes;`
-
-### `pub use optionals::BytesMut;`
-
-### `pub use optionals::CaptureGroups;`
-
-### `pub use optionals::Complex;`
-
-### `pub use optionals::DMatrix;`
-
-### `pub use optionals::DVector;`
-
-### `pub use optionals::DataType;`
-
-### `pub use optionals::Date;`
-
-### `pub use optionals::Date32Array;`
-
-### `pub use optionals::Decimal;`
-
-### `pub use optionals::DictionaryArray;`
-
-### `pub use optionals::Duration;`
-
-### `pub use optionals::Either;`
-
-### `pub use optionals::FactorHandling;`
-
-### `pub use optionals::Field;`
-
-### `pub use optionals::Flags;`
-
-### `pub use optionals::Float64Array;`
-
-### `pub use optionals::Glob;`
-
-### `pub use optionals::GlobBuilder;`
-
-### `pub use optionals::GlobOptions;`
-
-### `pub use optionals::GlobSet;`
-
-### `pub use optionals::GlobSetBuilder;`
-
-### `pub use optionals::IndexMap;`
-
-### `pub use optionals::Int32Array;`
-
-### `pub use optionals::Ix0;`
-
-### `pub use optionals::Ix0;`
-
-### `pub use optionals::Ix1;`
-
-### `pub use optionals::Ix1;`
-
-### `pub use optionals::Ix2;`
-
-### `pub use optionals::Ix2;`
-
-### `pub use optionals::Ix3;`
-
-### `pub use optionals::Ix3;`
-
-### `pub use optionals::Ix4;`
-
-### `pub use optionals::Ix4;`
-
-### `pub use optionals::Ix5;`
-
-### `pub use optionals::Ix5;`
+### `pub use abi::mx_erased;`
 
 ### `pub use optionals::Ix6;`
-
-### `pub use optionals::Ix6;`
-
-### `pub use optionals::IxDyn;`
-
-### `pub use optionals::IxDyn;`
-
-### `pub use optionals::JiffDate;`
 
 ### `pub use optionals::JiffDateTime;`
 
-### `pub use optionals::JiffTime;`
+### `pub use dataframe_de::dataframe_to_vec_collated;`
 
-### `pub use optionals::JiffTimestampVec;`
+### `pub use crate::List;`
+
+### `pub use bitflags;`
+
+### `pub use ndarray_impl::ArrayD;`
+
+### `pub use crate::RDecimalOps;`
+
+### `pub use factor::build_levels_sexp_cached;`
+
+### `pub use url_impl::url_helpers;`
+
+### `pub use crate::RFlags;`
+
+### `pub use sha2_impl::sha512_str;`
+
+### `pub use thread::RThreadBuilder;`
+
+### `pub use core::AltrepLen;`
+
+### `pub use convert::Collect;`
+
+### `pub use trait_abi::TraitView;`
+
+### `pub use optionals::IxDyn;`
+
+### `pub use group::GroupKey;`
 
 ### `pub use optionals::JiffZonedVec;`
 
-### `pub use optionals::JsonOptions;`
+### `pub use dataframe_de::with_dataframe_rows;`
 
-### `pub use optionals::JsonValue;`
-
-### `pub use optionals::Left;`
-
-### `pub use optionals::Lsb0;`
-
-### `pub use optionals::Msb0;`
-
-### `pub use optionals::NaHandling;`
-
-### `pub use optionals::OffsetDateTime;`
-
-### `pub use optionals::OrderedFloat;`
-
-### `pub use optionals::RAhoCorasickOps;`
-
-### `pub use optionals::RBigIntBitOps;`
-
-### `pub use optionals::RBigIntOps;`
-
-### `pub use optionals::RBigUintBitOps;`
-
-### `pub use optionals::RBigUintOps;`
-
-### `pub use optionals::RBitVec;`
-
-### `pub use optionals::RBorshOps;`
-
-### `pub use optionals::RBuf;`
-
-### `pub use optionals::RBufMut;`
-
-### `pub use optionals::RCaptureGroups;`
-
-### `pub use optionals::RComplexOps;`
-
-### `pub use optionals::RDate;`
-
-### `pub use optionals::RDateTime;`
-
-### `pub use optionals::RDateTimeFormat;`
-
-### `pub use optionals::RDecimalOps;`
-
-### `pub use optionals::RDeserialize;`
-
-### `pub use optionals::RDistributionOps;`
-
-### `pub use optionals::RDistributions;`
-
-### `pub use optionals::RDuration;`
+### `pub use crate::Missing;`
 
 ### `pub use optionals::RFlags;`
 
-### `pub use optionals::RFloat;`
+### `pub use ndarray_impl::ArrayView2;`
 
-### `pub use optionals::RIndexMapOps;`
+### `pub use crate::Complex;`
 
-### `pub use optionals::RJsonBridge;`
+### `pub use altrep::*;`
 
-### `pub use optionals::RJsonValueOps;`
+### `pub use aho_corasick_impl::aho_compile;`
 
-### `pub use optionals::RMatrixOps;`
+### `pub use crate::RBitVec;`
 
-### `pub use optionals::RNdArrayOps;`
+### `pub use blake3_impl::blake3_str;`
 
-### `pub use optionals::RNdIndex;`
+### `pub use thread::spawn_with_r;`
+
+### `pub use ndarray::ArrayViewMut3;`
+
+### `pub use bitvec::order::Msb0;`
+
+### `pub use core::Logical;`
+
+### `pub use convert::CollectStrings;`
+
+### `pub use adapter_traits::RDebug;`
+
+### `pub use serde::Deserialize;`
 
 ### `pub use optionals::RNdSlice;`
 
-### `pub use optionals::RNdSlice2D;`
-
-### `pub use optionals::RNum;`
-
-### `pub use optionals::ROrderedFloatOps;`
-
-### `pub use optionals::RParallelExtend;`
-
-### `pub use optionals::RParallelIterator;`
-
-### `pub use optionals::RRegexOps;`
-
-### `pub use optionals::RRng;`
-
-### `pub use optionals::RRngOps;`
-
-### `pub use optionals::RSerialize;`
-
-### `pub use optionals::RSessionContext;`
-
-### `pub use optionals::RSigned;`
-
 ### `pub use optionals::RSignedDuration;`
 
-### `pub use optionals::RSpan;`
+### `pub use json_string::AsJson;`
 
-### `pub use optionals::RTime;`
+### `pub use crate::ProtectScope;`
 
-### `pub use optionals::RTimestamp;`
+### `pub use optionals::Lsb0;`
 
-### `pub use optionals::RTomlOps;`
+### `pub use ndarray_impl::ArrayView5;`
 
-### `pub use optionals::RUrlOps;`
+### `pub use aho_corasick_impl::aho_find_all_flat;`
 
-### `pub use optionals::RUuidOps;`
+### `pub use crate::Borsh;`
 
-### `pub use optionals::RVectorOps;`
+### `pub use md5_impl::md5_str;`
 
-### `pub use optionals::RZoned;`
+### `pub use sexp::SEXPREC;`
 
-### `pub use optionals::RecordBatch;`
+### `pub use ffi_guard::guarded_ffi_call;`
 
-### `pub use optionals::Regex;`
+### `pub use iter::*;`
 
-### `pub use optionals::Right;`
+### `pub use into_r::Lazy;`
 
-### `pub use optionals::SMatrix;`
+### `pub use adapter_traits::RError;`
 
-### `pub use optionals::SVector;`
-
-### `pub use optionals::Schema;`
-
-### `pub use optionals::ShapeBuilder;`
-
-### `pub use optionals::SignedDuration;`
-
-### `pub use optionals::Span;`
-
-### `pub use optionals::SpecialFloatHandling;`
-
-### `pub use optionals::StringArray;`
-
-### `pub use optionals::StringDictionaryArray;`
-
-### `pub use optionals::Table;`
-
-### `pub use optionals::Tabled;`
-
-### `pub use optionals::Timestamp;`
-
-### `pub use optionals::TimestampSecondArray;`
-
-### `pub use optionals::TinyVec;`
-
-### `pub use optionals::TomlValue;`
-
-### `pub use optionals::UInt8Array;`
-
-### `pub use optionals::Url;`
-
-### `pub use optionals::Uuid;`
-
-### `pub use optionals::Zoned;`
-
-### `pub use optionals::aho_compile;`
-
-### `pub use optionals::aho_corasick_impl;`
-
-### `pub use optionals::aho_count_matches;`
-
-### `pub use optionals::aho_find_all;`
-
-### `pub use optionals::aho_find_all_flat;`
-
-### `pub use optionals::aho_find_first;`
-
-### `pub use optionals::aho_is_match;`
-
-### `pub use optionals::aho_replace_all;`
-
-### `pub use optionals::arrow_impl;`
-
-### `pub use optionals::bitflags_impl;`
-
-### `pub use optionals::bitvec_impl;`
-
-### `pub use optionals::blake3_bytes;`
-
-### `pub use optionals::blake3_hex;`
-
-### `pub use optionals::blake3_impl;`
-
-### `pub use optionals::blake3_str;`
-
-### `pub use optionals::borsh_from_raw;`
-
-### `pub use optionals::borsh_impl;`
-
-### `pub use optionals::borsh_to_raw;`
-
-### `pub use optionals::build_globset;`
-
-### `pub use optionals::builder_to_string;`
-
-### `pub use optionals::bytes_impl;`
-
-### `pub use optionals::datafusion_impl;`
-
-### `pub use optionals::either_impl;`
-
-### `pub use optionals::globset_impl;`
-
-### `pub use optionals::globset_is_match;`
-
-### `pub use optionals::globset_matches;`
-
-### `pub use optionals::indexmap_impl;`
-
-### `pub use optionals::jiff_impl;`
-
-### `pub use optionals::json_from_sexp;`
-
-### `pub use optionals::json_from_sexp_permissive;`
-
-### `pub use optionals::json_from_sexp_strict;`
-
-### `pub use optionals::json_from_sexp_with;`
-
-### `pub use optionals::json_into_sexp;`
-
-### `pub use optionals::md5_bytes;`
-
-### `pub use optionals::md5_hex;`
-
-### `pub use optionals::md5_impl;`
-
-### `pub use optionals::md5_str;`
+### `pub use serde::Serialize;`
 
 ### `pub use optionals::nalgebra_impl;`
 
-### `pub use optionals::ndarray_impl;`
+### `pub use optionals::RTimestamp;`
 
-### `pub use optionals::num_bigint_impl;`
+### `pub use json_string::FromJson;`
 
-### `pub use optionals::num_complex_impl;`
-
-### `pub use optionals::num_traits_impl;`
-
-### `pub use optionals::ordered_float_impl;`
-
-### `pub use optionals::parallel;`
-
-### `pub use optionals::rand;`
-
-### `pub use optionals::rand_distr;`
-
-### `pub use optionals::rand_impl;`
-
-### `pub use optionals::rayon_bridge;`
-
-### `pub use optionals::regex_impl;`
-
-### `pub use optionals::rust_decimal_impl;`
-
-### `pub use optionals::serde_impl;`
-
-### `pub use optionals::sha256_bytes;`
-
-### `pub use optionals::sha256_str;`
-
-### `pub use optionals::sha2_impl;`
-
-### `pub use optionals::sha512_bytes;`
-
-### `pub use optionals::sha512_str;`
-
-### `pub use optionals::table_from_vecs;`
-
-### `pub use optionals::table_to_string;`
-
-### `pub use optionals::table_to_string_opts;`
-
-### `pub use optionals::table_to_string_styled;`
+### `pub use crate::RCow;`
 
 ### `pub use optionals::tabled_impl;`
 
-### `pub use optionals::time_impl;`
+### `pub use ndarray_impl::ArrayViewMut0;`
+
+### `pub use crate::RSigned;`
+
+### `pub use aho_corasick_impl::aho_replace_all;`
+
+### `pub use bitflags_impl::Flags;`
+
+### `pub use sexp_types::R_xlen_t;`
+
+### `pub use dataframe::ColumnarFrame;`
+
+### `pub use ndarray::ArrayViewMut6;`
+
+### `pub use list::ListAccumulator;`
+
+### `pub use adapter_traits::RFromStr;`
+
+### `pub use serde_json;`
+
+### `pub use optionals::RMatrixOps;`
+
+### `pub use optionals::Span;`
+
+### `pub use aho_corasick::MatchKind;`
+
+### `pub use traits::RDeserializeNative;`
+
+### `pub use crate::BuiltDataFrame;`
+
+### `pub use optionals::Tabled;`
+
+### `pub use ndarray_impl::ArrayViewMut3;`
+
+### `pub use crate::Array1;`
+
+### `pub use globset_impl::GlobOptions;`
+
+### `pub use crate::Raw;`
+
+### `pub use bitvec_impl::Lsb0;`
+
+### `pub use sexp_types::Rboolean;`
+
+### `pub use dataframe::FromDataFrame;`
+
+### `pub use tabled::settings::object::Columns;`
+
+### `pub use list::NamedList;`
+
+### `pub use adapter_traits::RMakeIter;`
+
+### `pub use optionals::SVector;`
+
+### `pub use crate::Altrep;`
+
+### `pub use optionals::serde_impl;`
+
+### `pub use traits::to_r;`
+
+### `pub use crate::DataFrameError;`
+
+### `pub use optionals::table_to_string;`
+
+### `pub use ndarray_impl::ArrayViewMut6;`
+
+### `pub use crate::Array4;`
+
+### `pub use globset_impl::build_globset;`
+
+### `pub use crate::Zeroable;`
+
+### `pub use tabled_impl::Builder;`
+
+### `pub use sexp_types::SEXPTYPE;`
+
+### `pub use dataframe::IntoDataFrame;`
+
+### `pub use ndarray::Ix0;`
+
+### `pub use missing::Missing;`
+
+### `pub use adapter_traits::RToVec;`
+
+### `pub use optionals::BigUint;`
+
+### `pub use crate::AltrepComplex;`
+
+### `pub use optionals::JsonOptions;`
+
+### `pub use crate::IntoDataFrame;`
 
 ### `pub use optionals::tinyvec_impl;`
 
+### `pub use ndarray_impl::Ix0;`
+
+### `pub use crate::ArrayD;`
+
+### `pub use indexmap_impl::IndexMap;`
+
+### `pub use crate::sha256_bytes;`
+
+### `pub use tabled_impl::builder_to_string;`
+
+### `pub use altrep_data::AltIntegerData;`
+
+### `pub use dataframe::group_rows;`
+
+### `pub use tabled::settings::Style;`
+
+### `pub use named_vector::NamedVector;`
+
+### `pub use optionals::RParallelExtend;`
+
+### `pub use optionals::RBigUintBitOps;`
+
+### `pub use optionals::RDeserialize;`
+
+### `pub use bytemuck::Zeroable;`
+
+### `pub use crate::AsDataFrameExt;`
+
+### `pub use optionals::TinyVec;`
+
+### `pub use ndarray_impl::Ix2;`
+
+### `pub use crate::ArrayViewD;`
+
+### `pub use time_impl::Duration;`
+
+### `pub use crate::sha512_str;`
+
+### `pub use tabled_impl::table_to_string_opts;`
+
+### `pub use altrep_data::AltRawData;`
+
+### `pub use rng::RngGuard;`
+
+### `pub use ndarray::Ix2;`
+
+### `pub use strvec::ProtectedStrVec;`
+
+### `pub use optionals::rand_distr;`
+
+### `pub use optionals::Decimal;`
+
+### `pub use crate::AltrepLogical;`
+
+### `pub use optionals::RSerialize;`
+
+### `pub use nalgebra::DVector;`
+
+### `pub use crate::AsNamedListExt;`
+
+### `pub use optionals::ArrowArray;`
+
+### `pub use ndarray_impl::Ix3;`
+
+### `pub use crate::ArrayViewMutD;`
+
+### `pub use time_impl::RDuration;`
+
+### `pub use crate::Table;`
+
+### `pub use sha2::Sha256;`
+
+### `pub use tinyvec_impl::ArrayVec;`
+
+### `pub use altrep_data::AltrepDataptr;`
+
+### `pub use from_r::SexpLengthError;`
+
+### `pub use strvec::StrVec;`
+
+### `pub use optionals::RDistributions;`
+
+### `pub use optionals::OrderedFloat;`
+
+### `pub use optionals::json_from_sexp_permissive;`
+
+### `pub use crate::with_r_thread;`
+
+### `pub use optionals::Date32Array;`
+
+### `pub use ndarray_impl::Ix5;`
+
+### `pub use jiff::civil::Date;`
+
+### `pub use jiff_impl::JiffTimestampVec;`
+
+### `pub use tabled;`
+
+### `pub use arrow_impl::ArrayRef;`
+
+### `pub use altrep_data::IterComplexData;`
+
+### `pub use conv::from_sexp;`
+
+### `pub use from_r::TryFromSexp;`
+
+### `pub use ndarray::Ix3;`
+
+### `pub use strvec::StrVecIter;`
+
+### `pub use optionals::either_impl;`
+
+### `pub use optionals::Complex;`
+
+### `pub use crate::AltrepString;`
+
+### `pub use optionals::json_into_sexp;`
+
+### `pub use crate::r_println;`
+
+### `pub use optionals::Float64Array;`
+
+### `pub use ndarray_impl::Ix6;`
+
+### `pub use crate::RMatrixOps;`
+
+### `pub use jiff::SignedDuration;`
+
+### `pub use jiff_impl::RDateTime;`
+
+### `pub use crate::TinyVec;`
+
+### `pub use arrow_impl::Date32Array;`
+
+### `pub use altrep_data::IterIntFromBoolData;`
+
+### `pub use conv::to_sexp;`
+
+### `pub use expression::RSymbol;`
+
+### `pub use typed_list::TypedList;`
+
+### `pub use optionals::Right;`
+
+### `pub use optionals::RFloat;`
+
+### `pub use crate::ExternalPtr;`
+
 ### `pub use optionals::toml_from_str;`
 
-### `pub use optionals::toml_impl;`
+### `pub use crate::expression::r_eval_str;`
 
-### `pub use optionals::toml_to_string;`
+### `pub use optionals::Schema;`
 
-### `pub use optionals::toml_to_string_pretty;`
+### `pub use ndarray_impl::RNdArrayOps;`
 
-### `pub use optionals::url_helpers;`
+### `pub use crate::SVector;`
 
-### `pub use optionals::url_impl;`
+### `pub use jiff::Zoned;`
 
-### `pub use optionals::uuid_helpers;`
+### `pub use jiff_impl::RTime;`
+
+### `pub use crate::progress;`
+
+### `pub use arrow_impl::Float64Array;`
+
+### `pub use altrep_data::IterRawData;`
+
+### `pub use coerce::Coerce;`
+
+### `pub use ndarray::Ix5;`
+
+### `pub use num_complex::Complex;`
+
+### `pub use tinyvec::TinyVec;`
+
+### `pub use typed_list::actual_type_string;`
+
+### `pub use optionals::ArcArray2;`
 
 ### `pub use optionals::uuid_impl;`
 
-### `pub use optionals::zstd_compress;`
+### `pub use crate::MatchArg;`
 
-### `pub use optionals::zstd_decompress;`
+### `pub use optionals::bytes_impl;`
 
-### `pub use optionals::zstd_impl;`
+### `pub use crate::SEXP;`
 
-### `pub use ordered_float;`
+### `pub use optionals::TimestampSecondArray;`
 
-### `pub use ordered_float::OrderedFloat;`
+### `pub use ndarray_impl::RNdSlice2D;`
 
-### `pub use ordered_float_impl::OrderedFloat;`
+### `pub use crate::IndexMap;`
 
-### `pub use ordered_float_impl::ROrderedFloatOps;`
+### `pub use jiff_impl::SignedDuration;`
 
-### `pub use protect_pool::ProtectKey;`
+### `pub use crate::IntoVctrs;`
 
-### `pub use protect_pool::ProtectPool;`
+### `pub use arrow_impl::Schema;`
 
-### `pub use r_coerce::RCoerceCharacter;`
+### `pub use altrep_data::IterState;`
 
-### `pub use r_coerce::RCoerceComplex;`
+### `pub use coerce::TryCoerce;`
+
+### `pub use arrow_array;`
+
+### `pub use externalptr::ErasedExternalPtr;`
+
+### `pub use optionals::Array2;`
+
+### `pub use optionals::uuid_helpers;`
+
+### `pub use crate::RFactor;`
+
+### `pub use optionals::Bytes;`
+
+### `pub use crate::Left;`
+
+### `pub use optionals::datafusion_impl;`
+
+### `pub use ndarray_impl::RndVec;`
+
+### `pub use bytes::Bytes;`
+
+### `pub use jiff_impl::Timestamp;`
+
+### `pub use miniextendr_macros::RNativeType;`
+
+### `pub use arrow_impl::TimestampSecondArray;`
+
+### `pub use altrep_data::Sortedness;`
 
 ### `pub use r_coerce::RCoerceDataFrame;`
 
-### `pub use r_coerce::RCoerceDate;`
+### `pub use ndarray::Ix6;`
 
-### `pub use r_coerce::RCoerceEnvironment;`
+### `pub use externalptr::IntoExternalPtr;`
+
+### `pub use optionals::Array5;`
+
+### `pub use optionals::RCaptureGroups;`
+
+### `pub use crate::list;`
+
+### `pub use optionals::RBufMut;`
+
+### `pub use globset::GlobSet;`
+
+### `pub use rarray::RMatrix;`
+
+### `pub use nalgebra_impl::RDMatrix;`
+
+### `pub use rayon;`
+
+### `pub use serde_impl::JsonOptions;`
+
+### `pub use datafusion_impl::RSessionContext;`
+
+### `pub use altrep_data::SparseIterLogicalData;`
+
+### `pub use either::Either;`
 
 ### `pub use r_coerce::RCoerceError;`
 
-### `pub use r_coerce::RCoerceFactor;`
+### `pub use arrow_array::Date32Array;`
 
-### `pub use r_coerce::RCoerceFunction;`
+### `pub use externalptr::altrep_data1_as_unchecked;`
+
+### `pub use optionals::ArrayView0;`
+
+### `pub use optionals::url_impl;`
+
+### `pub use optionals::sha256_str;`
+
+### `pub use uuid;`
+
+### `pub use raw_conversions::Pod;`
+
+### `pub use nalgebra_impl::RVecStorage;`
+
+### `pub use crate::RRng;`
+
+### `pub use serde_impl::RDeserialize;`
+
+### `pub use miniextendr_macros::miniextendr_init;`
+
+### `pub use altrep_data::SparseIterState;`
+
+### `pub use either::Right;`
 
 ### `pub use r_coerce::RCoerceInteger;`
 
-### `pub use r_coerce::RCoerceList;`
+### `pub use ndarray::ShapeBuilder;`
 
-### `pub use r_coerce::RCoerceLogical;`
+### `pub use arrow_array::Float64Array;`
+
+### `pub use externalptr::altrep_data2_as;`
+
+### `pub use optionals::ArrayView3;`
+
+### `pub use optionals::url_helpers;`
+
+### `pub use ::serde::Serialize;`
+
+### `pub use crate::typed_list;`
+
+### `pub use optionals::blake3_impl;`
+
+### `pub use crate::RRegexOps;`
+
+### `pub use raw_conversions::RawError;`
+
+### `pub use nalgebra_impl::SVector;`
+
+### `pub use rand_distr;`
+
+### `pub use serde_impl::RSerialize;`
+
+### `pub use miniextendr_macros::typed_dataframe;`
+
+### `pub use altrep_data::WindowedIterIntData;`
+
+### `pub use ndarray::ArcArray1;`
+
+### `pub use accumulator::*;`
 
 ### `pub use r_coerce::RCoerceMatrix;`
 
-### `pub use r_coerce::RCoerceNumeric;`
+### `pub use arrow_array::StringArray;`
 
-### `pub use r_coerce::RCoercePOSIXct;`
+### `pub use gc_protect::ProtectIndex;`
+
+### `pub use optionals::ArrayView6;`
+
+### `pub use optionals::RAhoCorasickOps;`
+
+### `pub use columnar::DispatchNames;`
+
+### `pub use crate::AltComplexData;`
+
+### `pub use optionals::blake3_str;`
+
+### `pub use coerce::*;`
+
+### `pub use rayon_bridge::RParallelExtend;`
+
+### `pub use raw_conversions::RawSliceTagged;`
+
+### `pub use num_bigint_impl::RBigIntBitOps;`
+
+### `pub use crate::serde::RSerializeNative;`
+
+### `pub use serde_impl::json_from_sexp_permissive;`
+
+### `pub use altrep::RBase;`
+
+### `pub use ndarray::Array1;`
 
 ### `pub use r_coerce::RCoerceRaw;`
 
-### `pub use r_coerce::RCoerceVector;`
+### `pub use arrow_array::types::Date32Type;`
 
-### `pub use r_coerce::SUPPORTED_AS_GENERICS;`
+### `pub use gc_protect::Protector;`
+
+### `pub use optionals::ArrayViewMut1;`
+
+### `pub use optionals::aho_find_all;`
+
+### `pub use columnar::SerdeRowBuilder;`
+
+### `pub use crate::AltLogicalData;`
+
+### `pub use optionals::md5_hex;`
+
+### `pub use windowed::*;`
+
+### `pub use rand_impl::RDistributions;`
+
+### `pub use url;`
+
+### `pub use raw_conversions::Zeroable;`
+
+### `pub use time::OffsetDateTime;`
+
+### `pub use num_bigint_impl::RBigUintOps;`
+
+### `pub use crate::JsonOptions;`
+
+### `pub use serde_impl::json_into_sexp;`
+
+### `pub use miniextendr_macros::Altrep;`
+
+### `pub use zstd::DEFAULT_COMPRESSION_LEVEL;`
+
+### `pub use altrep_traits::AltrepGuard;`
+
+### `pub use ndarray::Array4;`
 
 ### `pub use r_coerce::is_supported_as_generic;`
 
-### `pub use rand;`
+### `pub use arrow_array::types::Int32Type;`
+
+### `pub use protect_pool::ProtectKey;`
+
+### `pub use optionals::ArrayViewMut4;`
+
+### `pub use optionals::aho_is_match;`
+
+### `pub use columnar::TypeSpec;`
+
+### `pub use crate::AltStringData;`
+
+### `pub use optionals::Glob;`
 
 ### `pub use rand;`
 
@@ -8629,386 +8909,111 @@ Re-export of `rand` so downstream crates can name its traits
 a mismatched direct `rand` dependency would fail trait coherence.
 Enable with `features = ["rand"]`.
 
-### `pub use rand_distr;`
-
-### `pub use rand_distr;`
-
-Re-export of `rand_distr` for probability distributions.
-
-Provides distributions like `Normal`, `Exp`, `Uniform`, etc. that work
-with [`RRng`]. Enable with `features = ["rand_distr"]`.
-
-### `pub use rand_impl::RDistributionOps;`
-
-### `pub use rand_impl::RDistributions;`
-
-### `pub use rand_impl::RRng;`
-
-### `pub use rand_impl::RRngOps;`
-
-### `pub use rarray::RArray;`
-
-### `pub use rarray::RArray3D;`
-
-### `pub use rarray::RMatrix;`
-
-### `pub use rarray::RVector;`
-
-### `pub use raw_conversions::Pod;`
-
-### `pub use raw_conversions::Pod;`
-
-### `pub use raw_conversions::Raw;`
-
-### `pub use raw_conversions::RawError;`
-
-### `pub use raw_conversions::RawHeader;`
-
-### `pub use raw_conversions::RawSlice;`
-
-### `pub use raw_conversions::RawSliceTagged;`
-
-### `pub use raw_conversions::RawTagged;`
-
-### `pub use raw_conversions::Zeroable;`
-
-### `pub use raw_conversions::Zeroable;`
-
-### `pub use raw_conversions::raw_from_bytes;`
-
-### `pub use raw_conversions::raw_slice_from_bytes;`
+### `pub use crate::Duration;`
 
 ### `pub use raw_conversions::raw_slice_to_bytes;`
 
-### `pub use raw_conversions::raw_to_bytes;`
+### `pub use ordered_float_impl::OrderedFloat;`
 
-### `pub use rayon;`
+### `pub use crate::RSerialize;`
 
-### `pub use rayon;`
+### `pub use borsh_impl::borsh_from_raw;`
 
-### `pub use rayon_bridge::RParallelExtend;`
+### `pub use miniextendr_macros::AltrepList;`
 
-### `pub use rayon_bridge::RParallelIterator;`
+### `pub use ndarray::ArrayD;`
 
-### `pub use rcow::RBorrow;`
+### `pub use convert::AsDataFrame;`
 
-### `pub use rcow::RCow;`
-
-### `pub use refcount_protect::ArenaGuard;`
+### `pub use arrow_array::types::UInt8Type;`
 
 ### `pub use refcount_protect::RefCountedArena;`
 
-### `pub use refcount_protect::ThreadLocalArena;`
+### `pub use optionals::ArrayViewMutD;`
 
-### `pub use regex;`
+### `pub use optionals::IndexMap;`
 
-### `pub use regex::Regex;`
+### `pub use columnar::iter_to_dataframe;`
 
-### `pub use regex_impl::CaptureGroups;`
+### `pub use crate::Coerce;`
 
-### `pub use regex_impl::RCaptureGroups;`
-
-### `pub use regex_impl::RRegexOps;`
-
-### `pub use regex_impl::Regex;`
-
-### `pub use result::*;`
-
-### `pub use rng::RngGuard;`
-
-### `pub use rng::with_rng;`
-
-### `pub use rust_decimal;`
-
-### `pub use rust_decimal::Decimal;`
-
-### `pub use rust_decimal_impl::Decimal;`
-
-### `pub use rust_decimal_impl::RDecimalOps;`
-
-### `pub use rvalue::RValue;`
-
-### `pub use ser::RSerializer;`
-
-### `pub use serde;`
-
-### `pub use serde::Deserialize;`
-
-### `pub use serde::Deserialize;`
-
-### `pub use serde::Serialize;`
-
-### `pub use serde::Serialize;`
-
-### `pub use serde_impl::FactorHandling;`
-
-### `pub use serde_impl::JsonOptions;`
-
-### `pub use serde_impl::JsonValue;`
-
-### `pub use serde_impl::NaHandling;`
-
-### `pub use serde_impl::RDeserialize;`
-
-### `pub use serde_impl::RJsonBridge;`
-
-### `pub use serde_impl::RJsonValueOps;`
-
-### `pub use serde_impl::RSerialize;`
-
-### `pub use serde_impl::SpecialFloatHandling;`
-
-### `pub use serde_impl::json_from_sexp;`
-
-### `pub use serde_impl::json_from_sexp_permissive;`
-
-### `pub use serde_impl::json_from_sexp_strict;`
-
-### `pub use serde_impl::json_from_sexp_with;`
-
-### `pub use serde_impl::json_into_sexp;`
-
-### `pub use serde_json;`
-
-### `pub use serde_json;`
-
-### `pub use serde_json::Value as JsonValue;`
-
-### `pub use sexp::SEXP;`
-
-### `pub use sexp::SEXPREC;`
-
-### `pub use sexp_ext::SexpExt;`
-
-### `pub use sexp_types::RLogical;`
-
-### `pub use sexp_types::RNativeType;`
-
-### `pub use sexp_types::R_CFinalizer_t;`
-
-### `pub use sexp_types::R_xlen_t;`
-
-### `pub use sexp_types::Rboolean;`
-
-### `pub use sexp_types::Rbyte;`
-
-### `pub use sexp_types::Rcomplex;`
-
-### `pub use sexp_types::SEXPTYPE;`
-
-### `pub use sexp_types::cetype_t;`
-
-### `pub use sha2;`
-
-### `pub use sha2::Digest;`
-
-### `pub use sha2::Sha256;`
-
-### `pub use sha2::Sha512;`
-
-### `pub use sha2_impl::sha256_bytes;`
-
-### `pub use sha2_impl::sha256_str;`
-
-### `pub use sha2_impl::sha512_bytes;`
-
-### `pub use sha2_impl::sha512_str;`
-
-### `pub use sparse::*;`
-
-### `pub use state::*;`
-
-### `pub use stream::*;`
-
-### `pub use strvec::ProtectedStrVec;`
-
-### `pub use strvec::ProtectedStrVecCowIter;`
-
-### `pub use strvec::ProtectedStrVecIter;`
-
-### `pub use strvec::StrVec;`
-
-### `pub use strvec::StrVecBuilder;`
-
-### `pub use strvec::StrVecCowIter;`
-
-### `pub use strvec::StrVecIter;`
-
-### `pub use tabled;`
-
-### `pub use tabled::Table;`
-
-### `pub use tabled::Tabled;`
-
-### `pub use tabled::builder::Builder;`
-
-### `pub use tabled::settings::Alignment;`
-
-### `pub use tabled::settings::Modify;`
-
-### `pub use tabled::settings::Style;`
-
-### `pub use tabled::settings::Width;`
-
-### `pub use tabled::settings::object::Columns;`
-
-### `pub use tabled_impl::Builder;`
-
-### `pub use tabled_impl::Table;`
-
-### `pub use tabled_impl::Tabled;`
-
-### `pub use tabled_impl::builder_to_string;`
-
-### `pub use tabled_impl::table_from_vecs;`
-
-### `pub use tabled_impl::table_to_string;`
-
-### `pub use tabled_impl::table_to_string_opts;`
-
-### `pub use tabled_impl::table_to_string_styled;`
-
-### `pub use thread::DEFAULT_R_STACK_SIZE;`
-
-### `pub use thread::RThreadBuilder;`
-
-### `pub use thread::StackCheckGuard;`
-
-### `pub use thread::scope_with_r;`
-
-### `pub use thread::spawn_with_r;`
-
-### `pub use thread::with_stack_checking_disabled;`
+### `pub use optionals::GlobSet;`
 
 ### `pub use time;`
 
-### `pub use time;`
+### `pub use match_arg::MatchArgError;`
 
-### `pub use time::Date;`
+### `pub use num_complex_impl::RComplexOps;`
 
-### `pub use time::Duration;`
-
-### `pub use time::OffsetDateTime;`
-
-### `pub use time_impl::Date;`
-
-### `pub use time_impl::Duration;`
-
-### `pub use time_impl::OffsetDateTime;`
-
-### `pub use time_impl::RDateTimeFormat;`
-
-### `pub use time_impl::RDuration;`
-
-### `pub use tinyvec;`
-
-### `pub use tinyvec::Array;`
-
-### `pub use tinyvec::ArrayVec;`
-
-### `pub use tinyvec::TinyVec;`
-
-### `pub use tinyvec_impl::Array;`
-
-### `pub use tinyvec_impl::ArrayVec;`
-
-### `pub use tinyvec_impl::TinyVec;`
-
-### `pub use toml;`
-
-### `pub use toml::Value as TomlValue;`
-
-### `pub use toml_impl::RTomlOps;`
+### `pub use crate::toml_from_str;`
 
 ### `pub use toml_impl::TomlValue;`
 
-### `pub use toml_impl::toml_from_str;`
+### `pub use miniextendr_macros::AltrepReal;`
 
-### `pub use toml_impl::toml_to_string;`
+### `pub use into_r::IntoR;`
 
-### `pub use toml_impl::toml_to_string_pretty;`
+### `pub use ndarray::ArrayView1;`
 
-### `pub use trait_abi::TraitView;`
+### `pub use convert::AsDisplayVec;`
 
-### `pub use traits::*;`
-
-### `pub use traits::AsSerialize;`
-
-### `pub use traits::RDeserializeNative;`
-
-### `pub use traits::RSerializeNative;`
-
-### `pub use traits::from_r;`
-
-### `pub use traits::to_r;`
-
-### `pub use typed_list::TypeSpec;`
-
-### `pub use typed_list::TypedEntry;`
-
-### `pub use typed_list::TypedList;`
-
-### `pub use typed_list::TypedListError;`
-
-### `pub use typed_list::TypedListSpec;`
-
-### `pub use typed_list::actual_type_string;`
-
-### `pub use typed_list::sexptype_name;`
-
-### `pub use typed_list::validate_list;`
-
-### `pub use url;`
-
-### `pub use url::Url;`
-
-### `pub use url_impl::RUrlOps;`
-
-### `pub use url_impl::Url;`
-
-### `pub use url_impl::url_helpers;`
-
-### `pub use uuid;`
-
-### `pub use uuid::Uuid;`
-
-### `pub use uuid_impl::RUuidOps;`
-
-### `pub use uuid_impl::Uuid;`
-
-### `pub use uuid_impl::uuid_helpers;`
+### `pub use arrow_schema;`
 
 ### `pub use vctrs::IntoVctrs;`
 
-### `pub use vctrs::VctrsBuildError;`
+### `pub use optionals::Ix1;`
 
-### `pub use vctrs::VctrsClass;`
+### `pub use optionals::Date;`
+
+### `pub use columnar::vec_to_dataframe;`
+
+### `pub use optionals::globset_is_match;`
+
+### `pub use either_impl::Right;`
+
+### `pub use crate::ROrderedFloatOps;`
+
+### `pub use match_arg::match_arg_vec_from_sexp;`
+
+### `pub use num_traits_impl::RSigned;`
+
+### `pub use toml_impl::toml_to_string_pretty;`
+
+### `pub use miniextendr_macros::IntoList;`
+
+### `pub use newtype::FromRNewtype;`
+
+### `pub use ndarray::ArrayView4;`
+
+### `pub use convert::AsFromStr;`
 
 ### `pub use vctrs::VctrsKind;`
 
-### `pub use vctrs::VctrsListOf;`
+### `pub use optionals::Ix2;`
 
-### `pub use vctrs::VctrsRecord;`
+### `pub use optionals::RDateTimeFormat;`
 
-### `pub use vctrs::new_list_of;`
+### `pub use columnar::vec_to_dataframe_split;`
 
-### `pub use vctrs::new_rcrd;`
+### `pub use crate::TryFromSexp;`
 
-### `pub use vctrs::new_vctr;`
+### `pub use optionals::zstd_compress;`
 
-### `pub use windowed::*;`
+### `pub use ndarray_impl::Array0;`
 
-### `pub use worker::is_r_main_thread;`
+### `pub use crate::BigInt;`
 
-### `pub use worker::with_r_thread;`
+### `pub use factor::FactorMut;`
 
-### `pub use zstd::DEFAULT_COMPRESSION_LEVEL;`
+### `pub use uuid_impl::uuid_helpers;`
 
-### `pub use zstd::compression_level_range;`
+### `pub use crate::RBuf;`
 
-### `pub use zstd_impl::zstd_compress;`
+### `pub use bytes_impl::Bytes;`
 
-### `pub use zstd_impl::zstd_decompress;`
+### `pub use miniextendr_macros::PreferDataFrame;`
+
+### `pub use into_r_as::IntoRAs;`
 
 ---
 
@@ -29758,7 +29763,7 @@ without going through an intermediate format like JSON.
 | `i32` | `integer(1)` |
 | `f64` | `numeric(1)` |
 | `String` | `character(1)` |
-| `Option<T>::None` | NA or NULL |
+| `Option<T>::None` | `NULL` (always — never a typed NA) |
 | `Vec<primitive>` | atomic vector |
 | `Vec<struct>` | list of lists |
 | `HashMap<String, T>` | named list |
