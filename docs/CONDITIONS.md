@@ -16,7 +16,7 @@ uses.
 All four support an optional `class = ...` argument to prepend custom classes
 for programmatic catching (one string or a vector, most specific first), and an
 optional `data = ...` argument to attach structured named fields readable as
-`e$<name>` in handlers, optionally namespaced with `data_prefix = "..."`.
+`e$<name>` in handlers.
 `Result<T, E>` returns get the same treatment through the
 [`RConditionError`](#classed-result-errors-with-rconditionerror-and-rerror) trait.
 
@@ -164,7 +164,7 @@ are materialised on R's main thread at the unwind boundary. Consequently,
 `data = ...` works identically from worker-thread and main-thread code, but a
 live `SEXP` or arbitrary `IntoR` value cannot ride along.
 
-#### Reserved names and `data_prefix`
+#### Reserved names
 
 `message`, `call` and `kind` are the condition's own slots (the R helper
 splices `data` over them with `utils::modifyList`), so they are **rejected**
@@ -173,27 +173,27 @@ identifier (`data = ("kind", 1)`, `data = { kind = 1 }`), at runtime otherwise
 (a plain `rust_error` explaining the clash, instead of the former silent
 overwrite).
 
-To forward an error type's fields verbatim when one of them is named like a
-slot, namespace them with `data_prefix`:
+There is no escape hatch, deliberately: `message` and `call` are what R's
+`conditionMessage()` / `conditionCall()` read, and `kind` is the framework's
+transport tag, so a field with one of those names is a naming clash to fix
+where the payload is built (a different key, `#[serde(rename)]` on a derived
+struct, a rename in your `RConditionError::data()` impl). Renaming every field
+with a prefix to rescue one would make `e$<name>` access inconsistent across
+conditions.
 
 ```rust
 error!(
     class = "pkg_sparse_rule",
-    data_prefix = "p_",
-    data = { kind = kind, column = column },
+    data = { rule = kind, column = column },
     "sparse rule on `{column}`"
 );
 ```
 
 ```r
 e <- tryCatch(f(), pkg_sparse_rule = function(e) e)
-e$p_kind    # the field
+e$rule      # the field
 e$kind      # still "error" (the transport tag)
 ```
-
-Argument order stays fixed: `class = ...`, then `data_prefix = ...`, then
-`data = ...`, then the message. With a prefix the reserved-name check is
-skipped (prefixed names cannot collide).
 
 ### `warning!()`
 
@@ -343,9 +343,6 @@ pub fn parse_port(s: &str) -> Result<i32, RError> {
         .map_err(|e| RError::from(e).class(["pkg_bad_port", "pkg_error"]).data("input", s))?;
     Ok(port)
 }
-
-// Forward fields named like the reserved slots by prefixing them:
-RError::new("sparse rule").data_prefix("p_").data("kind", 3)   // e$p_kind
 ```
 
 `RError` implements `Display` (the message) but not `std::error::Error`, which

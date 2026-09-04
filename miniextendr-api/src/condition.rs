@@ -229,14 +229,14 @@ macro_rules! __mx_condition_field_name {
     (lit $name:literal) => {{
         const _: () = ::core::assert!(
             !$crate::condition::is_reserved_condition_field($name),
-            "condition data field name is reserved: `message`, `call` and `kind` are the condition's own slots; rename the field or add `data_prefix = \"...\"`"
+            "condition data field name is reserved: `message`, `call` and `kind` are the condition's own slots; rename the field"
         );
         ($name).to_string()
     }};
     (ident $name:ident) => {{
         const _: () = ::core::assert!(
             !$crate::condition::is_reserved_condition_field(::core::stringify!($name)),
-            "condition data field name is reserved: `message`, `call` and `kind` are the condition's own slots; rename the field or add `data_prefix = \"...\"`"
+            "condition data field name is reserved: `message`, `call` and `kind` are the condition's own slots; rename the field"
         );
         ::core::stringify!($name).to_string()
     }};
@@ -245,20 +245,16 @@ macro_rules! __mx_condition_field_name {
     };
 }
 
-/// Internal: one `(name, value)` pair of a bracketed `data = [...]` list.
-/// `@checked` validates the name (compile time for literals), `@raw` does not
-/// (the caller is about to prefix every name, so collisions are impossible).
+/// Internal: one `(name, value)` pair of a bracketed `data = [...]` list; the
+/// name goes through the reserved-slot check (compile time for literals).
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __mx_condition_pair {
-    (@checked ($name:literal, $value:expr $(,)?)) => {
+    (($name:literal, $value:expr $(,)?)) => {
         ($crate::__mx_condition_field_name!(lit $name), $crate::RValue::from($value))
     };
-    (@checked ($name:expr, $value:expr $(,)?)) => {
+    (($name:expr, $value:expr $(,)?)) => {
         ($crate::__mx_condition_field_name!(expr $name), $crate::RValue::from($value))
-    };
-    (@raw ($name:expr, $value:expr $(,)?)) => {
-        (($name).to_string(), $crate::RValue::from($value))
     };
 }
 
@@ -276,56 +272,34 @@ macro_rules! __mx_condition_pair {
 /// `From` impl (the scalar/vector/`Option`/wide-integer set) works without
 /// ceremony.
 ///
-/// The leading mode token selects reserved-name handling: `@checked` rejects
-/// `message` / `call` / `kind` (at compile time when the name is a literal or
-/// bare identifier, at runtime otherwise); `@raw` skips the check because the
-/// caller prefixes every name afterwards (`data_prefix = ...`).
+/// Field names are checked against the condition's own slots (`message` /
+/// `call` / `kind`): at compile time when the name is a literal or bare
+/// identifier, at runtime otherwise.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __mx_condition_data {
-    (@checked ($name:literal, $value:expr $(,)?)) => {
+    (($name:literal, $value:expr $(,)?)) => {
         ::std::option::Option::Some(::std::vec![(
             $crate::__mx_condition_field_name!(lit $name),
             $crate::RValue::from($value),
         )])
     };
-    (@checked ($name:expr, $value:expr $(,)?)) => {
+    (($name:expr, $value:expr $(,)?)) => {
         ::std::option::Option::Some(::std::vec![(
             $crate::__mx_condition_field_name!(expr $name),
             $crate::RValue::from($value),
         )])
     };
-    (@checked [ $($pair:tt),* $(,)? ]) => {
+    ([ $($pair:tt),* $(,)? ]) => {
         ::std::option::Option::Some(::std::vec![
-            $( $crate::__mx_condition_pair!(@checked $pair), )*
+            $( $crate::__mx_condition_pair!($pair), )*
         ])
     };
-    (@checked { $($name:ident = $value:expr),* $(,)? }) => {
+    ({ $($name:ident = $value:expr),* $(,)? }) => {
         ::std::option::Option::Some(::std::vec![
             $(
                 (
                     $crate::__mx_condition_field_name!(ident $name),
-                    $crate::RValue::from($value),
-                ),
-            )*
-        ])
-    };
-    (@raw ($name:expr, $value:expr $(,)?)) => {
-        ::std::option::Option::Some(::std::vec![(
-            ($name).to_string(),
-            $crate::RValue::from($value),
-        )])
-    };
-    (@raw [ $($pair:tt),* $(,)? ]) => {
-        ::std::option::Option::Some(::std::vec![
-            $( $crate::__mx_condition_pair!(@raw $pair), )*
-        ])
-    };
-    (@raw { $($name:ident = $value:expr),* $(,)? }) => {
-        ::std::option::Option::Some(::std::vec![
-            $(
-                (
-                    ::std::stringify!($name).to_string(),
                     $crate::RValue::from($value),
                 ),
             )*
@@ -337,40 +311,23 @@ macro_rules! __mx_condition_data {
 /// `condition!` into `(class, data, message)`. Not part of the public API.
 ///
 /// Accepted orders (every part optional except the message):
-/// `class = ..`, then `data_prefix = ..`, then `data = ..`, then the
-/// `format!` arguments. `class` takes anything implementing
-/// [`crate::condition::ConditionClass`] (one string or several).
-/// `data_prefix` prepends its string to every data field name and disables
-/// the reserved-name check (prefixed names cannot collide with `message` /
-/// `call` / `kind`).
+/// `class = ..`, then `data = ..`, then the `format!` arguments. `class` takes
+/// anything implementing [`crate::condition::ConditionClass`] (one string or
+/// several).
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __mx_condition_parts {
-    (class = $class:expr, data_prefix = $prefix:expr, data = $data:tt, $($arg:tt)*) => {
-        (
-            $crate::condition::ConditionClass::into_condition_class($class),
-            $crate::condition::prefix_condition_data($crate::__mx_condition_data!(@raw $data), $prefix),
-            ::std::format!($($arg)*),
-        )
-    };
     (class = $class:expr, data = $data:tt, $($arg:tt)*) => {
         (
             $crate::condition::ConditionClass::into_condition_class($class),
-            $crate::__mx_condition_data!(@checked $data),
-            ::std::format!($($arg)*),
-        )
-    };
-    (data_prefix = $prefix:expr, data = $data:tt, $($arg:tt)*) => {
-        (
-            ::std::vec::Vec::<::std::string::String>::new(),
-            $crate::condition::prefix_condition_data($crate::__mx_condition_data!(@raw $data), $prefix),
+            $crate::__mx_condition_data!($data),
             ::std::format!($($arg)*),
         )
     };
     (data = $data:tt, $($arg:tt)*) => {
         (
             ::std::vec::Vec::<::std::string::String>::new(),
-            $crate::__mx_condition_data!(@checked $data),
+            $crate::__mx_condition_data!($data),
             ::std::format!($($arg)*),
         )
     };
@@ -430,14 +387,14 @@ macro_rules! __mx_condition_parts {
 /// # [1] 150   0 100
 /// ```
 ///
-/// Argument order is fixed: `class = ...` (optional), then `data_prefix = ...`
-/// (optional), then `data = ...` (optional), then the format message.
+/// Argument order is fixed: `class = ...` (optional), then `data = ...`
+/// (optional), then the format message.
 ///
 /// Field names `message`, `call` and `kind` are the condition's own slots and
 /// are rejected (at compile time for literal / bare-identifier names, at
-/// runtime otherwise). To forward fields verbatim from an error type that uses
-/// those names, add `data_prefix = "p_"`: every field then arrives as
-/// `e$p_<name>` and the check is skipped.
+/// runtime otherwise); give the field another name (`rule` instead of `kind`,
+/// say). A downstream error type with such a field renames it where the
+/// payload is built (`#[serde(rename)]`, a different key).
 ///
 /// **Supported value types**: scalars and `Vec`s of `i32`, `f64`, `bool`, and
 /// `String` (plus `&str` / `Vec<&str>`, converted to owned); their NA-aware
@@ -630,16 +587,10 @@ macro_rules! warning {
 /// ```
 #[macro_export]
 macro_rules! message {
-    (data_prefix = $prefix:expr, data = $data:tt, $($arg:tt)*) => {
-        ::std::panic::panic_any($crate::condition::RCondition::Message {
-            message: ::std::format!($($arg)*),
-            data: $crate::condition::prefix_condition_data($crate::__mx_condition_data!(@raw $data), $prefix),
-        })
-    };
     (data = $data:tt, $($arg:tt)*) => {
         ::std::panic::panic_any($crate::condition::RCondition::Message {
             message: ::std::format!($($arg)*),
-            data: $crate::__mx_condition_data!(@checked $data),
+            data: $crate::__mx_condition_data!($data),
         })
     };
     ($($arg:tt)*) => {
@@ -733,7 +684,7 @@ macro_rules! rust_condition {
 
 // endregion
 
-// region: Class vectors, reserved field names, data prefixes
+// region: Class vectors and reserved field names
 
 /// What the condition macros' `class = …` (and [`RError::class`]) accept: one
 /// class or several, as `&str` / `String` / arrays / `Vec` / slices.
@@ -808,12 +759,12 @@ pub const RESERVED_CONDITION_FIELDS: &[&str] = &["message", "call", "kind"];
 /// # }
 /// ```
 ///
-/// With a prefix the same field is fine (it arrives as `e$p_kind`):
+/// Any other name is fine, so the fix for a clash is a rename at the source:
 ///
 /// ```
 /// # use miniextendr_api as mx;
 /// # fn f() {
-/// mx::rust_error!(data_prefix = "p_", data = ("kind", 1), "boom");
+/// mx::rust_error!(data = ("rule", 1), "boom");
 /// # }
 /// ```
 pub const fn is_reserved_condition_field(name: &str) -> bool {
@@ -836,15 +787,14 @@ pub const fn is_reserved_condition_field(name: &str) -> bool {
 
 /// Runtime half of the reserved-name check, for computed field names (the
 /// macros' `expr` path and [`RConditionError::data`] on user types). Panics
-/// with a pointer at `data_prefix` when `name` is reserved; the panic becomes
-/// a plain `rust_error` in R, replacing the former silent overwrite.
+/// when `name` is reserved; the panic becomes a plain `rust_error` in R,
+/// replacing the former silent overwrite.
 #[track_caller]
 pub fn check_condition_field_name(name: String) -> String {
     if is_reserved_condition_field(&name) {
         panic!(
             "condition data field `{name}` is reserved: `message`, `call` and `kind` are the \
-             condition's own slots. Rename the field, or set `data_prefix = \"p_\"` so it \
-             arrives as `e$p_{name}`."
+             condition's own slots; rename the field."
         );
     }
     name
@@ -857,17 +807,6 @@ pub fn check_condition_data(data: Option<ConditionData>) -> Option<ConditionData
         fields
             .into_iter()
             .map(|(name, value)| (check_condition_field_name(name), value))
-            .collect()
-    })
-}
-
-/// Prepend `prefix` to every field name of a payload (`data_prefix = ...`).
-/// Prefixed names cannot collide with the reserved slots, so no check runs.
-pub fn prefix_condition_data(data: Option<ConditionData>, prefix: &str) -> Option<ConditionData> {
-    data.map(|fields| {
-        fields
-            .into_iter()
-            .map(|(name, value)| (format!("{prefix}{name}"), value))
             .collect()
     })
 }
@@ -930,8 +869,7 @@ pub fn prefix_condition_data(data: Option<ConditionData>, prefix: &str) -> Optio
 ///
 /// `data()` field names must not be `message`, `call` or `kind` (see
 /// [`RESERVED_CONDITION_FIELDS`]); a reserved name raises a plain
-/// `rust_error` explaining the clash. Prefix the names yourself, or build an
-/// [`RError`] with [`RError::data_prefix`].
+/// `rust_error` explaining the clash, so rename such a field at the source.
 pub trait RConditionError {
     /// The condition message (`conditionMessage(e)`).
     fn message(&self) -> String;
@@ -979,7 +917,6 @@ pub struct RError {
     message: String,
     class: Vec<String>,
     data: ConditionData,
-    data_prefix: Option<String>,
 }
 
 impl RError {
@@ -989,7 +926,6 @@ impl RError {
             message: message.into(),
             class: Vec::new(),
             data: Vec::new(),
-            data_prefix: None,
         }
     }
 
@@ -1000,20 +936,11 @@ impl RError {
         self
     }
 
-    /// Attach a structured field readable as `e$<name>` (or `e$<prefix><name>`
-    /// once [`Self::data_prefix`] is set). Any value with an
-    /// [`RValue`](crate::RValue) `From` impl works.
+    /// Attach a structured field readable as `e$<name>`. Any value with an
+    /// [`RValue`](crate::RValue) `From` impl works. The name must not be
+    /// `message`, `call` or `kind`; see [`RESERVED_CONDITION_FIELDS`].
     pub fn data(mut self, name: impl Into<String>, value: impl Into<crate::RValue>) -> Self {
         self.data.push((name.into(), value.into()));
-        self
-    }
-
-    /// Prefix every field name at raise time, so fields named like the
-    /// condition's own slots (`kind`, `message`, `call`) can be forwarded
-    /// verbatim: with `data_prefix("p_")` a `kind` field arrives as `e$p_kind`
-    /// and `e$kind` stays the transport tag.
-    pub fn data_prefix(mut self, prefix: impl Into<String>) -> Self {
-        self.data_prefix = Some(prefix.into());
         self
     }
 
@@ -1062,14 +989,7 @@ impl RConditionError for RError {
         self.class.clone()
     }
     fn data(&self) -> Option<ConditionData> {
-        if self.data.is_empty() {
-            return None;
-        }
-        let fields = Some(self.data.clone());
-        match &self.data_prefix {
-            Some(prefix) => prefix_condition_data(fields, prefix),
-            None => fields,
-        }
+        (!self.data.is_empty()).then(|| self.data.clone())
     }
 }
 
@@ -1446,12 +1366,11 @@ mod condition_macro_tests {
     }
 
     #[test]
-    fn error_class_vector_and_prefix() {
+    fn error_class_vector_and_keyed_data() {
         let cond = catch(|| {
             crate::error!(
                 class = ["member", "family"],
-                data_prefix = "p_",
-                data = { kind = 1, message = "inner" },
+                data = { rule = 1, detail = "inner" },
                 "layered"
             )
         });
@@ -1466,11 +1385,8 @@ mod condition_macro_tests {
                 assert_data(
                     &data,
                     &[
-                        ("p_kind", RValue::Integer(vec![Some(1)])),
-                        (
-                            "p_message",
-                            RValue::Character(vec![Some("inner".to_string())]),
-                        ),
+                        ("rule", RValue::Integer(vec![Some(1)])),
+                        ("detail", RValue::Character(vec![Some("inner".to_string())])),
                     ],
                 );
             }
@@ -1499,7 +1415,23 @@ mod condition_macro_tests {
             .or_else(|| payload.downcast_ref::<&str>().map(|s| s.to_string()))
             .expect("plain panic message");
         assert!(msg.contains("reserved"), "got: {msg}");
-        assert!(msg.contains("data_prefix"), "got: {msg}");
+        assert!(msg.contains("rename"), "got: {msg}");
+    }
+
+    #[test]
+    fn rerror_reserved_field_rejected_at_err_arm() {
+        use super::RError;
+        let err = std::panic::AssertUnwindSafe(RError::new("m").data("kind", 2));
+        let payload = std::panic::catch_unwind(move || crate::__mx_result_err_parts!(err.0))
+            .err()
+            .expect("must panic");
+        let msg = payload
+            .downcast_ref::<String>()
+            .cloned()
+            .or_else(|| payload.downcast_ref::<&str>().map(|s| s.to_string()))
+            .expect("plain panic message");
+        assert!(msg.contains("reserved"), "got: {msg}");
+        assert!(msg.contains("`kind`"), "got: {msg}");
     }
 
     #[test]
@@ -1512,9 +1444,6 @@ mod condition_macro_tests {
         let data = RConditionError::data(&e).expect("data");
         assert_eq!(data[0].0, "input");
 
-        let prefixed = RError::new("m").data_prefix("p_").data("kind", 2);
-        let data = RConditionError::data(&prefixed).expect("data");
-        assert_eq!(data[0].0, "p_kind");
         assert!(RConditionError::data(&RError::new("m")).is_none());
         assert!(super::is_reserved_condition_field("call"));
         assert!(!super::is_reserved_condition_field("calls"));

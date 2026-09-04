@@ -252,8 +252,7 @@ fn result_err_parts_roundtrip() {
 
         let err = RError::new("too large")
             .class(["pkg_too_large", "pkg_error"])
-            .data_prefix("p_")
-            .data("kind", 3)
+            .data("rule", 3)
             .data("max", 100.0);
         let parts = miniextendr_api::__mx_result_err_parts!(err);
         let sexp = result_err_condition_value(parts, None);
@@ -266,9 +265,9 @@ fn result_err_parts_roundtrip() {
                 assert_eq!(message, "too large");
                 assert_eq!(class, vec!["pkg_too_large", "pkg_error"]);
                 let data = data.expect("data");
-                assert_eq!(data[0].0, "p_kind");
+                assert_eq!(data[0].0, "rule");
                 assert!(matches!(&data[0].1, RValue::Integer(v) if v == &[Some(3)]));
-                assert_eq!(data[1].0, "p_max");
+                assert_eq!(data[1].0, "max");
             }
             other => panic!("wrong variant: {other:?}"),
         }

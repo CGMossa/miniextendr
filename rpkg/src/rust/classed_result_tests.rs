@@ -1,17 +1,15 @@
-//! Classed `Result` errors, class vectors and the condition-data prefix
-//! (#1434, #1435, #1440).
+//! Classed `Result` errors, class vectors and the reserved condition-data
+//! names (#1434, #1435, #1440).
 //!
 //! - `RConditionError` on a package error enum: every `Err` raised from a
 //!   `Result<T, PkgError>` return carries the member + family classes and the
 //!   variant's fields as `e$<name>`, while the Rust side keeps `?` composition.
 //! - `RError`: the ready-made classed value, built from a `std::error::Error`
-//!   with `?` / `From` and decorated with `.class(..)` / `.data(..)` /
-//!   `.data_prefix(..)`.
+//!   with `?` / `From` and decorated with `.class(..)` / `.data(..)`.
 //! - `class = [..]` vectors on `rust_error!` / `warning!` / `rust_condition!`.
-//! - `data_prefix = ".."` on the macros, letting fields named `kind` /
-//!   `message` / `call` through as `e$<prefix>kind` etc.; without a prefix a
-//!   computed reserved name is rejected at runtime (literal names fail to
-//!   compile, see the `compile_fail` doctest on
+//! - Data fields named `kind` / `message` / `call` are rejected: a computed
+//!   reserved name fails at runtime (literal names fail to compile, see the
+//!   `compile_fail` doctest on
 //!   `miniextendr_api::condition::is_reserved_condition_field`).
 
 use miniextendr_api::condition::{ConditionData, RConditionError, RError};
@@ -137,17 +135,6 @@ pub fn rerror_parse(s: &str) -> Result<i32, RError> {
     Ok(n)
 }
 
-/// `RError` with `data_prefix("p_")` and fields named like the reserved slots.
-#[miniextendr]
-pub fn rerror_prefixed() -> Result<i32, RError> {
-    Err(RError::new("prefixed fields")
-        .class("pkg_prefixed")
-        .data_prefix("p_")
-        .data("kind", 7)
-        .data("message", "inner")
-        .data("call", "wrapped::step"))
-}
-
 /// `RError` whose field name is computed at runtime and reserved: raises a
 /// plain `rust_error` about the reserved name instead of overwriting `e$kind`.
 #[miniextendr]
@@ -163,7 +150,7 @@ pub fn rerror_plain() -> Result<i32, RError> {
 
 // endregion
 
-// region: class vectors and data_prefix on the macros
+// region: class vectors on the macros
 
 /// `rust_error!(class = [member, family], ...)`.
 #[miniextendr]
@@ -171,37 +158,24 @@ pub fn classed_error_vec(member: &str, family: &str) {
     rust_error!(class = [member, family], "layered error");
 }
 
-/// `warning!` with a two-element class vector and data.
+/// `warning!` with a two-element class vector and data. Like every condition
+/// macro it unwinds, so nothing follows it.
 #[miniextendr]
-pub fn classed_warning_vec(n: i32) -> i32 {
+pub fn classed_warning_vec(n: i32) {
     warning!(
         class = ["pkg_warning_dropped", "pkg_warning"],
         data = ("dropped", n),
         "dropped {n} rows"
     );
-    n
 }
 
 /// `rust_condition!` with a class vector supplied as a `Vec<String>`.
 #[miniextendr]
-pub fn classed_condition_vec(classes: Vec<String>) -> i32 {
+pub fn classed_condition_vec(classes: Vec<String>) {
     rust_condition!(class = classes, "signalled");
-    1
 }
 
-/// `data_prefix` on the macro: `kind` / `message` arrive as `e$p_kind` /
-/// `e$p_message`; the base `e$kind` / `e$message` are untouched.
-#[miniextendr]
-pub fn prefixed_data_macro(kind: i32) {
-    rust_error!(
-        class = "pkg_prefixed_macro",
-        data_prefix = "p_",
-        data = { kind = kind, message = "inner", call = "wrapped::step" },
-        "prefixed macro fields"
-    );
-}
-
-/// Computed field name without a prefix: the runtime reserved-name check fires.
+/// Computed reserved field name: the runtime reserved-name check fires.
 #[miniextendr]
 pub fn reserved_data_macro_runtime(name: &str) {
     rust_error!(data = (name, 1), "should not reach R with this field");
