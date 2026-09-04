@@ -1527,6 +1527,111 @@ impl ExternalPtr<()> {
     }
 }
 
+// region: Consuming (`self` by value) method support
+
+/// Marker left in an `EXTPTRSXP` slot while a consuming (`self` by value)
+/// method runs, and left behind for good if that method panics.
+///
+/// `#[miniextendr]` methods taking bare `self` move the stored value out of
+/// the R handle with [`ExternalPtr::<()>::take_for_consuming`], call the
+/// method, and either write the result back
+/// ([`ExternalPtr::<()>::restore_after_consuming`], for `self -> Self`) or
+/// leave the slot consumed (terminal `self -> T`). A slot holding this marker
+/// makes every later method call on the handle fail with a "consumed" error
+/// instead of a type mismatch; the finaliser drops the marker like any value.
+#[derive(Debug)]
+pub struct ConsumedSlot;
+
+/// Bound for the receiver of a **fallible** consuming method
+/// (`self -> Result<Self, E>` / `self -> Option<Self>`).
+///
+/// The generated wrapper calls the method on a clone of the stored value and
+/// only overwrites the R handle on `Ok` / `Some`, so a failed step leaves the
+/// R object exactly as it was, which is what an interactive R user expects
+/// from `obj |> add_step(-1)` erroring. Blanket-implemented for every
+/// `T: Clone`; the `on_unimplemented` text below is what rustc prints when
+/// the type is not `Clone`.
+#[diagnostic::on_unimplemented(
+    message = "a fallible consuming method (`self -> Result<Self, E>` / `Option<Self>`) needs `{Self}: Clone`",
+    note = "the wrapper calls the method on a clone so a failed step leaves the R object untouched; derive or implement `Clone`, or take `&mut self` and return `Result<&mut Self, E>` instead"
+)]
+pub trait ConsumingFallible: Clone {}
+impl<T: Clone> ConsumingFallible for T {}
+
+/// Clone the stored value for a fallible consuming step (see
+/// [`ConsumingFallible`]). Free function so codegen can name the bound.
+#[inline]
+pub fn clone_for_consuming<T: ConsumingFallible>(value: &T) -> T {
+    value.clone()
+}
+
+/// Panic with the right message when a handle's stored value is not a `T`:
+/// "consumed" if a previous `self`-by-value step failed, type mismatch
+/// otherwise. Used by generated method preludes instead of a bare `expect`.
+#[cold]
+pub fn handle_downcast_failed<T: TypedExternal>(ptr: &ExternalPtr<()>) -> ! {
+    if ptr.is_consumed() {
+        panic!(
+            "this `{}` object was consumed by a `self`-by-value method that did not return \
+             a new value (it returned a plain result or panicked) and can no longer be used",
+            ExternalPtr::<T>::type_name()
+        );
+    }
+    panic!(
+        "expected ExternalPtr<{}>, found `{}`",
+        ExternalPtr::<T>::type_name(),
+        ptr.stored_type_name().unwrap_or("<unknown>")
+    );
+}
+
+impl ExternalPtr<()> {
+    /// Whether the slot holds the [`ConsumedSlot`] marker.
+    pub fn is_consumed(&self) -> bool {
+        let any_raw = unsafe { R_ExternalPtrAddr(self.sexp) as *mut Box<dyn Any> };
+        if any_raw.is_null() {
+            return false;
+        }
+        let any_box: &Box<dyn Any> = unsafe { &*any_raw };
+        any_box.is::<ConsumedSlot>()
+    }
+
+    /// Move the stored `T` out of the handle, leaving [`ConsumedSlot`] behind.
+    ///
+    /// Returns `None` when the slot does not hold a `T` (wrong type, null, or
+    /// already consumed); the slot is untouched in that case. The outer
+    /// `Box<Box<dyn Any>>` cell stays allocated, so the finaliser and every
+    /// other accessor keep working on the marker.
+    pub fn take_for_consuming<T: TypedExternal>(&mut self) -> Option<T> {
+        let any_raw = unsafe { R_ExternalPtrAddr(self.sexp) as *mut Box<dyn Any> };
+        if any_raw.is_null() {
+            return None;
+        }
+        let any_box: &mut Box<dyn Any> = unsafe { &mut *any_raw };
+        if !any_box.is::<T>() {
+            return None;
+        }
+        let taken = std::mem::replace(any_box, Box::new(ConsumedSlot));
+        let boxed: Box<T> = taken.downcast::<T>().expect("checked is::<T> above");
+        Some(*boxed)
+    }
+
+    /// Put a value back into a slot emptied by [`Self::take_for_consuming`]
+    /// (the write-back half of `self -> Self`). Replaces whatever the slot
+    /// holds; the `TypedExternal` tag in the `prot` slot is unchanged because
+    /// the type is the same.
+    pub fn restore_after_consuming<T: TypedExternal>(&mut self, value: T) {
+        let any_raw = unsafe { R_ExternalPtrAddr(self.sexp) as *mut Box<dyn Any> };
+        assert!(
+            !any_raw.is_null(),
+            "restore_after_consuming on a null external pointer"
+        );
+        let any_box: &mut Box<dyn Any> = unsafe { &mut *any_raw };
+        *any_box = Box::new(value);
+    }
+}
+
+// endregion
+
 /// Error returned when type checking fails in `try_from_sexp_with_error`.
 ///
 /// The `found` field in `Mismatch` contains a `&'static str` from R's

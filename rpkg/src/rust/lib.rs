@@ -166,6 +166,7 @@ mod dataframe_derive_alignment_tests;
 mod dataframe_enum_payload_matrix;
 mod dataframe_examples;
 mod dataframe_group_tests;
+mod dataframe_option_scalar_tests;
 #[cfg(feature = "rayon")]
 mod dataframe_rayon_tests;
 mod dataframe_reader_enum_roundtrip_test;
@@ -220,6 +221,7 @@ mod lifecycle_tests;
 #[cfg(feature = "log")]
 mod log_tests;
 mod macro_equivalence;
+mod match_arg_foreign_tests;
 mod match_arg_impl_tests;
 mod match_arg_tests;
 #[cfg(feature = "md5")]

@@ -184,19 +184,34 @@ semantics as `&mut self -> ()` mutators (which return the object via the
 `Chainable Mutation` strategy); the only difference is that returning
 `&mut Self` lets the same method *also* chain in Rust.
 
-The terminal `build()` takes `&self` (not `self`) so the R object stays valid
-afterwards, and returns a different type (`String` here) through the usual
-`IntoR` conversion. Consuming `self` builders (`fn build(self) -> T`) are
-rejected — R uses reference semantics via `ExternalPtr`, so the R handle would
-outlive the consumed Rust value.
+The terminal `build()` takes `&self` so the R object stays valid afterwards,
+and returns a different type (`String` here) through the usual `IntoR`
+conversion.
+
+**Consuming receivers.** Builders written as `fn step(mut self, ..) -> Self`
+work too: the wrapper moves the value out of the R handle, calls the step, and
+writes the result back into the *same* handle, so identity is preserved
+exactly as for `&mut Self`. `fn step(mut self, ..) -> Result<Self, E>` /
+`Option<Self>` run on a clone (the type must be `Clone`) and overwrite the
+handle only on success, so a failed step leaves the R object as it was. A
+consuming method with any other return type (`fn finish(self) -> T`) is a
+terminal consume: the value is moved out and converted, and later use of the
+handle errors with "was consumed". See
+[CLASS_SYSTEMS.md](CLASS_SYSTEMS.md#consuming-receivers-self).
+
+**Fallible in-place steps.** `&mut self -> Result<&mut Self, E>` and
+`-> Option<&mut Self>` are recognised as in-place builders as well: `Ok` /
+`Some` hands back the same handle, `Err` / `None` raises through the normal
+`Result` / `Option` error paths.
 
 > The generated generic is named after the Rust method (`set_name`,
 > `set_loud`, `build`), so pick method names that don't collide with existing
 > generics or base-R functions in the importing package.
 
-This works on the default S3 / `ExternalPtr` path today. Env / R6 / S4 / S7
-support for `&Self`/`&mut Self` returns is tracked in
-[#769](https://github.com/A2-ai/miniextendr/issues/769).
+All of the above works on every impl-block class system (S3, Env, R6, S4,
+S7): R6 and Env chain through `invisible(self)`, S4 and S7 return the
+receiver from the generated generic. `rpkg/src/rust/pipe_builder_tests.rs`
+is the cross-system fixture.
 
 ## Implementing `print`
 

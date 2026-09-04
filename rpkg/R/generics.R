@@ -157,3 +157,49 @@ NULL
 #' @param ... Additional arguments.
 #' @name peek
 NULL
+
+# ConsumingBuilder fixture generics (consuming `self` receivers and fallible
+# in-place builders). Same pattern as above: exported by the auto-generated
+# wrappers under @rdname ConsumingBuilder, aliased here for R CMD check.
+
+#' Add an amount, consuming and returning the builder
+#' @param x An object.
+#' @param ... Additional arguments.
+#' @name with_amount
+NULL
+
+#' Add an amount, rejecting negative values
+#' @param x An object.
+#' @param ... Additional arguments.
+#' @name try_amount
+NULL
+
+#' Add an amount, returning NULL past the cap
+#' @param x An object.
+#' @param ... Additional arguments.
+#' @name maybe_amount
+NULL
+
+#' Add an amount in place, rejecting negative values
+#' @param x An object.
+#' @param ... Additional arguments.
+#' @name checked_bump
+NULL
+
+#' Add an amount in place, returning NULL past the cap
+#' @param x An object.
+#' @param ... Additional arguments.
+#' @name maybe_bump
+NULL
+
+#' Read the running total
+#' @param x An object.
+#' @param ... Additional arguments.
+#' @name total
+NULL
+
+#' Consume the builder and return its total
+#' @param x An object.
+#' @param ... Additional arguments.
+#' @name finish
+NULL

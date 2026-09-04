@@ -107,6 +107,15 @@ pub enum ReturnHandling {
     /// object the user piped in is returned verbatim, wrapping the now-mutated
     /// Rust value. Only valid for instance methods (requires `self_sexp`).
     SelfHandle,
+    /// Fallible in-place step whose call expression yields `Result<(), E>`
+    /// (`&mut self -> Result<&mut Self, E>`, or `self -> Result<Self, E>` after
+    /// the write-back closure): raise on `Err`, return the same `self_sexp`
+    /// handle on `Ok` (#1432, #1433).
+    SelfHandleResult,
+    /// `Option` sibling of [`SelfHandleResult`](Self::SelfHandleResult): the
+    /// call yields `Option<()>`; raise the absence error on `None`, return the
+    /// same handle on `Some`.
+    SelfHandleOption,
     /// Returns an arbitrary type `T: IntoR` -- converts via `IntoR::into_sexp`.
     IntoR,
     /// Returns `Option<()>` -- raises an error on `None`, otherwise emits `R_NilValue`.
@@ -746,6 +755,29 @@ impl CWrapperContext {
                     self_sexp
                 }
             }
+            ReturnHandling::SelfHandleResult => {
+                quote! {
+                    let __result: ::core::result::Result<(), _> = #call_expr;
+                    if let Err(e) = __result {
+                        return unsafe { ::miniextendr_api::error_value::make_rust_condition_value(
+                            &format!("{:?}", e), ::miniextendr_api::error_value::kind::RESULT_ERR, ::core::option::Option::None, Some(__miniextendr_call),
+                        ) };
+                    }
+                    self_sexp
+                }
+            }
+            ReturnHandling::SelfHandleOption => {
+                let error_msg = format!("`{}()` returned no value", fn_ident);
+                quote! {
+                    let __result: ::core::option::Option<()> = #call_expr;
+                    if __result.is_none() {
+                        return unsafe { ::miniextendr_api::error_value::make_rust_condition_value(
+                            #error_msg, ::miniextendr_api::error_value::kind::NONE_ERR, ::core::option::Option::None, Some(__miniextendr_call),
+                        ) };
+                    }
+                    self_sexp
+                }
+            }
             ReturnHandling::IntoR => {
                 let result_ident = format_ident!("__result");
                 let conversion = self.sexp_conversion_expr(&result_ident, true);
@@ -1184,13 +1216,15 @@ impl CWrapperContext {
                 };
                 (worker, convert)
             }
-            ReturnHandling::SelfHandle => {
-                // `SelfHandle` is only assigned to instance methods, which always
-                // run on the main thread (the `&self`/`&mut self` borrow can't
-                // cross to the worker). It therefore never reaches the worker
-                // return-handling path.
+            ReturnHandling::SelfHandle
+            | ReturnHandling::SelfHandleResult
+            | ReturnHandling::SelfHandleOption => {
+                // The self-handle strategies are only assigned to instance
+                // methods, which always run on the main thread (the receiver
+                // borrow / moved value can't cross to the worker). They never
+                // reach the worker return-handling path.
                 unreachable!(
-                    "ReturnHandling::SelfHandle is instance-only and always uses the main thread"
+                    "ReturnHandling::SelfHandle* is instance-only and always uses the main thread"
                 )
             }
         }
