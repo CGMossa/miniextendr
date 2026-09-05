@@ -8,9 +8,10 @@
 
 # Internal helper: re-raise a tagged Rust error/condition value as an R condition.
 # Generated wrappers call this whenever `.Call()` returns a `rust_condition_value`.
-# `.call_default` is the wrapper's `sys.call()`, used as the fallback when the
-# Rust panic payload didn't carry a captured call (e.g. lambda contexts that
-# pass `.call = NULL` to `.Call`). For error/panic kinds `stop()` longjmps;
+# `.call_default` is the wrapper's `sys.call()` (or its caller-derived
+# `.mx_call` for `#[miniextendr(noexport, call = caller)]` entry points), used as the
+# fallback when the Rust panic payload didn't carry a captured call (e.g.
+# lambda contexts that pass `.call = NULL` to `.Call`). For error/panic kinds `stop()` longjmps;
 # for warning/message/condition the helper signals and returns invisible(NULL),
 # which the wrapper's surrounding `return(...)` propagates as its result.
 .miniextendr_raise_condition <- function(.val, .call_default) {
