@@ -16,8 +16,8 @@
 //! `String` / `Vec<String>` impls map NA to `""`, which is lossy. The optional
 //! forms preserve the distinction as `None`.
 //!
-//! UTF-8 validity is guaranteed by `miniextendr_assert_utf8_locale()` at
-//! package init — these impls skip per-string validation. Outbound
+//! UTF-8/ASCII strings use a zero-copy fast path. Other text encodings are
+//! translated to UTF-8; R strings marked as `bytes` are rejected. Outbound
 //! counterparts: `String` / `&str` impls in [`crate::into_r`].
 
 use crate::from_r::{

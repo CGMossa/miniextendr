@@ -6,7 +6,9 @@ use std::borrow::Cow;
 use std::marker::PhantomData;
 
 use crate::SEXPTYPE::STRSXP;
-use crate::from_r::{SexpError, SexpTypeError, TryFromSexp, charsxp_to_cow, charsxp_to_str};
+use crate::from_r::{
+    SexpError, SexpTypeError, TryFromSexp, charsxp_to_borrowed_str, charsxp_to_cow,
+};
 use crate::gc_protect::{OwnedProtect, ProtectScope, Protected};
 use crate::into_r::IntoR;
 use crate::{SEXP, SexpExt};
@@ -69,7 +71,9 @@ impl<'a> StrVec<'a> {
     /// Get the string at the given index (zero-copy), leashed to `'a`.
     ///
     /// Returns `None` if out of bounds or if the element is `NA_character_`.
-    /// Panics if the CHARSXP is not valid UTF-8 (should not happen in a UTF-8 locale).
+    /// Panics if the CHARSXP is not UTF-8/ASCII. A UTF-8 process locale can
+    /// still contain explicitly tagged Latin-1 strings; use
+    /// [`get_cow`](Self::get_cow) when those must be translated.
     #[inline]
     pub fn get_str(self, idx: isize) -> Option<&'a str> {
         let charsxp = self.get_charsxp(idx)?;
@@ -77,8 +81,8 @@ impl<'a> StrVec<'a> {
             if charsxp == SEXP::na_string() {
                 return None;
             }
-            // charsxp_to_str fabricates &'static; covariance narrows it to &'a.
-            Some(charsxp_to_str(charsxp))
+            // charsxp_to_borrowed_str fabricates &'static; covariance narrows it to &'a.
+            Some(charsxp_to_borrowed_str(charsxp))
         }
     }
 
@@ -118,7 +122,7 @@ impl<'a> StrVec<'a> {
             if charsxp == SEXP::na_string() {
                 return None;
             }
-            Some(charsxp_to_str(charsxp))
+            Some(charsxp_to_borrowed_str(charsxp))
         }
     }
 
@@ -141,10 +145,11 @@ impl<'a> StrVec<'a> {
         }
     }
 
-    /// Iterate over elements as `Option<&str>` (leashed to `'a`).
+    /// Iterate over UTF-8/ASCII elements as `Option<&str>` (leashed to `'a`).
     ///
-    /// `NA_character_` elements yield `None`, valid strings yield `Some(&str)`.
-    /// Zero-copy — each `&str` borrows directly from R's CHARSXP.
+    /// `NA_character_` elements yield `None`; UTF-8/ASCII strings yield
+    /// `Some(&str)`. Panics on other encodings; use [`iter_cow`](Self::iter_cow)
+    /// to translate them.
     #[inline]
     pub fn iter(self) -> StrVecIter<'a> {
         StrVecIter {
@@ -296,7 +301,7 @@ impl<'a> Iterator for StrVecIter<'a> {
         if charsxp == SEXP::na_string() {
             Some(None)
         } else {
-            Some(Some(unsafe { charsxp_to_str(charsxp) }))
+            Some(Some(unsafe { charsxp_to_borrowed_str(charsxp) }))
         }
     }
 
@@ -609,7 +614,7 @@ impl ProtectedStrVec {
     /// Returns `None` for out-of-bounds or `NA_character_`.
     #[inline]
     pub fn get_str(&self, idx: isize) -> Option<&str> {
-        // charsxp_to_str returns &'static str, but lifetime elision
+        // charsxp_to_borrowed_str returns &'static str, but lifetime elision
         // restricts it to &'_ (tied to &self) — correct: data lives
         // as long as the Protected guard keeps the STRSXP alive.
         self.protected.get().get_str(idx)

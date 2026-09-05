@@ -253,11 +253,11 @@ for the same hermetic reason as Gotcha 5.
 (from `R_init_<package>`) via `miniextendr-api/src/encoding.rs`. It calls
 `l10n_info()[["UTF-8"]]` (public R API) and aborts if the result is `FALSE`.
 
-This check exists because miniextendr's string conversion layer
-(`charsxp_to_str`) assumes all CHARSXP bytes are valid UTF-8. R >= 4.2.0
-guarantees this when the locale is UTF-8, but makes no guarantees in a
-non-UTF-8 locale. A silent wrong-locale scenario would produce corrupted string
-data rather than a clear error, so the framework asserts up-front.
+This check makes native/unmarked CHARSXPs safe to interpret as UTF-8. Explicit
+per-string tags remain possible in a UTF-8 session: the conversion layer uses a
+zero-copy path for UTF-8/ASCII, translates Latin-1 text, and rejects `bytes`
+strings. In a non-UTF-8 locale, native strings have no compatible zero-copy
+interpretation for Rust's `str`, so the framework asserts up-front.
 
 The check is not a bug in miniextendr — it is a guard against using the
 framework in an environment where string correctness cannot be guaranteed. The

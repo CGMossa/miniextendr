@@ -2,8 +2,9 @@
 #
 # `package_init` (miniextendr-api/src/init.rs) calls
 # `miniextendr_assert_utf8_locale()` once during `R_init_*`. That assertion
-# rejects sessions whose locale isn't UTF-8, since the `from_r` decoders
-# assume CHARSXP bytes are valid UTF-8.
+# rejects sessions whose locale isn't UTF-8, so unmarked/native CHARSXPs have
+# an unambiguous UTF-8 interpretation. Explicit Latin-1 CHARSXPs can still
+# occur in such a session and must be translated per string.
 #
 # These tests cover three layers:
 #   1. The FFI lookup of `l10n_info()[["UTF-8"]]` works.
@@ -34,6 +35,48 @@ test_that("test session reports UTF-8 (R >= 4.2 default)", {
   # The miniextendr package literally cannot have loaded if this were FALSE
   # (package_init would have thrown), so the test session must report UTF-8.
   expect_true(isTRUE(l10n_info()[["UTF-8"]]))
+})
+
+# endregion
+
+# region: per-string encoding tags
+
+latin1_facade <- function() {
+  value <- rawToChar(as.raw(c(0x66, 0x61, 0xe7, 0x61, 0x64, 0x65)))
+  Encoding(value) <- "latin1"
+  value
+}
+
+test_that("owned String conversion translates Latin-1 in a UTF-8 session", {
+  value <- latin1_facade()
+  expect_identical(Encoding(value), "latin1")
+  expect_identical(conv_string_arg(value), enc2utf8(value))
+})
+
+test_that("borrowed str conversion translates Latin-1 in a UTF-8 session", {
+  value <- latin1_facade()
+  expect_equal(miniextendr:::str_borrow_len(value), 6L)
+})
+
+test_that("Cow strings own only elements that require translation", {
+  value <- latin1_facade()
+  expect_true(zero_copy_cow_str_is_borrowed("façade"))
+  expect_false(zero_copy_cow_str_is_borrowed(value))
+  expect_false(zero_copy_vec_cow_str_all_borrowed(c("ascii", value)))
+})
+
+test_that("bytes-encoded strings are rejected as non-text", {
+  value <- rawToChar(as.raw(0xff))
+  Encoding(value) <- "bytes"
+  expect_error(conv_string_arg(value), "marked as bytes")
+  expect_error(miniextendr:::str_borrow_len(value), "marked as bytes")
+  expect_error(zero_copy_cow_str_is_borrowed(value), "marked as bytes")
+})
+
+test_that("malformed strings tagged as UTF-8 are rejected before creating str", {
+  value <- rawToChar(as.raw(0xff))
+  Encoding(value) <- "UTF-8"
+  expect_error(conv_string_arg(value), "marked as UTF-8 contains invalid UTF-8")
 })
 
 # endregion
