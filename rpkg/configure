@@ -2055,28 +2055,6 @@ if test -f "$abs_top_srcdir/inst/vendor.tar.xz" \
   'The latch leak' and issue 1029." "$LINENO" 5
 fi
 
-if test ! -f "$abs_top_srcdir/inst/vendor.tar.xz" \
-   && test "$SOURCE_IS_GIT" = "false" \
-   && command -v cargo-revendor >/dev/null 2>&1; then
-  { printf '%s\n' "$as_me:${as_lineno-$LINENO}: auto-vendor: inst/vendor.tar.xz absent, running cargo-revendor" >&5
-printf '%s\n' "$as_me: auto-vendor: inst/vendor.tar.xz absent, running cargo-revendor" >&6;}
-  { printf '%s\n' "$as_me:${as_lineno-$LINENO}: auto-vendor: no .git ancestor found — assuming CRAN-style/offline build context" >&5
-printf '%s\n' "$as_me: auto-vendor: no .git ancestor found — assuming CRAN-style/offline build context" >&6;}
-  mkdir -p "$abs_top_srcdir/inst"
-  if (cd "$abs_top_srcdir" && cargo revendor \
-        --manifest-path src/rust/Cargo.toml \
-        --output vendor \
-        --compress inst/vendor.tar.xz \
-        --blank-md --source-marker --force) >&2; then
-    { printf '%s\n' "$as_me:${as_lineno-$LINENO}: auto-vendor: produced inst/vendor.tar.xz" >&5
-printf '%s\n' "$as_me: auto-vendor: produced inst/vendor.tar.xz" >&6;}
-  else
-    { printf '%s\n' "$as_me:${as_lineno-$LINENO}: WARNING: auto-vendor: cargo-revendor failed; falling through to source mode" >&5
-printf '%s\n' "$as_me: WARNING: auto-vendor: cargo-revendor failed; falling through to source mode" >&2;}
-    rm -f "$abs_top_srcdir/inst/vendor.tar.xz"
-  fi
-fi
-
 if test -f "$abs_top_srcdir/inst/vendor.tar.xz"; then
   IS_TARBALL_INSTALL=true
   _install_mode_label="tarball install (offline, vendored)"

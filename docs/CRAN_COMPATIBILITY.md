@@ -15,54 +15,42 @@ signal and configures cargo accordingly:
 
 That's the entire decision tree. There is no `NOT_CRAN` env var, no
 `PREPARE_CRAN`, no `FORCE_VENDOR`, no auto-detected "build context"; just the
-file-existence test.
+file-existence test. `configure` is a consumer of that signal: it never runs
+`cargo-revendor` and never creates `inst/vendor.tar.xz`.
 
-## Self-repair: configure auto-vendors when needed
+## Vendoring belongs to tarball production
 
-Before the file-existence test, configure runs an **auto-vendor** block that
-produces `inst/vendor.tar.xz` on the fly when ALL of these hold:
+Only workflows that are deliberately producing a package tarball may create
+`inst/vendor.tar.xz`:
 
-1. `inst/vendor.tar.xz` is absent.
-2. `cargo-revendor` is on PATH.
-3. Source tree has no `.git` ancestor (i.e., we are not in a developer's
-   checkout — we are in a build-staging dir or an install-extraction dir).
+- `just vendor` and `minirextendr_vendor()` create it explicitly before a
+  maintainer builds a release artifact.
+- `bootstrap.R` creates it before `R CMD build` when a build frontend such as
+  `pkgbuild` honors `Config/build/bootstrap: TRUE`.
 
-This is what makes the scaffolding **self-repairing and self-coherent**:
+Everything else stays in source mode when the file is absent. This includes
+`bash ./configure`, `R CMD INSTALL .`, and a fresh scaffold outside a Git
+checkout. Git ancestry is not an install-mode signal.
 
-- **Build phase, pkgbuild path**: `devtools::build()` / `pkgbuild::build()` /
-  `r-lib/actions/check-r-package` honor `Config/build/bootstrap: TRUE` →
-  `bootstrap.R` runs in the staging dir → invokes `./configure` → no `.git`
-  ancestor → auto-vendor fires → `inst/vendor.tar.xz` is sealed into the
-  tarball. No explicit `just vendor` needed.
-- **Install phase, end users**: a tarball that arrives missing
-  `inst/vendor.tar.xz` (e.g. published from a raw `R CMD build` that bypassed
-  `bootstrap.R`) is repaired at install time — configure runs, no `.git`,
-  `cargo-revendor` available → vendor produced → tarball mode → offline build.
-- **Dev iteration**: `bash ./configure` from the source tree finds `.git` in
-  an ancestor → auto-vendor block is **skipped** → fast `just configure`,
-  source-mode dev iteration with monorepo path overrides. Use `just vendor`
-  / `miniextendr_vendor()` explicitly when producing a release artifact.
-- **CRAN's offline farm**: `cargo-revendor` is not installed, so the auto-vendor
-  branch is short-circuited → falls through to source mode → `cargo` tries the
-  network → fails loudly. This is the canary: CRAN bouncing a tarball means the
-  maintainer shipped one without vendor inside.
+A package tarball built without `inst/vendor.tar.xz` is not repaired during
+installation. It remains in source mode and cargo may need network access; that
+artifact is therefore not CRAN-ready. The failure on CRAN's offline farm is the
+intended canary for a maintainer who shipped an incomplete release artifact.
 
 ## Where each install path lands
 
 | You ran | Mode | Vendor used? | How vendor was produced |
 |---|---|---|---|
-| `R CMD INSTALL .` (rpkg source dir) | Source | No | n/a (`.git` ancestor → skip) |
-| `devtools::install("rpkg")` / `load_all` / `install_local` | Source | No | n/a (`.git` ancestor → skip) |
-| `remotes::install_github("A2-ai/miniextendr", subdir = "rpkg")` | Source | No | n/a (`.git` ancestor in fetched repo) |
-| `R CMD build rpkg` directly (no bootstrap.R) | Tarball | Yes | configure auto-vendor at install time on user's machine |
-| `devtools::build("rpkg")` / `pkgbuild::build()` | Tarball | Yes | bootstrap.R → configure auto-vendor at build time (staging dir, no `.git`) |
+| `R CMD INSTALL .` (source dir) | Source | No | n/a; configure does not vendor |
+| `devtools::install(build = FALSE)` / `load_all` | Source | No | n/a; no package tarball is produced |
+| `R CMD build rpkg` directly | Source unless pre-vendored | Only if already present | run `just vendor` / `miniextendr_vendor()` first for a release artifact |
+| `devtools::build("rpkg")` / `pkgbuild::build()` | Tarball | Yes when `cargo-revendor` is available | `bootstrap.R` vendors before `R CMD build` |
 | `just r-cmd-build` / `just r-cmd-check` | Tarball | Yes | explicit `just vendor` (recipe dependency) before R CMD build |
 | CRAN's autobuilder on a submitted tarball | Tarball | Yes | maintainer's `just vendor` baked it into the tarball |
 
-The second column maps directly to the file-existence test. The third column
-shows which trigger produced the vendor — there are three layered triggers
-(`just vendor`, `bootstrap.R`-via-pkgbuild, configure auto-vendor at install),
-all converging on the same single signal.
+The mode always maps directly to the file-existence test. Production and
+consumption are deliberately separate: tarball workflows produce the signal;
+configure only consumes it.
 
 ## Why
 

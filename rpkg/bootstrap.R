@@ -21,17 +21,10 @@
 # sealed into the tarball — install-time configure rewrites it to the
 # [source] replacement form.
 #
-# Why vendoring lives here, not in configure.ac's auto-vendor block:
-# when configure runs in the source dir it walks up to the workspace .git
-# and SOURCE_IS_GIT=true — the .git-walk auto-vendor in configure skips.
-# We do it here so the tarball gets sealed with vendor.tar.xz inside.
-#
-# configure.ac's self-repair block still handles the complementary
-# install-time case: an end user installs a tarball that arrived
-# without inst/vendor.tar.xz (no .git in the extracted dir, so
-# configure fires auto-vendor there). That path has no [patch] override,
-# so cargo resolves the framework crates straight from the git URL and
-# cargo-revendor leaves the natural git source in place (nothing to stamp).
+# Vendoring lives here because bootstrap.R is part of tarball production.
+# configure.ac never creates inst/vendor.tar.xz; it only consumes an existing
+# tarball to select offline mode. A package artifact built without the vendor
+# tarball therefore remains in source mode and is not CRAN-ready.
 #
 # At install time bootstrap.R does NOT run (Config/build/bootstrap is
 # pkgbuild-only). The bundled inst/vendor.tar.xz from step 2 is what

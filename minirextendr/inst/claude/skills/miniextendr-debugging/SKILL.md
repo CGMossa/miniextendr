@@ -35,8 +35,9 @@ Almost always the **vendor latch**: `inst/vendor.tar.xz` is present, so
 and expects pre-shipped `R/<pkg>-wrappers.R`. On a package that has none, you
 get an empty namespace.
 
-- This happens after a bare `devtools::install()` / `R CMD INSTALL .` on a
-  fresh package: `R CMD build` runs `bootstrap.R`, which auto-vendors.
+- This can happen when a build-producing frontend runs `bootstrap.R` on a fresh
+  package before wrappers exist. A direct `R CMD INSTALL .` remains in source
+  mode because configure never vendors.
 - Fix: `minirextendr::miniextendr_clean_vendor_leak()` (removes the stale
   tarball), then `minirextendr::miniextendr_build()`.
 - `MINIEXTENDR_FORCE_WRAPPER_GEN=1` forces wrapper generation even in tarball

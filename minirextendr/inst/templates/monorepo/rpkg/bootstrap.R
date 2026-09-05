@@ -7,9 +7,9 @@
 #   2. If no inst/vendor.tar.xz is present yet, vendor one with cargo-revendor
 #      so the sealed tarball ships self-contained for offline install.
 #
-# Install-mode detection is automatic: if inst/vendor.tar.xz exists (created by
-# minirextendr::miniextendr_vendor() or by the auto-vendor block below),
-# configure builds in tarball/offline mode. Otherwise source/network mode is used.
+# Install-mode detection is automatic: minirextendr_vendor() or bootstrap.R
+# creates inst/vendor.tar.xz while producing a package tarball; configure only
+# consumes it. Otherwise source/network mode is used.
 
 # MINIEXTENDR_BOOTSTRAP=1 tells configure's leaked-tarball guard (#1029) that
 # this ./configure was invoked by bootstrap, not directly, so a deliberate
@@ -25,7 +25,7 @@ if (.Platform$OS.type == "windows") {
   system2("bash", "./configure", env = "MINIEXTENDR_BOOTSTRAP=1")
 }
 
-# Auto-vendor fallback. minirextendr::miniextendr_vendor() normally seals
+# Tarball-production vendoring. minirextendr::miniextendr_vendor() normally seals
 # inst/vendor.tar.xz before the build and this block short-circuits via the
 # file.exists guard. But git-based / staged installs (remotes::install_git,
 # devtools::install, pak, CRAN) never run it and copy the package

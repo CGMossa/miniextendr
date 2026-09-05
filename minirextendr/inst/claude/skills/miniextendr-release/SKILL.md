@@ -20,16 +20,17 @@ release story revolves around one file:
 generated at build time and **must stay gitignored** (the scaffold's
 `.gitignore` already covers it).
 
-Three mechanisms produce it — you rarely run one by hand:
+Two tarball-producing mechanisms create it:
 
-1. **`bootstrap.R`** (in your package root, run automatically by
-   `R CMD build` / `devtools::build()` / `rcmdcheck` via
+1. **`bootstrap.R`** (in your package root, run by build frontends such as
+   `devtools::build()` / `pkgbuild::build()` / `rcmdcheck` via
    `Config/build/bootstrap: TRUE`) — runs configure, then invokes
-   `cargo-revendor` to vendor everything and seal the tarball.
-2. **configure self-repair** — an end user installing a tarball that somehow
-   lacks the vendor file gets it regenerated at install time (needs
-   `cargo-revendor` on their PATH and no `.git` ancestor).
-3. **Explicit**: `minirextendr::miniextendr_vendor()`.
+   `cargo-revendor` before the frontend calls `R CMD build`. Base
+   `R CMD build` does not run this pkgbuild extension.
+2. **Explicit**: `minirextendr::miniextendr_vendor()`.
+
+`./configure` never creates the vendor tarball. A package tarball that lacks it
+remains in source mode and is not suitable for CRAN's offline build farm.
 
 Prerequisite once per machine:
 

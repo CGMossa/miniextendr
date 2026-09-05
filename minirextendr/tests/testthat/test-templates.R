@@ -316,13 +316,6 @@ test_that("rpkg scaffolding builds and functions work end-to-end", {
     usethis::use_package_doc()
   }))
 
-  # Same auto-vendor suppression as the cargo-dep test below: a `.git`
-  # marker inside `pkg_path` makes configure.ac skip auto-vendor and stay
-  # in source mode. Without this, `devtools::document()` below fails
-  # because tarball-mode Makevars expects a pre-generated wrappers.R that
-  # this fresh scaffold doesn't have yet (#632).
-  dir.create(file.path(pkg_path, ".git"))
-
   suppressMessages({
     miniextendr_autoconf(path = pkg_path)
     miniextendr_configure(path = pkg_path)
@@ -359,15 +352,6 @@ test_that("rpkg scaffolding with external cargo dependency works", {
     usethis::proj_set(pkg_path, force = TRUE)
     usethis::use_package_doc()
   }))
-
-  # Mark the scaffolded package as a "developer source tree" so
-  # configure.ac's auto-vendor block (active when no .git ancestor is
-  # found) is skipped. We add this AFTER usethis::create_package so it
-  # doesn't trigger usethis's nested-project challenge. Without this,
-  # configure auto-vendors and locks the package into tarball mode,
-  # which then requires pre-generated R wrappers and refuses to resolve
-  # newly-added Cargo deps like itertools at build time (#633).
-  dir.create(file.path(pkg_path, ".git"))
 
   suppressMessages({
     miniextendr_autoconf(path = pkg_path)
@@ -542,18 +526,17 @@ test_that("monorepo scaffolding builds and functions work end-to-end", {
 # Standalone counterpart to the monorepo round-trip above, and the in-suite home
 # for the #757 / #775 / #822 / #963 regression (it lived as a standalone bash
 # script + bespoke CI job before; see #805). create_miniextendr_package() +
-# miniextendr_build() scaffold a package that sits outside any .git ancestor,
-# so a build = TRUE install's R CMD build step auto-vendors and would flip into
+# miniextendr_build() scaffold a package that sits outside any .git ancestor.
+# A build = TRUE install's bootstrap.R vendors while producing the tarball and
+# flips the staged package into
 # *tarball mode* — which skips the wrapper-gen pass. On a brand-new
 # package (no R/<pkg>-wrappers.R yet) that means the wrappers can never be
 # generated and library() exposes nothing (#822). miniextendr_build() now
 # detects the absent wrappers file and calls bootstrap_fresh_wrappers(), which
 # clears the latch, re-runs configure, then installs with
-# MINIEXTENDR_FORCE_WRAPPER_GEN=1 (build = FALSE). The FORCE override ensures
-# the wrapper-gen pass runs even when configure's self-repair branch
-# re-seals inst/vendor.tar.xz in a non-git tree (#963). The same FORCE flag
-# guards the wrappers-present case in install_pkg() against a leaked tarball
-# latch (#757).
+# MINIEXTENDR_FORCE_WRAPPER_GEN=1 (build = FALSE). Configure does not vendor in
+# this source-mode bootstrap; the FORCE flag also guards the wrappers-present
+# case in install_pkg() against a leaked tarball latch (#757).
 #
 # Unlike the monorepo tests, create_miniextendr_package() takes no local_path, so
 # it scaffolds against miniextendr `main` and this test is network-dependent
@@ -562,7 +545,7 @@ test_that("monorepo scaffolding builds and functions work end-to-end", {
 test_that("standalone scaffolding builds in tarball mode and exposes functions", {
   skip_e2e()
   skip_if_not(nzchar(Sys.which("cargo-revendor")),
-              "cargo-revendor not available (tarball-mode auto-vendor)")
+              "cargo-revendor not available (tarball build vendoring)")
 
   pkg_name <- "mxroundtrip"
   tmp <- tempfile("standalone-e2e-")
@@ -630,8 +613,8 @@ test_that("standalone scaffolding builds in tarball mode and exposes functions",
 # memory rule and the dropped #523 structural test). Reproducing it requires a
 # full scaffold + cargo build + R CMD INSTALL round-trip, hence the e2e gate.
 #
-# Uses the local-repo monorepo scaffold (offline; the root `.git` keeps configure
-# in source mode so no auto-vendor / tarball-mode dance is needed), then drives
+# Uses the local-repo monorepo scaffold (offline; configure stays in source mode
+# while no vendor tarball exists), then drives
 # the real miniextendr_build() once — exercising the actual single-pass logic
 # rather than the manual generate_r_wrappers() + install_to_templib() helpers.
 test_that("miniextendr_build() exports a newly added function in a single pass (#898)", {
@@ -647,7 +630,7 @@ test_that("miniextendr_build() exports a newly added function in a single pass (
   })
   rpkg_path <- file.path(tmp, "spexport")
 
-  # The scaffold's root `.git` makes configure stay in source mode, but the
+  # Configure stays in source mode while no vendor tarball exists, but the
   # monorepo's crates.io deps still need vendoring for the offline build (mirrors
   # the monorepo e2e test above). The miniextendr framework crates are already
   # vendored by the scaffolder.

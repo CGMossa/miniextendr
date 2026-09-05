@@ -90,7 +90,8 @@ resume source-mode development.
 A brand-new package has no generated \verb{R/<pkg>-wrappers.R} yet. The wrappers
 are produced by the wrapper-gen pass during install, but a plain
 \code{devtools::install(build = TRUE)} cannot bootstrap them: its \verb{R CMD build}
-step runs \code{bootstrap.R}, which auto-vendors into \code{inst/vendor.tar.xz}, and
+step runs \code{bootstrap.R}, which vendors into \code{inst/vendor.tar.xz} as part of
+producing the package tarball, and
 that latch flips \code{./configure} into offline \emph{tarball} mode -- which ships
 pre-generated wrappers and skips wrapper generation. With no wrappers to
 ship, the install either fails loudly ("tarball is missing pre-generated
@@ -100,11 +101,9 @@ When \code{miniextendr_build()} detects that the wrappers file is absent, it
 first runs a bootstrap (clear any stale latch -> configure ->
 \code{devtools::install(build = FALSE, MINIEXTENDR_FORCE_WRAPPER_GEN=1)} ->
 \code{devtools::document()}) so the wrappers exist before the normal build path
-runs. The \code{MINIEXTENDR_FORCE_WRAPPER_GEN} override forces the
-wrapper-gen pass regardless of which install mode configure resolves to: in
-a non-git tree configure's self-repair branch may legitimately re-seal the
-latch (cargo-revendor on PATH), and that is fine -- the FORCE override
-ensures wrapper generation proceeds. Once wrappers are present, the normal
-build path runs unchanged.
+runs. The \code{MINIEXTENDR_FORCE_WRAPPER_GEN} override also protects this helper
+from a pre-existing tarball-mode configuration while it establishes the
+source-mode wrapper set. Once wrappers are present, the normal build path
+runs unchanged.
 }
 

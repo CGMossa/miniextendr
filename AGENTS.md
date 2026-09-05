@@ -383,9 +383,11 @@ verification, and deliverable — it is the execution spec for work being done
 plan file — see the Reviews rule above). To execute one in isolation, the rule is
 **one plan = one worktree = one PR**:
 
-1. **R version** — `rig default 4.6 && R --version` (must read `4.6.x`, else rv
-   enters safe mode and installs break). Re-check at the start of every fresh
-   shell.
+1. **R version** — read `[project].r_version` from `rproject.toml`, run
+   `rig default <pinned-version>`, then verify `R --version` matches that exact
+   pin (otherwise rv enters safe mode and installs break). Re-read and re-check
+   at the start of every fresh shell; never treat a version copied into prose as
+   authoritative.
 2. **Read the plan first, from the main checkout.** Plan files are usually
    *untracked*, so they will NOT appear in a fresh worktree. Read
    `plans/<plan>.md` (and any journal it cites, e.g.

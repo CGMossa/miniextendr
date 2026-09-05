@@ -338,8 +338,9 @@ These checks verify diagnostics and recovery paths:
 
 - **C1: Stale generated-file detection** -- Touch `.in` source, verify
   `miniextendr_status()` reports staleness, then re-configure to clear it.
-- **C2: Vendor fallback behavior** -- Remove `vendor/`, configure in CRAN-like
-  mode, verify `inst/vendor.tar.xz` restores usable sources.
+- **C2: Configure does not vendor** -- Remove `inst/vendor.tar.xz`, configure a
+  non-Git scaffold with `cargo-revendor` available, and verify the tarball stays
+  absent and source-mode Cargo configuration is written.
 - **C3: Cross-package install order constraint** -- Attempt consumer build
   before producer install, verify meaningful failure, then build in correct
   order.
