@@ -274,6 +274,25 @@ impl R6CrossBoard {
     pub fn signature(&self) -> String {
         format!("{}x{}@{}", self.width, self.height, self.seed)
     }
+
+    /// Produce `count` copies of this board with successive seeds.
+    ///
+    /// Exercises the `Vec<Self>` cross-class return path (#1375): the
+    /// syntactic detector can't see the enclosing impl's type name, so
+    /// `ReturnStrategy::for_method` routes through
+    /// `ParsedMethod::returns_self_list()` and
+    /// `MethodReturnBuilder::with_return_class_from_method` substitutes the
+    /// receiver class ("R6CrossBoard") at strategy-build time.
+    /// @param count Number of copies to build.
+    pub fn replicate(&self, count: i32) -> Vec<Self> {
+        (0..count)
+            .map(|i| R6CrossBoard {
+                width: self.width,
+                height: self.height,
+                seed: self.seed + i,
+            })
+            .collect()
+    }
 }
 
 /// R6 builder whose terminal `build()` returns a different R6 class.
@@ -443,6 +462,53 @@ impl R6CrossPlan {
         }
         Ok(self.build_many(width, height, count))
     }
+
+    /// Materialize this plan into an `R6CrossBoard`, spelled as the explicit
+    /// handle type.
+    ///
+    /// Exercises the scalar `ExternalPtr<Class>` cross-class return path
+    /// (#1375): `IntoR for ExternalPtr<T>` already produces a bare
+    /// `EXTPTRSXP` `.val`, identical in shape to the bare-`Class` case, so
+    /// the write-time resolver wraps it the same way `build()` above does.
+    /// @param width Board width.
+    /// @param height Board height.
+    pub fn build_handle(
+        &self,
+        width: i32,
+        height: i32,
+    ) -> miniextendr_api::ExternalPtr<R6CrossBoard> {
+        miniextendr_api::ExternalPtr::new(R6CrossBoard {
+            width,
+            height,
+            seed: self.seed,
+        })
+    }
+
+    /// Materialize this plan into `count` boards, spelled as a list of
+    /// explicit handles.
+    ///
+    /// Exercises the `Vec<ExternalPtr<Class>>` cross-class return path
+    /// (#1375) — the sibling of `build_many()`'s `Vec<Class>` spelling that
+    /// `inner_class_ident` now peels the same way.
+    /// @param width Board width.
+    /// @param height Board height.
+    /// @param count Number of boards to build.
+    pub fn build_many_handles(
+        &self,
+        width: i32,
+        height: i32,
+        count: i32,
+    ) -> Vec<miniextendr_api::ExternalPtr<R6CrossBoard>> {
+        (0..count)
+            .map(|i| {
+                miniextendr_api::ExternalPtr::new(R6CrossBoard {
+                    width,
+                    height,
+                    seed: self.seed + i,
+                })
+            })
+            .collect()
+    }
 }
 
 /// Board materialized by `S7CrossPlan::s7_cross_build`.
@@ -503,6 +569,27 @@ impl S7CrossPlan {
             height,
             seed: self.seed,
         }
+    }
+
+    /// Materialize this plan into an `R6CrossBoard` (S7 source, R6 target),
+    /// spelled as the explicit handle type.
+    ///
+    /// Mixed-system explicit-handle return (#1375): mirror of
+    /// [`Self::s7_build_r6`] through the `ExternalPtr<Class>` spelling — the
+    /// write-time resolver still keys off the *returned* class, so this S7
+    /// method's wrapper builds the R6 target via `R6CrossBoard$new(.ptr = .val)`.
+    /// @param width Board width.
+    /// @param height Board height.
+    pub fn s7_build_handle_r6(
+        &self,
+        width: i32,
+        height: i32,
+    ) -> miniextendr_api::ExternalPtr<R6CrossBoard> {
+        miniextendr_api::ExternalPtr::new(R6CrossBoard {
+            width,
+            height,
+            seed: self.seed,
+        })
     }
 
     /// Materialize this plan into an `R6CrossBoard` (S7 source, R6 target),

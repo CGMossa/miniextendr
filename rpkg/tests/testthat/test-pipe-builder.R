@@ -316,6 +316,65 @@ test_that("R6 builder checked_build_many() raises with the fixture's message on 
   )
 })
 
+test_that("R6 builder build_handle() wraps an ExternalPtr<Class> return like a bare Class return (#1375)", {
+  # #1375: the explicit-handle spelling `-> ExternalPtr<Class>` must wrap
+  # identically to `-> Class` — same write-time marker, same constructor call.
+  plan <- R6CrossPlan$new(7L)
+
+  board <- plan$build_handle(4L, 5L)
+  expect_s3_class(board, "R6CrossBoard")
+  expect_equal(board$cells(), 20L)
+  expect_equal(board$signature(), "4x5@7")
+})
+
+test_that("R6 builder build_many_handles() wraps every element of a Vec<ExternalPtr<Class>> return (#1375)", {
+  # #1375: `Vec<ExternalPtr<Class>>` must wrap like `Vec<Class>` — every
+  # element becomes a classed R6CrossBoard, not a bare external pointer.
+  plan <- R6CrossPlan$new(7L)
+
+  boards <- plan$build_many_handles(4L, 5L, 3L)
+  expect_type(boards, "list")
+  expect_length(boards, 3L)
+  for (b in boards) {
+    expect_s3_class(b, "R6CrossBoard")
+    expect_equal(b$cells(), 20L)
+  }
+  expect_equal(
+    vapply(boards, function(b) b$signature(), character(1)),
+    c("4x5@7", "4x5@8", "4x5@9")
+  )
+})
+
+test_that("S7 method returning ExternalPtr<R6 class> wraps with the R6 constructor (#1375)", {
+  # Mixed-system explicit handle: source method lives on an S7 class, target
+  # is R6, spelled as the explicit ExternalPtr<R6CrossBoard> handle.
+  plan <- S7CrossPlan(7L)
+
+  board <- s7_build_handle_r6(plan, 4L, 5L)
+  expect_true(inherits(board, "R6CrossBoard"))
+  expect_equal(board$cells(), 20L)
+  expect_equal(board$signature(), "4x5@7")
+})
+
+test_that("R6CrossBoard replicate() wraps a Vec<Self> return using the receiver's own class (#1375)", {
+  # #1375: `Vec<Self>` can't be resolved by the syntactic detector alone (it
+  # never sees the enclosing impl's type name) — ReturnStrategy substitutes
+  # the receiver's Rust type ("R6CrossBoard") at strategy-build time.
+  board <- R6CrossPlan$new(7L)$build(4L, 5L)
+
+  copies <- board$replicate(3L)
+  expect_type(copies, "list")
+  expect_length(copies, 3L)
+  for (b in copies) {
+    expect_s3_class(b, "R6CrossBoard")
+    expect_equal(b$cells(), 20L)
+  }
+  expect_equal(
+    vapply(copies, function(b) b$signature(), character(1)),
+    c("4x5@7", "4x5@8", "4x5@9")
+  )
+})
+
 test_that("EnvPipeBuilder chains via $ and preserves identity", {
   b <- EnvPipeBuilder$new()
   expect_equal(b$add(1L)$add(2L)$total(), 3L)

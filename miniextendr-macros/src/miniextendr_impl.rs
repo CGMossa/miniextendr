@@ -2292,7 +2292,7 @@ impl ParsedMethod {
     /// class registry, so an unregistered capitalized type falls back to the
     /// direct `.val` return.
     ///
-    /// Three shapes are recognized:
+    /// Four shapes are recognized:
     /// - A bare capitalized path, e.g. `-> Board`.
     /// - `Option<T>` where `T` is a bare capitalized path. The C wrapper
     ///   already unwraps this and raises on `None`
@@ -2302,6 +2302,12 @@ impl ParsedMethod {
     ///   `()`. `Result<T, ()>` is excluded: the unit-error sentinel maps to
     ///   `ReturnHandling::ResultNullOnErr`, where `.val` can be `NULL` on
     ///   `Ok`, and wrapping `NULL` in a class constructor would break.
+    /// - `ExternalPtr<T>` (the explicit-handle spelling, #1375), including
+    ///   through the `Option`/`Result` wrappers above (e.g.
+    ///   `Option<ExternalPtr<Board>>`) — `IntoR for ExternalPtr<T>` already
+    ///   produces a bare `EXTPTRSXP` `.val`, identical in shape to the bare
+    ///   `T` case, so [`inner_class_ident`](Self::inner_class_ident) peels
+    ///   through it to the same wrapped name.
     ///
     /// `Option<Self>` / `Result<Self, _>` are excluded here too (the inner
     /// ident is `Self`) — `ReturnStrategy::for_method` checks
@@ -2311,7 +2317,7 @@ impl ParsedMethod {
     /// are handled separately by
     /// [`returns_other_class_list`](Self::returns_other_class_list); any other
     /// nested container is not recognized: the inner type must be a bare path
-    /// with no path arguments of its own.
+    /// (or an `ExternalPtr<...>` wrapping one) with no other path arguments.
     pub fn returns_other_class(&self) -> Option<syn::Ident> {
         let syn::ReturnType::Type(_, ty) = &self.sig.output else {
             return None;
@@ -2337,6 +2343,12 @@ impl ParsedMethod {
                 }
                 Self::inner_class_ident(crate::first_type_argument(seg)?)
             }
+            // Bare explicit-handle return (#1375): `-> ExternalPtr<Class>`
+            // wraps identically to `-> Class` — delegate to
+            // `inner_class_ident`, which peels the `ExternalPtr` segment.
+            syn::PathArguments::AngleBracketed(_) if seg.ident == "ExternalPtr" => {
+                Self::inner_class_ident(ty.as_ref())
+            }
             _ => None,
         }
     }
@@ -2350,8 +2362,9 @@ impl ParsedMethod {
     /// checks the complete class registry, and an unregistered element type
     /// falls back to the bare list of external pointers.
     ///
-    /// Three shapes are recognized (the element type must pass the same bare
-    /// capitalized-path filter as the scalar case):
+    /// Four shapes are recognized (the element type must pass the same bare
+    /// capitalized-path filter as the scalar case, optionally through a
+    /// trailing `ExternalPtr<...>` segment):
     /// - `Vec<Class>` — the C wrapper converts via `IntoR` into a `VECSXP` of
     ///   external pointers (the `IntoRVecElement` impl emitted by
     ///   `#[derive(ExternalPtr)]`), so `.val` is a bare list.
@@ -2363,17 +2376,23 @@ impl ParsedMethod {
     ///   `Result<Vec<Class>, ()>` is excluded: the unit-error sentinel maps to
     ///   `ReturnHandling::ResultNullOnErr`, where `.val` can be `NULL`, and
     ///   `lapply(NULL, ...)` would silently turn that `NULL` into `list()`.
+    /// - `Vec<ExternalPtr<Class>>` (the explicit-handle spelling, #1375),
+    ///   including through the `Option`/`Result` wrappers above — the element
+    ///   filter is [`inner_class_ident`](Self::inner_class_ident), which peels
+    ///   the `ExternalPtr` segment, so this resolves identically to
+    ///   `Vec<Class>`.
     ///
     /// Not recognized (deliberately):
-    /// - `Vec<Self>` — the receiver type ident is not visible here; spell the
-    ///   concrete type name (`-> Vec<Board>` inside `impl Board`) to get the
-    ///   wrapped list.
+    /// - `Vec<Self>` — `ParsedMethod` doesn't carry the enclosing impl's type
+    ///   ident, so this detector can't name the target class. Handled instead
+    ///   by [`returns_self_list`](Self::returns_self_list), a boolean sibling
+    ///   that `ReturnStrategy::for_method` treats the same as this method
+    ///   returning `Some`; `MethodReturnBuilder::with_return_class_from_method`
+    ///   substitutes the actual name using the `type_ident` every call site
+    ///   already has in scope (#1375).
     /// - `Vec<Option<Class>>` — has no `IntoR` impl (the `Vec<Option<T>>`
     ///   blanket slot is occupied by the newtype funnel) and would need a
     ///   NULL-tolerant per-element wrap; tracked as a follow-up.
-    /// - `Vec<ExternalPtr<Class>>` — kept unwrapped for symmetry with the
-    ///   scalar `ExternalPtr<Class>` return, which `returns_other_class` also
-    ///   leaves unwrapped.
     pub fn returns_other_class_list(&self) -> Option<syn::Ident> {
         let syn::ReturnType::Type(_, ty) = &self.sig.output else {
             return None;
@@ -2404,9 +2423,10 @@ impl ParsedMethod {
         }
     }
 
-    /// Applies [`class_ident_from_ident`](Self::class_ident_from_ident) to the
-    /// element type of a `Vec<T>`: `ty` must be a `Vec` path whose single type
-    /// argument is a bare `syn::Type::Path` with no path arguments of its own.
+    /// Applies [`inner_class_ident`](Self::inner_class_ident) to the element
+    /// type of a `Vec<T>`: `ty` must be a `Vec` path whose single type
+    /// argument is either a bare `syn::Type::Path` or an `ExternalPtr<...>`
+    /// wrapping one (peeled by `inner_class_ident`, #1375).
     fn vec_inner_class_ident(ty: &syn::Type) -> Option<syn::Ident> {
         let syn::Type::Path(p) = ty else {
             return None;
@@ -2437,19 +2457,93 @@ impl ParsedMethod {
     }
 
     /// Applies [`class_ident_from_ident`](Self::class_ident_from_ident) to a
-    /// container's inner type argument (e.g. the `T` in `Option<T>`). Only a
-    /// bare `syn::Type::Path` with no path arguments of its own qualifies —
-    /// this is what excludes nested containers like `Option<Vec<T>>`, whose
-    /// inner `Vec<T>` carries `PathArguments::AngleBracketed`.
+    /// container's inner type argument (e.g. the `T` in `Option<T>`).
+    ///
+    /// Two shapes qualify:
+    /// - A bare `syn::Type::Path` with no path arguments of its own — this is
+    ///   what excludes nested containers like `Option<Vec<T>>`, whose inner
+    ///   `Vec<T>` carries `PathArguments::AngleBracketed`.
+    /// - `ExternalPtr<T>` (#1375): the explicit-handle spelling wraps
+    ///   identically to a bare `T` at the value level (`IntoR for
+    ///   ExternalPtr<T>` already produces a bare `EXTPTRSXP`), so this
+    ///   recurses into the wrapped type rather than rejecting it outright.
     fn inner_class_ident(ty: &syn::Type) -> Option<syn::Ident> {
         let syn::Type::Path(p) = ty else {
             return None;
         };
         let seg = p.path.segments.last()?;
-        if !matches!(seg.arguments, syn::PathArguments::None) {
-            return None;
+        match &seg.arguments {
+            syn::PathArguments::None => Self::class_ident_from_ident(&seg.ident),
+            syn::PathArguments::AngleBracketed(_) if seg.ident == "ExternalPtr" => {
+                Self::inner_class_ident(crate::first_type_argument(seg)?)
+            }
+            _ => None,
         }
-        Self::class_ident_from_ident(&seg.ident)
+    }
+
+    /// Returns `true` when this method returns `Vec<Self>` — the
+    /// receiver-class sibling of
+    /// [`returns_other_class_list`](Self::returns_other_class_list) that this
+    /// syntactic detector can't resolve to a *name* on its own, because
+    /// `ParsedMethod` doesn't carry the enclosing impl's type ident (#1375).
+    ///
+    /// `ReturnStrategy::for_method` treats a `true` result exactly like
+    /// `returns_other_class_list()` returning `Some` (both select
+    /// `ReturnOtherClassList`); `MethodReturnBuilder::with_return_class_from_method`
+    /// does the actual name substitution, using the `type_ident` every
+    /// class-system generator already has in scope — preferred over widening
+    /// `ParsedMethod` to carry the impl ident (see that method's rustdoc for
+    /// why: the substituted name must be the Rust type name, which is not
+    /// always the same string as the R-facing class name).
+    ///
+    /// Same three container shapes as `returns_other_class_list`, with the
+    /// element check inverted (the element must *be* `Self`, not be excluded
+    /// for being `Self`): `Vec<Self>`, `Option<Vec<Self>>`,
+    /// `Result<Vec<Self>, E>` (`E` not `()`).
+    pub fn returns_self_list(&self) -> bool {
+        let syn::ReturnType::Type(_, ty) = &self.sig.output else {
+            return false;
+        };
+        let syn::Type::Path(p) = ty.as_ref() else {
+            return false;
+        };
+        let Some(seg) = p.path.segments.last() else {
+            return false;
+        };
+
+        match &seg.arguments {
+            syn::PathArguments::AngleBracketed(_) if seg.ident == "Vec" => Self::is_vec_of_self(ty),
+            syn::PathArguments::AngleBracketed(_) if seg.ident == "Option" => {
+                crate::first_type_argument(seg).is_some_and(Self::is_vec_of_self)
+            }
+            syn::PathArguments::AngleBracketed(_) if seg.ident == "Result" => {
+                // Mirrors the `Result<T, ()>` exclusion in
+                // `returns_other_class_list`: `ResultNullOnErr`'s `.val` may
+                // be `NULL`, which `lapply` would silently coerce to `list()`.
+                let err_is_unit = crate::second_type_argument(seg)
+                    .is_some_and(|ty| matches!(ty, syn::Type::Tuple(t) if t.elems.is_empty()));
+                !err_is_unit && crate::first_type_argument(seg).is_some_and(Self::is_vec_of_self)
+            }
+            _ => false,
+        }
+    }
+
+    /// True when `ty` is `Vec<Self>` — a bare `Self` ident, matching the
+    /// looser ident-only check [`returns_self`](Self::returns_self) uses (no
+    /// generic-argument check on `Self` itself, which cannot carry any in
+    /// this position).
+    fn is_vec_of_self(ty: &syn::Type) -> bool {
+        let syn::Type::Path(p) = ty else {
+            return false;
+        };
+        let Some(seg) = p.path.segments.last() else {
+            return false;
+        };
+        if seg.ident != "Vec" {
+            return false;
+        }
+        matches!(crate::first_type_argument(seg), Some(syn::Type::Path(ip))
+            if ip.path.segments.last().map(|s| s.ident == "Self").unwrap_or(false))
     }
 
     /// Returns true if this method returns a reference to `Self` (`&Self` or
@@ -3576,7 +3670,7 @@ pub fn generate_as_coercion_methods(parsed_impl: &ParsedImpl) -> String {
         let return_builder = crate::MethodReturnBuilder::new(call)
             .with_strategy(strategy)
             .with_class_name(class_name.clone())
-            .with_return_class_from_method(method);
+            .with_return_class_from_method(method, &type_ident.to_string());
         lines.extend(return_builder.build_s3_body());
 
         lines.push("}".to_string());

@@ -198,7 +198,7 @@ pub fn generate_s4_r_wrapper(parsed_impl: &ParsedImpl) -> String {
         let body_lines = crate::MethodReturnBuilder::new(call)
             .with_strategy(strategy)
             .with_class_name(class_name.clone())
-            .with_return_class_from_method(method)
+            .with_return_class_from_method(method, &type_ident.to_string())
             .build_s4_body();
 
         let what = format!("{}.{}", method_name, class_name);
@@ -241,7 +241,7 @@ pub fn generate_s4_r_wrapper(parsed_impl: &ParsedImpl) -> String {
         let return_expr = crate::MethodReturnBuilder::new(ctx.static_call())
             .with_strategy(strategy)
             .with_class_name(class_name.clone())
-            .with_return_class_from_method(ctx.method)
+            .with_return_class_from_method(ctx.method, &type_ident.to_string())
             .build_s4_inline();
         lines.push(format!("  {}", return_expr));
 
