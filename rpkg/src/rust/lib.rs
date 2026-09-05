@@ -51,6 +51,7 @@
 //! These modules require specific Cargo features to be enabled:
 //!
 //! - `rayon_tests`: Parallel iteration tests (feature: `rayon`)
+//! - `serde_error_tests`: `#[miniextendr(serde_error)]` classed Result errors (feature: `serde`)
 //! - `serde_r_tests`: Serde R serialization tests (feature: `serde`)
 //! - `ndarray_tests`: N-dimensional array tests (feature: `ndarray`)
 //! - `vctrs_tests`: vctrs compatibility tests (feature: `vctrs`)
@@ -271,6 +272,8 @@ mod s4_helpers_tests;
 mod s4_tests;
 mod s7_tests;
 mod scatter_complex_raw_test;
+#[cfg(feature = "serde")]
+mod serde_error_tests;
 #[cfg(feature = "serde_json")]
 mod serde_json_adapter_tests;
 #[cfg(feature = "serde")]

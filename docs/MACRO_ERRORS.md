@@ -245,6 +245,21 @@ Those options emit `.call = NULL` (no call captured at all), so there is no slot
 for `call = caller` to redirect. Keep one: `call = caller` for attributed errors
 from an internal entry point, `fast` for the no-attribution fast path.
 
+### "`serde_error` cannot be used with `unwrap_in_r`"
+
+`#[miniextendr(serde_error)]` classes the condition raised from a `Result`'s
+`Err` arm. `unwrap_in_r` hands the whole `Result` to R as a value and never
+raises, so there is nothing to class. Drop `unwrap_in_r` to raise a classed
+error, or drop `serde_error` to return the `Result`. See
+[CONDITIONS.md](CONDITIONS.md#deriving-the-classes-from-a-serde-error-type).
+
+### "`#[miniextendr(serde_error)]` requires a `Result<T, E>` return type"
+
+The attribute only changes the generated `Err` arm. A function or method that
+does not return `Result` has no `Err` arm, so the attribute would be a silent
+no-op; it is rejected instead. Return `Result<T, E>` with
+`E: serde::Serialize + Display`.
+
 ## Debugging Tips
 
 1. **Run [`just lint`](https://github.com/A2-ai/miniextendr/blob/main/justfile)** before building: it catches attribute issues earlier than compile errors

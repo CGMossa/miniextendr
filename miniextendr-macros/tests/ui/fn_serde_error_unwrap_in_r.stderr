@@ -1,0 +1,7 @@
+error: `serde_error` cannot be used with `unwrap_in_r`: `unwrap_in_r` returns the `Result` to R as a value, so there is no raised condition to class.
+ --> tests/ui/fn_serde_error_unwrap_in_r.rs:9:1
+  |
+9 | #[miniextendr(serde_error, unwrap_in_r)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the attribute macro `miniextendr` (in Nightly builds, run with -Z macro-backtrace for more info)

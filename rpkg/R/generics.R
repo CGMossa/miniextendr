@@ -213,3 +213,13 @@ NULL
 #' @param ... Additional arguments.
 #' @name check_bound
 NULL
+
+# SerdeChecker fixture generic (`#[miniextendr(serde_error)]` on an S3
+# method). Exported by the auto-generated wrappers under @rdname SerdeChecker,
+# aliased here for R CMD check.
+
+#' Check a value against the bound, raising a serde-derived classed error past it
+#' @param x An object.
+#' @param ... Additional arguments.
+#' @name check_value
+NULL

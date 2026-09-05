@@ -180,6 +180,66 @@ fn miniextendr_attr_postfix_parses_and_rejects_conflicts() {
 }
 
 #[test]
+fn miniextendr_attr_serde_error_forms() {
+    use crate::miniextendr_fn::SerdeErrorSpec;
+
+    // Bare flag: defaults (`kind` tag, `<crate>_error` prefix).
+    let attrs = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(serde_error))
+        .expect("should parse serde_error");
+    let spec = attrs.serde_error.expect("serde_error set");
+    assert_eq!(spec, SerdeErrorSpec::default());
+    assert_eq!(spec.tag(), "kind");
+    assert!(
+        spec.prefix().ends_with("_error"),
+        "default prefix is `<crate>_error`: {}",
+        spec.prefix()
+    );
+
+    // Nested options.
+    let attrs = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(serde_error(
+        tag = "type",
+        prefix = "engine"
+    )))
+    .expect("should parse nested serde_error");
+    let spec = attrs.serde_error.expect("serde_error set");
+    assert_eq!(spec.tag(), "type");
+    assert_eq!(spec.prefix(), "engine");
+
+    // Explicit boolean.
+    let attrs = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(serde_error = false))
+        .expect("should parse serde_error = false");
+    assert!(attrs.serde_error.is_none());
+    let attrs = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(serde_error = true))
+        .expect("should parse serde_error = true");
+    assert!(attrs.serde_error.is_some());
+}
+
+#[test]
+fn miniextendr_attr_serde_error_rejects_bad_input() {
+    let err = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(serde_error(tags = "x")))
+        .err()
+        .expect("unknown nested key must fail");
+    assert!(
+        err.to_string().contains("expected `tag` or `prefix`"),
+        "{err}"
+    );
+
+    let err = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(serde_error(prefix = "")))
+        .err()
+        .expect("empty prefix must fail");
+    assert!(err.to_string().contains("must not be empty"), "{err}");
+
+    let err = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(serde_error, unwrap_in_r))
+        .err()
+        .expect("serde_error + unwrap_in_r must fail");
+    assert!(
+        err.to_string()
+            .contains("cannot be used with `unwrap_in_r`"),
+        "{err}"
+    );
+}
+
+#[test]
 fn miniextendr_attr_call_caller_parses_and_validates() {
     let attrs = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(noexport, call = caller))
         .expect("should parse call = caller");
@@ -210,6 +270,34 @@ fn miniextendr_attr_call_caller_parses_and_validates() {
         .err()
         .expect("only `caller` is accepted");
     assert!(err.to_string().contains("accepts only `caller`"), "{err}");
+}
+
+#[test]
+fn err_parts_mode_expr_selects_the_serde_path() {
+    use crate::c_wrapper_builder::ErrPartsMode;
+    use crate::miniextendr_fn::SerdeErrorSpec;
+
+    assert_eq!(ErrPartsMode::from_spec(None), ErrPartsMode::Probe);
+    let probe = ErrPartsMode::Probe.expr().to_string();
+    assert!(probe.contains("__mx_result_err_parts"), "{probe}");
+
+    let spec = SerdeErrorSpec {
+        tag: Some("type".into()),
+        prefix: Some("engine".into()),
+    };
+    let mode = ErrPartsMode::from_spec(Some(&spec));
+    assert_eq!(
+        mode,
+        ErrPartsMode::Serde {
+            tag: "type".into(),
+            prefix: "engine".into()
+        }
+    );
+    let serde = mode.expr().to_string();
+    assert!(serde.contains("serde_err_parts"), "{serde}");
+    assert!(serde.contains("\"type\""), "{serde}");
+    assert!(serde.contains("\"engine\""), "{serde}");
+    assert!(!serde.contains("__mx_result_err_parts"), "{serde}");
 }
 
 #[test]

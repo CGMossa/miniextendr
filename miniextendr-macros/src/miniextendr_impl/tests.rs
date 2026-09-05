@@ -3724,6 +3724,81 @@ fn method_call_caller_is_rejected_clearly() {
     }
 }
 
+/// `#[miniextendr(serde_error)]` on a method swaps the `Err` arm from the
+/// `RConditionError`/`Debug` probe to `serde_err_parts` (#1449); methods
+/// without it keep the probe.
+#[test]
+fn method_serde_error_selects_serde_err_parts() {
+    let parsed = parse_impl(
+        ClassSystem::S3,
+        syn::parse_quote! {
+            impl Checker {
+                pub fn new(max: f64) -> Self { unimplemented!() }
+                #[miniextendr(serde_error)]
+                pub fn check(&self, v: f64) -> Result<f64, EngineError> { unimplemented!() }
+                #[miniextendr(serde_error(tag = "type", prefix = "engine"))]
+                pub fn check_unit(&self, v: f64) -> Result<(), EngineError> { unimplemented!() }
+                #[miniextendr(serde_error = false)]
+                pub fn plain(&self, v: f64) -> Result<f64, String> { unimplemented!() }
+                pub fn probe(&self, v: f64) -> Result<f64, String> { unimplemented!() }
+            }
+        },
+    );
+    let tokens = c_wrapper_tokens(&parsed, "check");
+    assert!(tokens.contains("serde_err_parts"), "{tokens}");
+    assert!(!tokens.contains("__mx_result_err_parts"), "{tokens}");
+    assert!(tokens.contains("\"kind\""), "default tag: {tokens}");
+
+    let tokens = c_wrapper_tokens(&parsed, "check_unit");
+    assert!(tokens.contains("serde_err_parts"), "{tokens}");
+    assert!(tokens.contains("\"type\""), "{tokens}");
+    assert!(tokens.contains("\"engine\""), "{tokens}");
+
+    for name in ["plain", "probe"] {
+        let tokens = c_wrapper_tokens(&parsed, name);
+        assert!(tokens.contains("__mx_result_err_parts"), "{name}: {tokens}");
+        assert!(!tokens.contains("serde_err_parts"), "{name}: {tokens}");
+    }
+}
+
+/// `serde_error` needs an `Err` arm to act on and contradicts `unwrap_in_r`.
+#[test]
+fn method_serde_error_validation() {
+    let attrs = default_impl_attrs(ClassSystem::S3);
+    let err = ParsedImpl::parse(
+        attrs,
+        syn::parse_quote! {
+            impl Checker {
+                #[miniextendr(serde_error)]
+                pub fn check(&self, v: f64) -> f64 { unimplemented!() }
+            }
+        },
+    )
+    .expect_err("non-Result output must fail");
+    assert!(
+        err.to_string()
+            .contains("requires a `Result<T, E>` return type"),
+        "{err}"
+    );
+
+    let attrs = default_impl_attrs(ClassSystem::S3);
+    let err = ParsedImpl::parse(
+        attrs,
+        syn::parse_quote! {
+            impl Checker {
+                #[miniextendr(serde_error, unwrap_in_r)]
+                pub fn check(&self, v: f64) -> Result<f64, String> { unimplemented!() }
+            }
+        },
+    )
+    .expect_err("serde_error + unwrap_in_r must fail");
+    assert!(
+        err.to_string()
+            .contains("cannot be used with `unwrap_in_r`"),
+        "{err}"
+    );
+}
+
 fn c_wrapper_tokens(parsed: &ParsedImpl, name: &str) -> String {
     let method = parsed.methods.iter().find(|m| m.ident == name).unwrap();
     let r_wrappers_const = syn::parse_quote! { R_WRAPPERS_TEST };

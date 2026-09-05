@@ -1055,6 +1055,52 @@ macro_rules! __mx_result_err_parts {
 
 // endregion
 
+// region: Serde-tagged Result errors (#[miniextendr(serde_error)])
+
+/// Build the `Err`-arm parts for `#[miniextendr(serde_error)]`.
+///
+/// Message from `Display`; classes `[<prefix>_<variant>, <prefix>]` when the
+/// serialized value carries a variant, `[<prefix>]` otherwise; data from the
+/// serialized fields (checked against the reserved names). `tag` names the
+/// internally-tagged discriminator field (`#[serde(tag = "kind")]`), which is
+/// consumed as the member class rather than spliced as data; externally tagged
+/// enums (serde's default) yield the variant name directly. See
+/// `docs/CONDITIONS.md`, "Classed `Result` errors".
+///
+/// Serialization failing (a map with non-string keys, a custom `Serialize`
+/// erroring) panics with both failures in the message: the original error
+/// text must not be lost behind the reporting problem.
+#[cfg(feature = "serde")]
+#[doc(hidden)]
+#[track_caller]
+pub fn serde_err_parts<E: ?Sized + ::serde::Serialize + std::fmt::Display>(
+    e: &E,
+    tag: &str,
+    prefix: &str,
+) -> ErrParts {
+    let message = e.to_string();
+    let (member, fields) = match crate::serde::rvalue_ser::tagged_parts(e, tag) {
+        Ok(parts) => parts,
+        Err(err) => panic!(
+            "#[miniextendr(serde_error)]: serializing `{}` for its condition data failed ({err}); \
+             the original error was: {message}",
+            std::any::type_name::<E>()
+        ),
+    };
+    let mut class = Vec::with_capacity(2);
+    if let Some(member) = member {
+        class.push(format!("{prefix}_{member}"));
+    }
+    class.push(prefix.to_string());
+    ErrParts {
+        message,
+        class,
+        data: check_condition_data((!fields.is_empty()).then_some(fields)),
+    }
+}
+
+// endregion
+
 // region: from_tagged_sexp + repanic_if_rust_error — shim re-panic helpers
 
 impl RCondition {
@@ -1416,6 +1462,99 @@ mod condition_macro_tests {
             .expect("plain panic message");
         assert!(msg.contains("reserved"), "got: {msg}");
         assert!(msg.contains("rename"), "got: {msg}");
+    }
+
+    #[cfg(feature = "serde")]
+    mod serde_err_parts {
+        use super::super::serde_err_parts;
+        use crate::RValue;
+        use ::serde::Serialize;
+
+        #[derive(Serialize)]
+        #[serde(tag = "kind", rename_all = "snake_case")]
+        enum Tagged {
+            MissingField { field: String },
+            Io,
+        }
+
+        impl std::fmt::Display for Tagged {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                match self {
+                    Tagged::MissingField { field } => write!(f, "field `{field}` is missing"),
+                    Tagged::Io => f.write_str("io"),
+                }
+            }
+        }
+
+        #[derive(Serialize)]
+        struct Plain {
+            code: i32,
+        }
+
+        impl std::fmt::Display for Plain {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "plain {}", self.code)
+            }
+        }
+
+        #[derive(Serialize)]
+        enum Clash {
+            Bad { kind: String },
+        }
+
+        impl std::fmt::Display for Clash {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("clash")
+            }
+        }
+
+        #[test]
+        fn internally_tagged_variant_becomes_member_class_and_fields_become_data() {
+            let parts = serde_err_parts(
+                &Tagged::MissingField { field: "id".into() },
+                "kind",
+                "engine",
+            );
+            assert_eq!(parts.message, "field `id` is missing");
+            assert_eq!(parts.class, ["engine_missing_field", "engine"]);
+            let data = parts.data.expect("fields become data");
+            assert_eq!(data.len(), 1);
+            assert_eq!(data[0].0, "field");
+            assert!(
+                matches!(&data[0].1, RValue::Character(v) if v == &vec![Some("id".to_string())])
+            );
+        }
+
+        #[test]
+        fn unit_variant_has_classes_but_no_data() {
+            let parts = serde_err_parts(&Tagged::Io, "kind", "engine");
+            assert_eq!(parts.class, ["engine_io", "engine"]);
+            assert!(parts.data.is_none());
+        }
+
+        #[test]
+        fn value_without_variant_gets_only_the_family_class() {
+            let parts = serde_err_parts(&Plain { code: 3 }, "kind", "engine");
+            assert_eq!(parts.message, "plain 3");
+            assert_eq!(parts.class, ["engine"]);
+            let data = parts.data.expect("struct fields become data");
+            assert_eq!(data[0].0, "code");
+        }
+
+        #[test]
+        fn reserved_payload_field_is_rejected() {
+            let err = std::panic::AssertUnwindSafe(Clash::Bad { kind: "x".into() });
+            let payload = std::panic::catch_unwind(move || serde_err_parts(&err.0, "type", "p"))
+                .err()
+                .expect("must panic");
+            let msg = payload
+                .downcast_ref::<String>()
+                .cloned()
+                .or_else(|| payload.downcast_ref::<&str>().map(|s| s.to_string()))
+                .unwrap_or_default();
+            assert!(msg.contains("reserved"), "{msg}");
+            assert!(msg.contains("`kind`"), "{msg}");
+        }
     }
 
     #[test]

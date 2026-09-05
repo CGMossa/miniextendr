@@ -211,6 +211,8 @@ both the `extern "C-unwind"` wrapper and the corresponding `R_CallMethodDef` con
   - Override for the `call_method_def` constant name. If `None`, defaults to
 - `strict`: `bool`
   - When `true`, uses `checked_into_sexp_*` for lossy return types (`i64`, `u64`,
+- `err_parts`: `ErrPartsMode`
+  - How `Err` values become condition parts. Set by `#[miniextendr(serde_error)]`.
 - `match_arg_several_ok_params`: `Vec<String>`
   - Parameter names with `#[miniextendr(match_arg, several_ok)]` — use
 - `preserve_param_names`: `bool`
@@ -329,6 +331,15 @@ fn coerce_all(self: Self) -> Self
 ```
 
 Enables coercing conversion for all parameters via `Rf_coerceVector`.
+
+#### `err_parts`
+
+```rust
+fn err_parts(self: Self, mode: ErrPartsMode) -> Self
+```
+
+Choose how `Err` values become condition parts (default: the
+`RConditionError`/`Debug` probe). See [`ErrPartsMode`].
 
 #### `generics`
 
@@ -817,6 +828,8 @@ Per-method attributes for class system customization.
   - `typed_list!(...)` spec from `#[miniextendr(dots = typed_list!(...))]` on
 - `unwrap_in_r`: `bool`
   - Return `Result<T, E>` to R without unwrapping.
+- `serde_error`: `Option<crate::miniextendr_fn::SerdeErrorSpec>`
+  - Build the `Err` arm's condition from the error's serde output
 - `defaults`: `std::collections::HashMap<String, String>`
   - Parameter defaults from `#[miniextendr(defaults(param = "value", ...))]`
 - `defaults_span`: `Option<proc_macro2::Span>`
@@ -2361,6 +2374,40 @@ Parsed typed_list! macro input.
 ---
 
 ## Enums
+
+### `c_wrapper_builder::ErrPartsMode`
+
+```rust
+pub enum ErrPartsMode
+```
+
+How the generated `Err` arm turns an error value into condition parts
+(message, class vector, structured data).
+
+**Variants:**
+
+- `Probe`
+  - Autoref-specialisation probe (`__mx_result_err_parts!`): `RConditionError`
+- `Serde { tag: String, prefix: String }`
+  - `#[miniextendr(serde_error)]`: serialize the error with serde; the enum
+
+**Inherent associated items:**
+
+#### `expr`
+
+```rust
+fn expr(self: &Self) -> TokenStream
+```
+
+The expression yielding an `ErrParts` from the bound error `e`.
+
+#### `from_spec`
+
+```rust
+fn from_spec(spec: Option<&crate::miniextendr_fn::SerdeErrorSpec>) -> Self
+```
+
+Resolve a parsed `serde_error` spec (or its absence) into a mode.
 
 ### `c_wrapper_builder::ReturnHandling`
 

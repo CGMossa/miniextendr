@@ -233,6 +233,7 @@ mod de;
 mod error;
 #[cfg(feature = "serde_json")]
 pub mod json_string;
+pub mod rvalue_ser;
 mod ser;
 mod traits;
 
@@ -256,5 +257,6 @@ pub use de::RDeserializer;
 pub use error::RSerdeError;
 #[cfg(feature = "serde_json")]
 pub use json_string::{AsJson, AsJsonPretty, AsJsonVec, FromJson};
+pub use rvalue_ser::{RValueSerializer, to_rvalue};
 pub use ser::RSerializer;
 pub use traits::{AsSerialize, RDeserializeNative, RSerializeNative, from_r, to_r};

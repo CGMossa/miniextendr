@@ -1,4 +1,4 @@
-error: unknown attribute; expected one of: env, r6, s3, s4, s7, vctrs, defaults, unsafe, check_interrupt, coerce, no_coerce, rng, unwrap_in_r, as, lifecycle, r_name, postfix, r_entry, r_post_checks, r_on_exit, noexport, internal, dots = typed_list!(...)
+error: unknown attribute; expected one of: env, r6, s3, s4, s7, vctrs, defaults, unsafe, check_interrupt, coerce, no_coerce, rng, unwrap_in_r, serde_error, as, lifecycle, r_name, postfix, r_entry, r_post_checks, r_on_exit, noexport, internal, dots = typed_list!(...)
   --> tests/ui/impl_method_unknown_option.rs:13:19
    |
 13 |     #[miniextendr(bogus_option)]
