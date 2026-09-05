@@ -96,6 +96,7 @@ macro_rules! reject_non_struct {
 /// | `Option<T>` | Same type with NA for `None` |
 /// | `Option<T>` (every row `None`) | `logical` NA column — R coerces to the surrounding type on first use (`c(NA, 1L)` → integer, `c(NA, "x")` → character) |
 /// | Nested struct | Recursively flattened with `parent_child` naming |
+/// | Nested struct's `Option<T>` sub-field | Column type is the union across **all** rows, independent of row order — a sub-field that is `None` on the first row (or first several rows) but typed on a later one still gets that atomic type (`character`, `integer`, …), not a `list` column. Only if the sub-field is `None` in *every* row does it fall back to the `logical` NA downgrade above (nothing to union from). |
 /// | Other | Falls back to per-element list column |
 pub fn vec_to_dataframe<T: Serialize>(rows: &[T]) -> Result<BuiltDataFrame, RSerdeError> {
     if rows.is_empty() {
@@ -1271,6 +1272,7 @@ impl<T: Serialize> SerdeRowBuilder<T> {
 // region: Field mapping (recursive name → column routing)
 
 /// Maps a field name to its column location in the flat column array.
+#[derive(Clone)]
 enum FieldMapping {
     /// Scalar field: writes directly to one column.
     Scalar { col_idx: usize },
@@ -1283,6 +1285,7 @@ enum FieldMapping {
 }
 
 /// Name-to-column mapping for one level of struct fields.
+#[derive(Clone)]
 struct FieldMap {
     map: HashMap<String, FieldMapping>,
     col_start: usize,
@@ -1302,6 +1305,7 @@ enum ColumnType {
     Generic,
 }
 
+#[derive(Clone)]
 struct FieldInfo {
     name: String,
     col_type: ColumnType,
@@ -1329,28 +1333,217 @@ enum Candidate {
 /// - `Scalar(Generic)` is the bottom (None-only probes land here).
 ///
 /// Two `Scalar(non-Generic)` of different types: keep the first seen (no widening).
-/// Two `Compound` of different shapes: keep the first seen (recursive union is out of scope).
+/// Two `Compound` of different shapes: **recursively unioned** key-by-key
+/// (#1370) — see [`merge_compound_shapes`]. This is what lets a nested
+/// sub-field whose first-row probe is `None` (`Scalar(Generic)`) still
+/// upgrade to an atomic type when a later row types it, instead of locking
+/// the whole nested column to `Generic` (list).
 fn resolve_candidates(candidates: &mut Vec<Candidate>) -> Candidate {
-    // Walk candidates and pick the best.
-    // We need to own the winner, so find its index then swap-remove.
-    let mut best_idx = 0;
-    for (i, c) in candidates.iter().enumerate() {
-        match (&candidates[best_idx], c) {
-            // Compound is always at least as good as what we have.
-            (_, Candidate::Compound { .. }) => {
-                best_idx = i;
-                break; // Compound is the top of the lattice — no need to look further.
-            }
-            // Scalar(non-Generic) beats Scalar(Generic).
-            (Candidate::Scalar(ColumnType::Generic), Candidate::Scalar(t))
-                if *t != ColumnType::Generic =>
-            {
-                best_idx = i;
-            }
-            _ => {}
+    let mut drained = candidates.drain(..);
+    let mut acc = drained
+        .next()
+        .expect("resolve_candidates: called with an empty candidate list");
+    for next in drained {
+        acc = combine_two_candidates(acc, next);
+    }
+    acc
+}
+
+/// Fold two candidates (in row order — `a` seen no later than `b`) into one,
+/// per the lattice documented on [`resolve_candidates`].
+fn combine_two_candidates(a: Candidate, b: Candidate) -> Candidate {
+    match (a, b) {
+        (
+            Candidate::Compound {
+                fields: af,
+                sub_map: am,
+            },
+            Candidate::Compound {
+                fields: bf,
+                sub_map: bm,
+            },
+        ) => {
+            let (fields, sub_map) = merge_compound_shapes(af, am, bf, bm);
+            Candidate::Compound { fields, sub_map }
+        }
+        // Compound beats Scalar regardless of which side it's on.
+        (Candidate::Compound { fields, sub_map }, Candidate::Scalar(_))
+        | (Candidate::Scalar(_), Candidate::Compound { fields, sub_map }) => {
+            Candidate::Compound { fields, sub_map }
+        }
+        // Scalar(non-Generic) beats Scalar(Generic).
+        (Candidate::Scalar(ColumnType::Generic), Candidate::Scalar(t))
+            if t != ColumnType::Generic =>
+        {
+            Candidate::Scalar(t)
+        }
+        // Otherwise keep the first-seen scalar (no widening between two non-Generic
+        // types; both-Generic stays Generic).
+        (Candidate::Scalar(t), Candidate::Scalar(_)) => Candidate::Scalar(t),
+    }
+}
+
+/// A resolved slot for one key inside a nested-`Compound` shape, keeping its
+/// already fully-qualified column name(s) (`process_field` prefixes names
+/// with `{parent_key}_` as it flattens, so a leaf's [`FieldInfo::name`] is
+/// already e.g. `"meta_variant"` by the time it reaches here). Mirrors
+/// [`Candidate`] — the only difference is that the scalar leaf carries its
+/// `FieldInfo` (name + type) rather than just a bare [`ColumnType`], since
+/// [`Candidate::Scalar`] normally gets its name for free from the enclosing
+/// per-key `HashMap` key, which nested recursion doesn't have.
+enum SubShape {
+    Scalar(FieldInfo),
+    Compound(Vec<FieldInfo>, FieldMap),
+}
+
+/// Pull the (bare-key) child `key`'s shape out of a `Compound` candidate's
+/// `(fields, field_map)` pair. `fields` holds every leaf under this Compound in
+/// flat, already-prefixed-name order; `field_map.col_start` is the absolute
+/// column index of `fields[0]`, so `col_idx - field_map.col_start` recovers the
+/// local index into `fields` for any mapping found in `field_map`.
+fn extract_sub_shape(fields: &[FieldInfo], field_map: &FieldMap, key: &str) -> Option<SubShape> {
+    match field_map.map.get(key)? {
+        FieldMapping::Scalar { col_idx } => {
+            let local = col_idx - field_map.col_start;
+            Some(SubShape::Scalar(fields[local].clone()))
+        }
+        FieldMapping::Compound {
+            col_start,
+            col_count,
+            sub_fields,
+        } => {
+            let local_start = col_start - field_map.col_start;
+            let child_fields = fields[local_start..local_start + col_count].to_vec();
+            Some(SubShape::Compound(child_fields, sub_fields.clone()))
         }
     }
-    candidates.swap_remove(best_idx)
+}
+
+/// The first-seen key order of one level of a [`FieldMap`], recovered from
+/// each mapping's column position (field declaration order is stable across
+/// probes of the same Rust type, so sorting by position reconstructs it;
+/// `FieldMap.map` itself is a `HashMap` with no ordering of its own).
+fn field_map_key_order(field_map: &FieldMap) -> Vec<String> {
+    let mut entries: Vec<(usize, &String)> = field_map
+        .map
+        .iter()
+        .map(|(k, v)| {
+            let pos = match v {
+                FieldMapping::Scalar { col_idx } => *col_idx,
+                FieldMapping::Compound { col_start, .. } => *col_start,
+            };
+            (pos, k)
+        })
+        .collect();
+    entries.sort_by_key(|(pos, _)| *pos);
+    entries.into_iter().map(|(_, k)| k.clone()).collect()
+}
+
+/// Fold two shapes for the *same* key into one, applying the same lattice as
+/// [`combine_two_candidates`] (recursing into [`merge_compound_shapes`] for
+/// Compound-vs-Compound instead of keeping the first seen).
+fn combine_sub_shapes(a: SubShape, b: SubShape) -> SubShape {
+    match (a, b) {
+        (SubShape::Compound(af, am), SubShape::Compound(bf, bm)) => {
+            let (fields, sub_map) = merge_compound_shapes(af, am, bf, bm);
+            SubShape::Compound(fields, sub_map)
+        }
+        (SubShape::Compound(fields, sub_map), SubShape::Scalar(_))
+        | (SubShape::Scalar(_), SubShape::Compound(fields, sub_map)) => {
+            SubShape::Compound(fields, sub_map)
+        }
+        (SubShape::Scalar(a_info), SubShape::Scalar(b_info)) => {
+            if a_info.col_type == ColumnType::Generic && b_info.col_type != ColumnType::Generic {
+                SubShape::Scalar(b_info)
+            } else {
+                SubShape::Scalar(a_info)
+            }
+        }
+    }
+}
+
+/// Append a resolved key's shape into a fresh flat `(fields, field_map)` pair
+/// under construction, assigning it the next contiguous column slot(s).
+fn place_sub_shape(
+    key: String,
+    shape: SubShape,
+    merged_fields: &mut Vec<FieldInfo>,
+    merged_map: &mut HashMap<String, FieldMapping>,
+) {
+    match shape {
+        SubShape::Scalar(info) => {
+            let col_idx = merged_fields.len();
+            merged_fields.push(info);
+            merged_map.insert(key, FieldMapping::Scalar { col_idx });
+        }
+        SubShape::Compound(fields, sub_fields) => {
+            let col_start = merged_fields.len();
+            let col_count = fields.len();
+            let old_base = sub_fields.col_start;
+            let remapped = remap_field_map(sub_fields, old_base, col_start);
+            merged_fields.extend(fields);
+            merged_map.insert(
+                key,
+                FieldMapping::Compound {
+                    col_start,
+                    col_count,
+                    sub_fields: remapped,
+                },
+            );
+        }
+    }
+}
+
+/// Recursively union two `Compound` candidates' shapes key-by-key (#1370).
+///
+/// Instead of discarding `b` wholesale (the pre-#1370 "keep first seen"
+/// behaviour), each key present in either side is resolved through the same
+/// lattice as [`resolve_candidates`] — recursing for nested `Compound`
+/// sub-fields — so a sub-field that probed as `Generic` in `a` (e.g. a `None`
+/// row) can still pick up a concrete type from `b`, and a key present only in
+/// `b` (a genuinely different shape, e.g. a `#[serde(skip_serializing_if)]`
+/// field omitted in `a`'s row but present in `b`'s) is no longer dropped.
+///
+/// Key order is first-seen union: `a`'s keys in `a`'s own order, then any of
+/// `b`'s keys not already in `a`, in `b`'s own order — mirroring the
+/// top-level `SchemaAccumulator` union order.
+fn merge_compound_shapes(
+    a_fields: Vec<FieldInfo>,
+    a_map: FieldMap,
+    b_fields: Vec<FieldInfo>,
+    b_map: FieldMap,
+) -> (Vec<FieldInfo>, FieldMap) {
+    let a_order = field_map_key_order(&a_map);
+    let b_order = field_map_key_order(&b_map);
+
+    let mut merged_fields: Vec<FieldInfo> = Vec::new();
+    let mut merged_map: HashMap<String, FieldMapping> = HashMap::new();
+
+    for key in a_order {
+        let a_shape = extract_sub_shape(&a_fields, &a_map, &key)
+            .expect("key drawn from a_map's own key order");
+        let shape = match extract_sub_shape(&b_fields, &b_map, &key) {
+            Some(b_shape) => combine_sub_shapes(a_shape, b_shape),
+            None => a_shape,
+        };
+        place_sub_shape(key, shape, &mut merged_fields, &mut merged_map);
+    }
+    for key in b_order {
+        if a_map.map.contains_key(&key) {
+            continue; // already resolved above (both sides had it)
+        }
+        let b_shape = extract_sub_shape(&b_fields, &b_map, &key)
+            .expect("key drawn from b_map's own key order");
+        place_sub_shape(key, b_shape, &mut merged_fields, &mut merged_map);
+    }
+
+    let total_cols = merged_fields.len();
+    let field_map = FieldMap {
+        map: merged_map,
+        col_start: 0,
+        total_cols,
+    };
+    (merged_fields, field_map)
 }
 
 /// Mode controls accumulation strictness and the final empty-schema error wording.
@@ -1368,8 +1561,8 @@ enum SchemaMode {
 /// Accumulates per-row probes into per-key candidate lists, then resolves them
 /// into a unified [`Schema`].
 ///
-/// Two limitations vs. a fully-typed schema (apply to Union mode; SingleRow sees ≤1
-/// candidate per key so the lattice degenerates):
+/// One limitation vs. a fully-typed schema (applies to Union mode; SingleRow sees
+/// ≤1 candidate per key so the lattice degenerates):
 ///
 /// - **Truly-all-None nested `Option<Struct>`**: when every row has `None` for an
 ///   `Option<UserStruct>`, the probe never sees the inner struct's fields. The key lands
@@ -1377,12 +1570,14 @@ enum SchemaMode {
 ///   downgrade converts to a single logical-NA column. Structurally unfixable without a
 ///   type-level hint on stable Rust.
 ///
-/// - **Compound-vs-Compound recursive union**: when two rows produce different Compound
-///   shapes for the same key (e.g., enum variants with different nested structs), the
-///   first Compound wins and the second is silently discarded. Corollary: a nested
-///   sub-field probed as `None` on the first row stays `Generic` (list column) even
-///   when a later row types it. Recursive union is tracked as
-///   [#1370](https://github.com/A2-ai/miniextendr/issues/1370).
+/// Two rows producing different `Compound` shapes for the same key (e.g., a nested
+/// sub-field probed as `None` — `Scalar(Generic)` — on the first row and typed on a
+/// later one, or a `#[serde(skip_serializing_if)]` sub-field present in some rows'
+/// shape but not others') are no longer resolved by keeping the first seen: they are
+/// **recursively unioned** key-by-key through the same lattice, so the merged shape
+/// carries every sub-field each side saw, each at its best-seen type. See
+/// [`resolve_candidates`] / [`merge_compound_shapes`]
+/// ([#1370](https://github.com/A2-ai/miniextendr/issues/1370), fixed).
 struct SchemaAccumulator {
     candidates: HashMap<String, Vec<Candidate>>,
     key_order: Vec<String>,
@@ -3917,8 +4112,10 @@ impl<M: ser::SerializeMap> ser::SerializeTupleVariant for ForwardingMapEmitter<'
 /// - **Compound-vs-compound payload divergence.** Payload subfields are emitted
 ///   *flat* into the parent map, so each leaf key goes through scalar Union
 ///   resolution independently — variants whose payloads differ in shape merge
-///   per-leaf-key, sidestepping the first-seen-Compound limitation of nested
-///   struct discovery.
+///   per-leaf-key. (Plain [`vec_to_dataframe`]'s nested-struct `Compound`
+///   candidates recursively union the same way as of
+///   [#1370](https://github.com/A2-ai/miniextendr/issues/1370); this bullet
+///   just documents that this function's flat-leaf-key path always did.)
 ///
 /// # Errors
 ///
