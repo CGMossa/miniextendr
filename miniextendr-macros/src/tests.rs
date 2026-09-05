@@ -376,12 +376,12 @@ fn err_parts_mode_expr_selects_the_serde_path() {
     assert!(serde.contains("\"type\""), "{serde}");
     assert!(serde.contains("\"engine\""), "{serde}");
     assert!(serde.contains("&[\"message\"]"), "{serde}");
-    assert!(serde.contains("&[(\"source\", \"cause\")]"), "{serde}");
+    assert!(serde.contains("&[(\"source\",\"cause\")]"), "{serde}");
     assert!(!serde.contains("__mx_result_err_parts"), "{serde}");
 
     // No options: both slices are empty literals.
     let serde = normalize_tokens(ErrPartsMode::from_spec(Some(&SerdeErrorSpec::default())).expr());
-    assert!(serde.contains("&[], &[],"), "{serde}");
+    assert!(serde.contains("&[],&[],"), "{serde}");
 }
 
 #[test]
