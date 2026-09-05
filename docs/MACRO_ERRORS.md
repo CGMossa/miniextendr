@@ -260,6 +260,23 @@ does not return `Result` has no `Err` arm, so the attribute would be a silent
 no-op; it is rejected instead. Return `Result<T, E>` with
 `E: serde::Serialize + Display`.
 
+### "unknown serde_error option; expected `tag`, `prefix`, `skip(...)` or `rename(...)`"
+
+`serde_error(...)` takes `tag = "..."` and `prefix = "..."` as name-value
+pairs and `skip("a", "b")` / `rename(a = "b")` as nested lists. The two list
+options are the payload-field controls; `skip = "a"` and `rename = "b"` are
+rejected with a message pointing at the list form. See
+[CONDITIONS.md](CONDITIONS.md#payload-fields-named-message).
+
+### "serde_error rename target `message` is reserved"
+
+`rename(from = "to")` may not target `message`, `call` or `kind`: those are
+the condition's own slots, and the rename would recreate the collision the
+option exists to avoid. Pick another name. The same family covers
+`serde_error skip names `a` twice`, `serde_error rename names `a` twice`, and
+`serde_error names `a` in both skip and rename`: each field appears in at most
+one place.
+
 ## Debugging Tips
 
 1. **Run [`just lint`](https://github.com/A2-ai/miniextendr/blob/main/justfile)** before building: it catches attribute issues earlier than compile errors

@@ -1067,6 +1067,20 @@ macro_rules! __mx_result_err_parts {
 /// enums (serde's default) yield the variant name directly. See
 /// `docs/CONDITIONS.md`, "Classed `Result` errors".
 ///
+/// Field control, applied to the payload fields before the reserved-name
+/// check (`serde_error(skip(..), rename(..))`, #1457):
+///
+/// - `skip`: fields with these names are dropped.
+/// - `rename`: `(from, to)` pairs; a field named `from` is spliced as `to`.
+/// - A remaining field named `message` whose value is the single string equal
+///   to the `Display` output is dropped: it duplicates the condition's own
+///   `message` slot, so a wrapped parser error of the shape
+///   `Variant { message: String }` reaches R without any option.
+///
+/// Names that a given variant does not carry are a no-op for that variant.
+/// Any other collision with `message`, `call` or `kind` still panics via
+/// [`check_condition_data`].
+///
 /// Serialization failing (a map with non-string keys, a custom `Serialize`
 /// erroring) panics with both failures in the message: the original error
 /// text must not be lost behind the reporting problem.
@@ -1077,6 +1091,8 @@ pub fn serde_err_parts<E: ?Sized + ::serde::Serialize + std::fmt::Display>(
     e: &E,
     tag: &str,
     prefix: &str,
+    skip: &[&str],
+    rename: &[(&str, &str)],
 ) -> ErrParts {
     let message = e.to_string();
     let (member, fields) = match crate::serde::rvalue_ser::tagged_parts(e, tag) {
@@ -1092,6 +1108,21 @@ pub fn serde_err_parts<E: ?Sized + ::serde::Serialize + std::fmt::Display>(
         class.push(format!("{prefix}_{member}"));
     }
     class.push(prefix.to_string());
+    let fields: ConditionData = fields
+        .into_iter()
+        .filter_map(|(name, value)| {
+            if skip.contains(&name.as_str()) {
+                return None;
+            }
+            if let Some((_, to)) = rename.iter().find(|(from, _)| *from == name) {
+                return Some(((*to).to_string(), value));
+            }
+            let echoes_display = name == "message"
+                && matches!(&value, crate::RValue::Character(v)
+                    if v.len() == 1 && v[0].as_deref() == Some(message.as_str()));
+            (!echoes_display).then_some((name, value))
+        })
+        .collect();
     ErrParts {
         message,
         class,
@@ -1514,6 +1545,8 @@ mod condition_macro_tests {
                 &Tagged::MissingField { field: "id".into() },
                 "kind",
                 "engine",
+                &[],
+                &[],
             );
             assert_eq!(parts.message, "field `id` is missing");
             assert_eq!(parts.class, ["engine_missing_field", "engine"]);
@@ -1527,14 +1560,14 @@ mod condition_macro_tests {
 
         #[test]
         fn unit_variant_has_classes_but_no_data() {
-            let parts = serde_err_parts(&Tagged::Io, "kind", "engine");
+            let parts = serde_err_parts(&Tagged::Io, "kind", "engine", &[], &[]);
             assert_eq!(parts.class, ["engine_io", "engine"]);
             assert!(parts.data.is_none());
         }
 
         #[test]
         fn value_without_variant_gets_only_the_family_class() {
-            let parts = serde_err_parts(&Plain { code: 3 }, "kind", "engine");
+            let parts = serde_err_parts(&Plain { code: 3 }, "kind", "engine", &[], &[]);
             assert_eq!(parts.message, "plain 3");
             assert_eq!(parts.class, ["engine"]);
             let data = parts.data.expect("struct fields become data");
@@ -1544,9 +1577,10 @@ mod condition_macro_tests {
         #[test]
         fn reserved_payload_field_is_rejected() {
             let err = std::panic::AssertUnwindSafe(Clash::Bad { kind: "x".into() });
-            let payload = std::panic::catch_unwind(move || serde_err_parts(&err.0, "type", "p"))
-                .err()
-                .expect("must panic");
+            let payload =
+                std::panic::catch_unwind(move || serde_err_parts(&err.0, "type", "p", &[], &[]))
+                    .err()
+                    .expect("must panic");
             let msg = payload
                 .downcast_ref::<String>()
                 .cloned()
@@ -1554,6 +1588,152 @@ mod condition_macro_tests {
                 .unwrap_or_default();
             assert!(msg.contains("reserved"), "{msg}");
             assert!(msg.contains("`kind`"), "{msg}");
+        }
+
+        /// The wrapped-parser-error shape (#1457): a `message` payload field.
+        #[derive(Serialize)]
+        #[serde(tag = "kind", rename_all = "snake_case")]
+        enum Wrapped {
+            /// `Display` adds context, so `message` is not redundant.
+            Parse {
+                message: String,
+                line: u32,
+            },
+            /// `Display` is the field verbatim.
+            Echo {
+                message: String,
+            },
+            Bad {
+                call: String,
+            },
+        }
+
+        impl std::fmt::Display for Wrapped {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                match self {
+                    Wrapped::Parse { message, line } => write!(f, "line {line}: {message}"),
+                    Wrapped::Echo { message } => f.write_str(message),
+                    Wrapped::Bad { .. } => f.write_str("bad"),
+                }
+            }
+        }
+
+        fn panic_message(f: impl FnOnce() + std::panic::UnwindSafe) -> String {
+            let payload = std::panic::catch_unwind(f).expect_err("must panic");
+            payload
+                .downcast_ref::<String>()
+                .cloned()
+                .or_else(|| payload.downcast_ref::<&str>().map(|s| s.to_string()))
+                .unwrap_or_default()
+        }
+
+        fn names(parts: &super::super::ErrParts) -> Vec<&str> {
+            parts
+                .data
+                .as_deref()
+                .unwrap_or_default()
+                .iter()
+                .map(|(n, _)| n.as_str())
+                .collect()
+        }
+
+        #[test]
+        fn message_field_equal_to_display_is_dropped_without_options() {
+            let parts = serde_err_parts(
+                &Wrapped::Echo {
+                    message: "boom".into(),
+                },
+                "kind",
+                "p",
+                &[],
+                &[],
+            );
+            assert_eq!(parts.message, "boom");
+            assert_eq!(parts.class, ["p_echo", "p"]);
+            assert!(parts.data.is_none(), "{:?}", parts.data);
+        }
+
+        #[test]
+        fn message_field_differing_from_display_is_still_rejected() {
+            let err = std::panic::AssertUnwindSafe(Wrapped::Parse {
+                message: "unexpected token".into(),
+                line: 3,
+            });
+            let msg = panic_message(move || {
+                serde_err_parts(&err.0, "kind", "p", &[], &[]);
+            });
+            assert!(msg.contains("reserved"), "{msg}");
+            assert!(msg.contains("`message`"), "{msg}");
+        }
+
+        #[test]
+        fn skip_drops_the_named_field_and_is_a_no_op_elsewhere() {
+            let parts = serde_err_parts(
+                &Wrapped::Parse {
+                    message: "unexpected token".into(),
+                    line: 3,
+                },
+                "kind",
+                "p",
+                &["message", "absent"],
+                &[],
+            );
+            assert_eq!(parts.message, "line 3: unexpected token");
+            assert_eq!(parts.class, ["p_parse", "p"]);
+            assert_eq!(names(&parts), ["line"]);
+
+            // `skip` runs before the Display-equality rule; same outcome.
+            let parts = serde_err_parts(
+                &Wrapped::Echo {
+                    message: "boom".into(),
+                },
+                "kind",
+                "p",
+                &["message"],
+                &[],
+            );
+            assert!(parts.data.is_none());
+
+            // A variant without the skipped field but with another reserved
+            // name still fails the reserved-name check.
+            let err = std::panic::AssertUnwindSafe(Wrapped::Bad { call: "f()".into() });
+            let msg = panic_message(move || {
+                serde_err_parts(&err.0, "kind", "p", &["message"], &[]);
+            });
+            assert!(msg.contains("`call`"), "{msg}");
+        }
+
+        #[test]
+        fn rename_splices_the_field_under_the_new_name() {
+            let parts = serde_err_parts(
+                &Wrapped::Parse {
+                    message: "unexpected token".into(),
+                    line: 3,
+                },
+                "kind",
+                "p",
+                &[],
+                &[("message", "detail"), ("absent", "other")],
+            );
+            assert_eq!(names(&parts), ["detail", "line"]);
+            let data = parts.data.expect("data");
+            assert!(matches!(
+                &data[0].1,
+                RValue::Character(v) if v == &vec![Some("unexpected token".to_string())]
+            ));
+
+            // `rename` wins over the Display-equality drop: the caller asked
+            // for the field explicitly.
+            let parts = serde_err_parts(
+                &Wrapped::Echo {
+                    message: "boom".into(),
+                },
+                "kind",
+                "p",
+                &[],
+                &[("message", "detail")],
+            );
+            assert_eq!(names(&parts), ["detail"]);
         }
     }
 

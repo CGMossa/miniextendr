@@ -3738,6 +3738,8 @@ fn method_serde_error_selects_serde_err_parts() {
                 pub fn check(&self, v: f64) -> Result<f64, EngineError> { unimplemented!() }
                 #[miniextendr(serde_error(tag = "type", prefix = "engine"))]
                 pub fn check_unit(&self, v: f64) -> Result<(), EngineError> { unimplemented!() }
+                #[miniextendr(serde_error(skip("message"), rename(source = "cause")))]
+                pub fn parse(&self, v: f64) -> Result<f64, EngineError> { unimplemented!() }
                 #[miniextendr(serde_error = false)]
                 pub fn plain(&self, v: f64) -> Result<f64, String> { unimplemented!() }
                 pub fn probe(&self, v: f64) -> Result<f64, String> { unimplemented!() }
@@ -3753,6 +3755,14 @@ fn method_serde_error_selects_serde_err_parts() {
     assert!(tokens.contains("serde_err_parts"), "{tokens}");
     assert!(tokens.contains("\"type\""), "{tokens}");
     assert!(tokens.contains("\"engine\""), "{tokens}");
+    let flat: String = tokens.chars().filter(|c| !c.is_whitespace()).collect();
+    assert!(flat.contains("&[],&[],"), "no skip, no rename: {tokens}");
+
+    // skip / rename land as the two slice arguments (#1457).
+    let tokens = c_wrapper_tokens(&parsed, "parse");
+    let flat: String = tokens.chars().filter(|c| !c.is_whitespace()).collect();
+    assert!(flat.contains("&[\"message\"],"), "{tokens}");
+    assert!(flat.contains("&[(\"source\",\"cause\")],"), "{tokens}");
 
     for name in ["plain", "probe"] {
         let tokens = c_wrapper_tokens(&parsed, name);

@@ -1,0 +1,5 @@
+error: serde_error skip takes a list of field names: `skip("message")`
+  --> tests/ui/fn_serde_error_skip_not_list.rs:10:27
+   |
+10 | #[miniextendr(serde_error(skip = "message"))]
+   |                           ^^^^^^^^^^^^^^^^

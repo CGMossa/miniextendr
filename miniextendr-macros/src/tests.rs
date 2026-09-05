@@ -220,7 +220,8 @@ fn miniextendr_attr_serde_error_rejects_bad_input() {
         .err()
         .expect("unknown nested key must fail");
     assert!(
-        err.to_string().contains("expected `tag` or `prefix`"),
+        err.to_string()
+            .contains("expected `tag`, `prefix`, `skip(...)` or `rename(...)`"),
         "{err}"
     );
 
@@ -237,6 +238,79 @@ fn miniextendr_attr_serde_error_rejects_bad_input() {
             .contains("cannot be used with `unwrap_in_r`"),
         "{err}"
     );
+}
+
+/// `serde_error(skip(...), rename(...))` (#1457): payload-field control.
+#[test]
+fn miniextendr_attr_serde_error_skip_and_rename() {
+    let attrs = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(serde_error(
+        skip("message", "source"),
+        rename(detail = "info", "kebab-name" = "kebab", line = "at"),
+        prefix = "engine"
+    )))
+    .expect("should parse skip + rename");
+    let spec = attrs.serde_error.expect("serde_error set");
+    assert_eq!(spec.skip, ["message", "source"]);
+    assert_eq!(
+        spec.rename,
+        [
+            ("detail".to_string(), "info".to_string()),
+            ("kebab-name".to_string(), "kebab".to_string()),
+            ("line".to_string(), "at".to_string()),
+        ]
+    );
+    assert_eq!(spec.prefix(), "engine");
+    assert_eq!(spec.tag(), "kind");
+
+    // Rust keywords are accepted as field names (`type` is a common one).
+    let attrs = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(serde_error(rename(type = "ty"))))
+        .expect("keyword field name");
+    let spec = attrs.serde_error.expect("serde_error set");
+    assert_eq!(spec.rename, [("type".to_string(), "ty".to_string())]);
+}
+
+#[test]
+fn miniextendr_attr_serde_error_skip_rename_rejects_bad_input() {
+    fn err_of(tokens: proc_macro2::TokenStream) -> String {
+        syn::parse2::<MiniextendrFnAttrs>(tokens)
+            .err()
+            .expect("must fail")
+            .to_string()
+    }
+
+    // Wrong shapes point at the right one.
+    let err = err_of(quote::quote!(serde_error(skip = "message")));
+    assert!(err.contains("skip(\"message\")"), "{err}");
+    let err = err_of(quote::quote!(serde_error(rename = "detail")));
+    assert!(err.contains("rename(message = \"detail\")"), "{err}");
+    let err = err_of(quote::quote!(serde_error(skip())));
+    assert!(err.contains("at least one field name"), "{err}");
+    let err = err_of(quote::quote!(serde_error(rename())));
+    assert!(err.contains("at least one pair"), "{err}");
+
+    // Names.
+    let err = err_of(quote::quote!(serde_error(skip(""))));
+    assert!(err.contains("must not be empty"), "{err}");
+    let err = err_of(quote::quote!(serde_error(rename(message = ""))));
+    assert!(err.contains("must not be empty"), "{err}");
+    let err = err_of(quote::quote!(serde_error(skip("a", "a"))));
+    assert!(err.contains("names `a` twice"), "{err}");
+    let err = err_of(quote::quote!(serde_error(rename(a = "b", a = "c"))));
+    assert!(err.contains("names `a` twice"), "{err}");
+
+    // A rename target may not be one of the condition's own slots.
+    for reserved in ["message", "call", "kind"] {
+        let target = syn::LitStr::new(reserved, proc_macro2::Span::call_site());
+        let err = err_of(quote::quote!(serde_error(rename(other = #target))));
+        assert!(err.contains("is reserved"), "{reserved}: {err}");
+    }
+
+    // Skip and rename of the same field contradict each other.
+    let err = err_of(quote::quote!(serde_error(
+        skip("message"),
+        rename(message = "detail")
+    )));
+    assert!(err.contains("both skip and rename"), "{err}");
 }
 
 #[test]
@@ -284,20 +358,30 @@ fn err_parts_mode_expr_selects_the_serde_path() {
     let spec = SerdeErrorSpec {
         tag: Some("type".into()),
         prefix: Some("engine".into()),
+        skip: vec!["message".into()],
+        rename: vec![("source".into(), "cause".into())],
     };
     let mode = ErrPartsMode::from_spec(Some(&spec));
     assert_eq!(
         mode,
         ErrPartsMode::Serde {
             tag: "type".into(),
-            prefix: "engine".into()
+            prefix: "engine".into(),
+            skip: vec!["message".into()],
+            rename: vec![("source".into(), "cause".into())],
         }
     );
-    let serde = mode.expr().to_string();
+    let serde = normalize_tokens(mode.expr());
     assert!(serde.contains("serde_err_parts"), "{serde}");
     assert!(serde.contains("\"type\""), "{serde}");
     assert!(serde.contains("\"engine\""), "{serde}");
+    assert!(serde.contains("&[\"message\"]"), "{serde}");
+    assert!(serde.contains("&[(\"source\", \"cause\")]"), "{serde}");
     assert!(!serde.contains("__mx_result_err_parts"), "{serde}");
+
+    // No options: both slices are empty literals.
+    let serde = normalize_tokens(ErrPartsMode::from_spec(Some(&SerdeErrorSpec::default())).expr());
+    assert!(serde.contains("&[], &[],"), "{serde}");
 }
 
 #[test]

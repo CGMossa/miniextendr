@@ -193,8 +193,14 @@ pub enum ErrPartsMode {
     /// `#[miniextendr(serde_error)]`: serialize the error with serde; the enum
     /// variant becomes the member class `<prefix>_<variant>`, the payload fields
     /// become the condition's data. `tag` is the internally-tagged discriminator
-    /// field consumed as the variant (`#[serde(tag = "kind")]`).
-    Serde { tag: String, prefix: String },
+    /// field consumed as the variant (`#[serde(tag = "kind")]`); `skip` and
+    /// `rename` are the payload-field controls (`skip(...)` / `rename(...)`).
+    Serde {
+        tag: String,
+        prefix: String,
+        skip: Vec<String>,
+        rename: Vec<(String, String)>,
+    },
 }
 
 impl ErrPartsMode {
@@ -205,6 +211,8 @@ impl ErrPartsMode {
             Some(spec) => ErrPartsMode::Serde {
                 tag: spec.tag().to_string(),
                 prefix: spec.prefix(),
+                skip: spec.skip.clone(),
+                rename: spec.rename.clone(),
             },
         }
     }
@@ -213,9 +221,24 @@ impl ErrPartsMode {
     pub fn expr(&self) -> TokenStream {
         match self {
             ErrPartsMode::Probe => quote! { ::miniextendr_api::__mx_result_err_parts!(e) },
-            ErrPartsMode::Serde { tag, prefix } => quote! {
-                ::miniextendr_api::condition::serde_err_parts(&e, #tag, #prefix)
-            },
+            ErrPartsMode::Serde {
+                tag,
+                prefix,
+                skip,
+                rename,
+            } => {
+                let (from, to): (Vec<&String>, Vec<&String>) =
+                    rename.iter().map(|(f, t)| (f, t)).unzip();
+                quote! {
+                    ::miniextendr_api::condition::serde_err_parts(
+                        &e,
+                        #tag,
+                        #prefix,
+                        &[#(#skip),*],
+                        &[#((#from, #to)),*],
+                    )
+                }
+            }
         }
     }
 }
