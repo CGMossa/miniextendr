@@ -251,7 +251,7 @@ from an internal entry point, `fast` for the no-attribution fast path.
 `Err` arm. `unwrap_in_r` hands the whole `Result` to R as a value and never
 raises, so there is nothing to class. Drop `unwrap_in_r` to raise a classed
 error, or drop `serde_error` to return the `Result`. See
-[CONDITIONS.md](CONDITIONS.md#deriving-the-classes-from-serde-miniextendrserde_error).
+[CONDITIONS.md](CONDITIONS.md#deriving-the-classes-from-serde-with-serde_error).
 
 ### "`#[miniextendr(serde_error)]` requires a `Result<T, E>` return type"
 

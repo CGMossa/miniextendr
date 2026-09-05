@@ -353,7 +353,7 @@ become strings, data variants become `list(Variant = ...)`. `None` becomes
 `NULL`, not a typed `NA`, because the serializer never sees the absent inner
 type. `#[miniextendr(serde_error)]` uses this to turn a serde-tagged error enum
 into a classed R condition; see
-[CONDITIONS.md](CONDITIONS.md#deriving-the-classes-from-serde-miniextendrserde_error).
+[CONDITIONS.md](CONDITIONS.md#deriving-the-classes-from-serde-with-serde_error).
 
 ## Columnar `data.frame` Assembly
 
