@@ -34,3 +34,34 @@ pub extern "C-unwind" fn C_call_attr_without(_left: SEXP, _right: SEXP) -> SEXP 
         ::miniextendr_api::sys::Rf_error(c"%s".as_ptr(), c"left + right is too risky".as_ptr()) // mxl::allow(MXL300)
     }
 }
+
+// region: call = caller — internal entry points behind a hand-written R function (#1450)
+
+/// Internal entry point that attributes conditions to its caller. The
+/// hand-written `call_attr_caller()` in `R/call_attribution.R` delegates here,
+/// so `conditionCall(e)` names that public function with its formals matched.
+///
+/// @param x Must be positive.
+/// @noRd
+#[miniextendr(noexport, call = caller)]
+pub fn call_attr_caller_impl(x: i32) -> Result<i32, String> {
+    if x <= 0 {
+        return Err(format!("x must be positive, got {x}"));
+    }
+    Ok(x)
+}
+
+/// Default attribution for comparison: the same shape without `call = caller`
+/// reports its own wrapper call (`call_attr_self_impl(x = value)`).
+///
+/// @param x Must be positive.
+/// @noRd
+#[miniextendr(noexport)]
+pub fn call_attr_self_impl(x: i32) -> Result<i32, String> {
+    if x <= 0 {
+        return Err(format!("x must be positive, got {x}"));
+    }
+    Ok(x)
+}
+
+// endregion

@@ -1220,6 +1220,13 @@ pub(crate) struct MiniextendrFnAttrs {
     /// convention without repeating the name in `r_name`. Exclusive with
     /// `r_name` and `s3(...)`; the C symbol is unchanged.
     pub(crate) postfix: Option<String>,
+    /// `call = caller`: attribute conditions to the wrapper's caller instead of
+    /// the wrapper's own call (the body binds `.mx_call` from the parent frame
+    /// and passes `.call = .mx_call`; see
+    /// `crate::r_wrapper_builder::CallAttribution::Caller`). For `noexport` /
+    /// `internal` entry points behind a hand-written R function, so errors name
+    /// the public function, not the bridge.
+    pub(crate) call_caller: bool,
     /// R code to inject at the very top of the wrapper body (before all built-in checks).
     ///
     /// Use `#[miniextendr(r_entry = "x <- as.integer(x)")]` to run R code before
@@ -1336,6 +1343,7 @@ impl syn::parse::Parse for MiniextendrFnAttrs {
         let mut c_symbol = None;
         let mut r_name = None;
         let mut postfix = None;
+        let mut call_caller = false;
         let mut r_entry = None;
         let mut r_post_checks = None;
         let mut r_on_exit = None;
@@ -1541,6 +1549,24 @@ impl syn::parse::Parse for MiniextendrFnAttrs {
                         let val = parse_lit_str(&nv, "postfix")?;
                         validate_postfix(&val, &nv.value)?;
                         postfix = Some(val);
+                    } else if nv.path.is_ident("call") {
+                        let is_caller = match &nv.value {
+                            syn::Expr::Path(p) => p.path.is_ident("caller"),
+                            syn::Expr::Lit(syn::ExprLit {
+                                lit: syn::Lit::Str(s),
+                                ..
+                            }) => s.value() == "caller",
+                            _ => false,
+                        };
+                        if !is_caller {
+                            return Err(syn::Error::new_spanned(
+                                &nv.value,
+                                "`call = ...` accepts only `caller` (attribute conditions to the \
+                                 wrapper's caller); the default already attributes them to the \
+                                 wrapper's own call",
+                            ));
+                        }
+                        call_caller = true;
                     } else if nv.path.is_ident("r_entry") {
                         r_entry = Some(parse_lit_str(&nv, "r_entry")?);
                     } else if nv.path.is_ident("r_post_checks") {
@@ -1564,7 +1590,7 @@ impl syn::parse::Parse for MiniextendrFnAttrs {
                                 "unknown `#[miniextendr]` key-value option `{}`. \
                                  Key-value options are: `prefer = \"...\"`, `dots = typed_list!(...)`, \
                                  `lifecycle = \"...\"`, `doc = \"...\"`, `c_symbol = \"...\"`, \
-                                 `r_name = \"...\"`, `postfix = \"...\"`, `r_entry = \"...\"`, \
+                                 `r_name = \"...\"`, `postfix = \"...\"`, `call = caller`, `r_entry = \"...\"`, \
                                  `r_post_checks = \"...\"`, \
                                  `r_on_exit = \"...\"`",
                                 key_name,
@@ -1706,6 +1732,23 @@ impl syn::parse::Parse for MiniextendrFnAttrs {
             ));
         }
 
+        // Validate: `call = caller` is for internal entry points only, and
+        // needs a call slot to point somewhere.
+        if call_caller && !(noexport || internal) {
+            return Err(syn::Error::new(
+                proc_macro2::Span::call_site(),
+                "`call = caller` attributes conditions to the wrapper's caller, which is only \
+                 meaningful for a package-internal entry point; add `noexport` or `internal`.",
+            ));
+        }
+        if call_caller && no_call_attribution == Some(true) {
+            return Err(syn::Error::new(
+                proc_macro2::Span::call_site(),
+                "`call = caller` cannot be combined with `no_call_attribution` / `fast`: those \
+                 emit `.call = NULL`, so there is no call slot to point at the caller.",
+            ));
+        }
+
         if r_name.is_some() && (s3_generic.is_some() || s3_class.is_some()) {
             return Err(syn::Error::new(
                 proc_macro2::Span::call_site(),
@@ -1722,7 +1765,13 @@ impl syn::parse::Parse for MiniextendrFnAttrs {
             rng,
             unwrap_in_r,
             no_preconditions: no_preconditions.unwrap_or(cfg!(feature = "fast-default")),
-            no_call_attribution: no_call_attribution.unwrap_or(cfg!(feature = "fast-default")),
+            // An explicit `call = caller` overrides the `fast-default` feature's
+            // `.call = NULL`: the user asked for attribution.
+            no_call_attribution: if call_caller {
+                false
+            } else {
+                no_call_attribution.unwrap_or(cfg!(feature = "fast-default"))
+            },
             return_pref,
             return_pref_span,
             s3_generic,
@@ -1738,6 +1787,7 @@ impl syn::parse::Parse for MiniextendrFnAttrs {
             c_symbol,
             r_name,
             postfix,
+            call_caller,
             r_entry,
             r_post_checks,
             r_on_exit,

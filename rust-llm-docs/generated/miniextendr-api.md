@@ -11132,6 +11132,95 @@ fn rust_type_name(self: &Self) -> &'static str
 
 Get the Rust type name of the wrapped error (for programmatic matching).
 
+### `condition::RError`
+
+```rust
+pub struct RError
+```
+
+A ready-made classed error value for `Result<T, RError>` returns.
+
+Carries a message, an optional class vector, structured fields and an
+optional field-name prefix, and implements [`RConditionError`]. Any
+`std::error::Error` converts into it with `?` / [`From`] (the message keeps
+the `caused by:` chain, like [`AsRError`]), after which the builder methods
+add the R-facing parts:
+
+```ignore
+use miniextendr_api::condition::RError;
+
+#[miniextendr]
+pub fn parse_port(s: &str) -> Result<i32, RError> {
+    let port: i32 = s
+        .parse()
+        .map_err(|e| RError::from(e).class(["pkg_bad_port", "pkg_error"]).data("input", s))?;
+    Ok(port)
+}
+```
+
+```r
+e <- tryCatch(parse_port("x"), pkg_bad_port = function(e) e)
+e$input          # "x"
+class(e)[1:2]    # "pkg_bad_port" "pkg_error"
+```
+
+`RError` deliberately does **not** implement `std::error::Error`: that
+keeps the blanket `From<E: Error>` coherent. It does implement `Display`
+(the message), so it also works with `#[miniextendr(unwrap_in_r)]`.
+
+**Inherent associated items:**
+
+#### `class`
+
+```rust
+fn class(self: Self, class: impl ConditionClass) -> Self
+```
+
+Append user classes (most specific first). Accepts one string or a
+vector, see [`ConditionClass`].
+
+#### `classes`
+
+```rust
+fn classes(self: &Self) -> &[String]
+```
+
+The user classes, most specific first.
+
+#### `data`
+
+```rust
+fn data(self: Self, name: impl Into<String>, value: impl Into<crate::RValue>) -> Self
+```
+
+Attach a structured field readable as `e$<name>`. Any value with an
+[`RValue`](crate::RValue) `From` impl works. The name must not be
+`message`, `call` or `kind`; see [`RESERVED_CONDITION_FIELDS`].
+
+#### `fields`
+
+```rust
+fn fields(self: &Self) -> &ConditionData
+```
+
+The structured fields as attached (unprefixed).
+
+#### `message_str`
+
+```rust
+fn message_str(self: &Self) -> &str
+```
+
+The message.
+
+#### `new`
+
+```rust
+fn new(message: impl Into<String>) -> Self
+```
+
+A classless error with `message`.
+
 ### `connection::ConnectionCapabilities`
 
 ```rust
@@ -26051,6 +26140,99 @@ alternative on the inbound side: [`crate::from_r::TryFromSexp`].
 - `type Error`
   - Error returned when coercion fails.
 
+### `condition::ConditionClass`
+
+```rust
+pub trait ConditionClass
+```
+
+What the condition macros' `class = …` (and [`RError::class`]) accept: one
+class or several, as `&str` / `String` / arrays / `Vec` / slices.
+
+The classes are prepended in order to the `rust_*` layering, so put the most
+specific first: `class = ["pkg_error_missing_field", "pkg_error"]` renders
+as `c("pkg_error_missing_field", "pkg_error", "rust_error", …)` and both
+`tryCatch(pkg_error_missing_field = …)` and `tryCatch(pkg_error = …)` match.
+
+**Required methods:**
+
+- `fn into_condition_class(self: Self) -> Vec<String>`
+  - The class vector, most specific first.
+
+### `condition::RConditionError`
+
+```rust
+pub trait RConditionError
+```
+
+Give a `Result<T, E>` error type an R class vector and structured fields.
+
+Every `#[miniextendr]` function or method returning `Result<T, E>` raises
+`Err(e)` as an R error. By default the error is a bare `rust_error` whose
+message is `format!("{e:?}")`. Implement this trait for `E` (or return
+[`RError`], which implements it) and the `Err` arm instead raises
+`c(<class()…>, "rust_error", "simpleError", "error", "condition")` with
+every `data()` field readable as `e$<name>`, so a thiserror-style error enum
+can keep `?` composition *and* give R handlers something to dispatch on:
+
+```ignore
+use miniextendr_api::condition::{ConditionData, RConditionError};
+
+#[derive(Debug, thiserror::Error)]
+pub enum PkgError {
+    #[error("column `{column}` is missing")]
+    MissingColumn { column: String },
+    #[error("{value} exceeds {max}")]
+    TooLarge { value: f64, max: f64 },
+}
+
+impl RConditionError for PkgError {
+    fn message(&self) -> String { self.to_string() }
+    fn class(&self) -> Vec<String> {
+        let member = match self {
+            PkgError::MissingColumn { .. } => "pkg_error_missing_column",
+            PkgError::TooLarge { .. } => "pkg_error_too_large",
+        };
+        vec![member.into(), "pkg_error".into()]
+    }
+    fn data(&self) -> Option<ConditionData> {
+        Some(match self {
+            PkgError::MissingColumn { column } => vec![("column".into(), column.clone().into())],
+            PkgError::TooLarge { value, max } => vec![("value".into(), (*value).into()), ("max".into(), (*max).into())],
+        })
+    }
+}
+
+#[miniextendr]
+pub fn check(value: f64) -> Result<f64, PkgError> { /* uses `?` freely */ }
+```
+
+```r
+tryCatch(check(1e9), pkg_error_too_large = function(e) e$max)   # member
+tryCatch(check(1e9), pkg_error = function(e) conditionMessage(e)) # family
+```
+
+Detection is by trait, not by attribute: the generated `Err` arm probes
+`E: RConditionError` first and falls back to the `Debug` rendering
+otherwise, so existing `Result<T, String>` / `Result<T, MyDebugError>`
+functions are unchanged. The condition's `kind` stays `"result_err"`.
+
+`data()` field names must not be `message`, `call` or `kind` (see
+[`RESERVED_CONDITION_FIELDS`]); a reserved name raises a plain
+`rust_error` explaining the clash, so rename such a field at the source.
+
+**Required methods:**
+
+- `fn message(self: &Self) -> String`
+  - The condition message (`conditionMessage(e)`).
+
+**Provided methods:**
+
+- `fn class(self: &Self) -> Vec<String>`
+  - User classes, most specific first; empty for none.
+- `fn data(self: &Self) -> Option<ConditionData>`
+  - Structured fields spliced into the condition object (`e$<name>`).
+
 ### `connection::RConnectionImpl`
 
 ```rust
@@ -31124,6 +31306,50 @@ Uses cached class vector + tzone string — zero allocations after first call.
 
 `sexp` must be a valid REALSXP. Must be called on R's main thread.
 
+### `condition::check_condition_data`
+
+```rust
+fn check_condition_data(data: Option<ConditionData>) -> Option<ConditionData>
+```
+
+Apply [`check_condition_field_name`] to every field of a payload.
+
+### `condition::check_condition_field_name`
+
+```rust
+fn check_condition_field_name(name: String) -> String
+```
+
+Runtime half of the reserved-name check, for computed field names (the
+macros' `expr` path and [`RConditionError::data`] on user types). Panics
+when `name` is reserved; the panic becomes a plain `rust_error` in R,
+replacing the former silent overwrite.
+
+### `condition::is_reserved_condition_field`
+
+```rust
+const fn is_reserved_condition_field(name: &str) -> bool
+```
+
+`true` for [`RESERVED_CONDITION_FIELDS`]. `const` so the macros can reject a
+literal field name at compile time:
+
+```compile_fail
+# use miniextendr_api as mx;
+# fn f() {
+mx::rust_error!(data = ("kind", 1), "boom");
+# }
+```
+
+Any other name is fine, so the fix for a clash is a rename at the source:
+
+```
+# use miniextendr_api as mx;
+# fn f() {
+mx::rust_error!(data = ("rule", 1), "boom");
+# }
+```
+
 ### `condition::repanic_if_rust_error`
 
 ```rust
@@ -31421,7 +31647,7 @@ body performs raw R allocation (`Rf_allocVector`, `SET_VECTOR_ELT`,
 ### `error_value::make_rust_condition_value_with_data`
 
 ```rust
-unsafe fn make_rust_condition_value_with_data(message: &str, kind: &str, class: Option<&str>, call: Option<crate::SEXP>, data: Option<crate::condition::ConditionData>) -> crate::SEXP
+unsafe fn make_rust_condition_value_with_data(message: &str, kind: &str, class: &[String], call: Option<crate::SEXP>, data: Option<crate::condition::ConditionData>) -> crate::SEXP
 ```
 
 Build a tagged condition-value SEXP for transport across the Rust→R boundary.
@@ -31456,12 +31682,31 @@ This discipline was established by PR #344 commit `af6b4875` to fix a
 
 * `message` - Human-readable condition message
 * `kind` - Condition kind — one of the constants in [`kind`].
-* `class` - Optional user-supplied class name to prepend to the layered vector
+* `class` - User-supplied classes to prepend to the layered vector, most
+  specific first (`c(<class…>, "rust_error", …)`); empty for none.
 * `call` - Optional R call SEXP for error context. When `None`, uses `R_NilValue`.
 * `data` - Optional named condition-data payload (from the macros' `data =
   ...` form). When `Some`, each `(name, value)` becomes a named element of a
   list stored in slot `[4]`; the R helper splices these into the condition
   object so handlers can read `e$<name>`. When `None`, slot `[4]` is `NULL`.
+
+### `error_value::result_err_condition_value`
+
+```rust
+unsafe fn result_err_condition_value(parts: crate::condition::ErrParts, call: Option<crate::SEXP>) -> crate::SEXP
+```
+
+Build the tagged value for a `Result<T, E>::Err` from the parts the
+generated wrapper probed off `e` (see
+[`crate::__mx_result_err_parts!`]): `kind = "result_err"`, the error's
+class vector (empty for the plain `Debug` fallback) and its structured
+fields.
+
+#### Safety
+
+Same contract as [`make_rust_condition_value_with_data`]: R main thread,
+valid allocation context. Every generated `Err` arm runs inside the
+wrapper's `with_r_unwind_protect` closure, which satisfies it.
 
 ### `expression::dollar_extract`
 
@@ -41803,7 +42048,9 @@ Rides the tagged-condition transport that every `#[miniextendr]` function uses.
 The raised condition has class `c("rust_error", "simpleError", "error", "condition")`.
 
 An optional `class = "name"` form prepends a custom class for programmatic catching:
-`c("name", "rust_error", "simpleError", "error", "condition")`.
+`c("name", "rust_error", "simpleError", "error", "condition")`. `class` also
+takes a vector (`class = ["pkg_error_missing_field", "pkg_error"]`, or any
+[`ConditionClass`] value) so handlers can catch the family or the member.
 
 #### Structured `data = ...` payloads
 
@@ -41837,6 +42084,12 @@ tryCatch(validate(150L), validation_error = function(e) c(e$value, e$min, e$max)
 
 Argument order is fixed: `class = ...` (optional), then `data = ...`
 (optional), then the format message.
+
+Field names `message`, `call` and `kind` are the condition's own slots and
+are rejected (at compile time for literal / bare-identifier names, at
+runtime otherwise); give the field another name (`rule` instead of `kind`,
+say). A downstream error type with such a field renames it where the
+payload is built (`#[serde(rename)]`, a different key).
 
 **Supported value types**: scalars and `Vec`s of `i32`, `f64`, `bool`, and
 `String` (plus `&str` / `Vec<&str>`, converted to owned); their NA-aware
@@ -42612,6 +42865,16 @@ pub const UNKNOWN_SORTEDNESS: i32 = i32::MIN;
 ```
 
 Unknown sortedness value (INT_MIN in R).
+
+### `condition::RESERVED_CONDITION_FIELDS`
+
+```rust
+pub const RESERVED_CONDITION_FIELDS: &[&str] = _;
+```
+
+Condition-data field names that would overwrite the condition object's own
+slots when the R helper splices `data` in (`utils::modifyList` over
+`list(message, call, kind)`).
 
 ### `connection::EXPECTED_CONNECTIONS_VERSION`
 

@@ -231,6 +231,20 @@ also rejects `postfix` together with `generic = "..."`. See
 Standalone S3 methods are always named `generic.class`, so there is nothing for
 a postfix to append to. Rename through `generic` instead.
 
+### "`call = caller` attributes conditions to the wrapper's caller, which is only meaningful for a package-internal entry point"
+
+`#[miniextendr(call = caller)]` makes the generated wrapper report its caller's
+call in conditions. That is right for a `noexport` / `internal` entry point
+wrapped by a hand-written R function, and wrong for an exported function whose
+caller is arbitrary user code. Add `noexport` or `internal`, or drop the option.
+See [CALL_ATTRIBUTION.md](CALL_ATTRIBUTION.md#internal-entry-points-caller-attribution).
+
+### "`call = caller` cannot be combined with `no_call_attribution` / `fast`"
+
+Those options emit `.call = NULL` (no call captured at all), so there is no slot
+for `call = caller` to redirect. Keep one: `call = caller` for attributed errors
+from an internal entry point, `fast` for the no-attribution fast path.
+
 ## Debugging Tips
 
 1. **Run [`just lint`](https://github.com/A2-ai/miniextendr/blob/main/justfile)** before building: it catches attribute issues earlier than compile errors

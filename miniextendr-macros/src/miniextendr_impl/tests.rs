@@ -3694,6 +3694,36 @@ fn method_postfix_validation() {
     assert!(err.to_string().contains("must not be empty"), "{err}");
 }
 
+/// `call = caller` is a standalone-fn option; on a method it is rejected with a
+/// message that names the alternative rather than the generic unknown-option list.
+#[test]
+fn method_call_caller_is_rejected_clearly() {
+    for code in [
+        quote::quote! {
+            impl Widget {
+                #[miniextendr(noexport, call = caller)]
+                pub fn bump(&self, by: i32) -> i32 { unimplemented!() }
+            }
+        },
+        quote::quote! {
+            impl Widget {
+                #[miniextendr(s3(call = caller))]
+                pub fn bump(&self, by: i32) -> i32 { unimplemented!() }
+            }
+        },
+    ] {
+        let err = ParsedImpl::parse(
+            default_impl_attrs(ClassSystem::S3),
+            syn::parse2(code).unwrap(),
+        )
+        .expect_err("call = caller on a method must fail");
+        assert!(
+            err.to_string().contains("only supported on standalone"),
+            "{err}"
+        );
+    }
+}
+
 fn c_wrapper_tokens(parsed: &ParsedImpl, name: &str) -> String {
     let method = parsed.methods.iter().find(|m| m.ident == name).unwrap();
     let r_wrappers_const = syn::parse_quote! { R_WRAPPERS_TEST };

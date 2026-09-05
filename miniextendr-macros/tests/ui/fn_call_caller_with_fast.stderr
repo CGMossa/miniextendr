@@ -1,0 +1,7 @@
+error: `call = caller` cannot be combined with `no_call_attribution` / `fast`: those emit `.call = NULL`, so there is no call slot to point at the caller.
+ --> tests/ui/fn_call_caller_with_fast.rs:8:1
+  |
+8 | #[miniextendr(noexport, call = caller, fast)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the attribute macro `miniextendr` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -1907,25 +1907,6 @@ of parameters with unknown types that were not statically prechecked.
 pub struct DotCallBuilder
 ```
 
-Builder for formatting `.Call()` invocations in R wrapper code.
-
-Handles the common pattern of `.Call(C_ident, .call = match.call(), args...)`.
-
-#### Example
-
-```ignore
-let call = DotCallBuilder::new("C_Counter__increment")
-    .with_self("self")
-    .build();
-// => ".Call(C_Counter__increment, .call = match.call(), self)"
-
-let call = DotCallBuilder::new("C_Counter__add")
-    .with_self("x")
-    .with_args(&["n"])
-    .build();
-// => ".Call(C_Counter__add, .call = match.call(), x, n)"
-```
-
 **Inherent associated items:**
 
 #### `build`
@@ -2709,6 +2690,71 @@ Kind of vctrs class being created.
 - `ListOf`
   - Homogeneous list with ptype (new_list_of)
 
+### `r_wrapper_builder::CallAttribution`
+
+```rust
+pub enum CallAttribution
+```
+
+Builder for formatting `.Call()` invocations in R wrapper code.
+
+Handles the common pattern of `.Call(C_ident, .call = match.call(), args...)`.
+
+#### Example
+
+```ignore
+let call = DotCallBuilder::new("C_Counter__increment")
+    .with_self("self")
+    .build();
+// => ".Call(C_Counter__increment, .call = match.call(), self)"
+
+let call = DotCallBuilder::new("C_Counter__add")
+    .with_self("x")
+    .with_args(&["n"])
+    .build();
+// => ".Call(C_Counter__add, .call = match.call(), x, n)"
+```
+Which frame a generated wrapper hands to `.Call(.., .call = ..)` and uses as
+the raise fallback (`.miniextendr_raise_condition(.val, <default>)`).
+
+**Variants:**
+
+- `Wrapper`
+  - `.call = match.call()`: the wrapper's own call, formals matched (default).
+- `Caller`
+  - `.call = .mx_call`, where the wrapper body first binds
+- `None`
+  - `.call = NULL`: `no_call_attribution` / `fast`; the raise helper falls
+
+**Inherent associated items:**
+
+#### `dot_call_arg`
+
+```rust
+fn dot_call_arg(self: Self) -> &'static str
+```
+
+The `.call = ...` argument for the `.Call()` line.
+
+#### `prelude`
+
+```rust
+fn prelude(self: Self, indent: &str) -> String
+```
+
+Statements the wrapper body needs before the `.Call()` line: empty except
+for [`CallAttribution::Caller`], which binds `.mx_call`. Each line ends
+with a newline plus `indent`, so the result can be prepended to a body
+whose first line is already positioned.
+
+#### `raise_default`
+
+```rust
+fn raise_default(self: Self) -> &'static str
+```
+
+The fallback call handed to `.miniextendr_raise_condition`.
+
 ### `typed_list::ParsedTypeSpec`
 
 ```rust
@@ -3256,6 +3302,16 @@ Used for top-level `#[miniextendr]` functions (not class methods).
 - `call_expr`: The `.Call()` expression to evaluate
 - `final_return`: The expression to return (typically `".val"` or `"invisible(.val)"`)
 - `indent`: Leading whitespace for the body lines (e.g., `"  "` for 2-space)
+
+### `method_return_builder::standalone_body_with_call_default`
+
+```rust
+fn standalone_body_with_call_default(call_expr: &str, final_return: &str, indent: &str, call_default: &str) -> String
+```
+
+[`standalone_body`] with an explicit raise fallback: `sys.call()` for the
+wrapper's own frame, `.mx_call` for `call = caller` wrappers (see
+`crate::r_wrapper_builder::CallAttribution::raise_default`).
 
 ### `miniextendr_impl::env_class::generate_env_r_wrapper`
 

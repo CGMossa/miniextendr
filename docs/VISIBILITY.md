@@ -56,6 +56,7 @@ fn internal_helper(x: i32) -> i32 {
 | `export` | Force `@export` on a non-`pub` function |
 | `r_name = "..."` | Rename the R wrapper (e.g. `r_name = "is.widget"`); does not affect NAMESPACE membership |
 | `postfix = "..."` | Append a suffix to the Rust name for the R wrapper (`postfix = "_impl"` on `fn f` gives `f_impl`); states the "hand-written `f()` delegates to generated `f_impl()`" convention once. Exclusive with `r_name` and `s3(...)` |
+| `call = caller` | Attribute conditions to the wrapper's caller (the hand-written R function delegating to this internal entry point) instead of the wrapper's own call. Requires `noexport` or `internal` |
 | `c_symbol = "..."` | Rename the C symbol used in `.Call()` and `R_CallMethodDef`. The value is used verbatim — no crate prefix is added, so **you** own its cross-package uniqueness on webR (see `docs/WEBR.md`) |
 
 ### When to use each option
@@ -68,6 +69,7 @@ fn internal_helper(x: i32) -> i32 {
 | Non-`pub` function that must be exported | `#[miniextendr(export)]` (rare; prefer making the fn `pub`) |
 | Rename the R-facing name | `r_name = "my.function"` |
 | Internal entry point behind a hand-written R function | `#[miniextendr(noexport, postfix = "_impl")]` |
+| Internal entry point whose errors should name the public R function | `#[miniextendr(noexport, call = caller)]` |
 | Rename the C symbol (e.g. to avoid collision) | `c_symbol = "pkg_my_fn"` |
 
 ### Mutually exclusive combinations
@@ -79,6 +81,8 @@ The following combinations are compile errors:
 - `export + internal` — contradictory
 - `postfix + r_name` — both set the R wrapper name; use one
 - `postfix + s3(...)` — S3 method names are always `generic.class`
+- `call = caller` without `noexport` / `internal` — caller attribution is for internal entry points
+- `call = caller + no_call_attribution` (or `fast`) — `.call = NULL` leaves no slot to redirect
 
 ---
 
@@ -191,6 +195,30 @@ Inherent impl methods accept it too (`obj$bump_impl()` on R6/Env,
 names from the trait declaration and do not. There is no crate-level default:
 proc-macro invocations share no state, so the attribute is per item (#1454
 sketches a `[package.metadata]` alternative).
+
+### call = caller: attribute conditions to the hand-written caller
+
+```rust
+#[miniextendr(noexport, call = caller)]
+pub fn summarise_impl(x: i32) -> Result<i32, String> {
+    if x <= 0 { return Err(format!("x must be positive, got {x}")); }
+    Ok(x)
+}
+```
+
+```r
+# Hand-written, in R/:
+#' @export
+summarise <- function(value) summarise_impl(as.integer(value))
+
+summarise(-1)
+#> Error in summarise(value = -1) : x must be positive, got -1
+```
+
+Without the option the error would read `Error in summarise_impl(x = as.integer(value))`,
+leaking the bridge that `noexport` exists to hide. See
+[CALL_ATTRIBUTION.md](CALL_ATTRIBUTION.md#internal-entry-points-caller-attribution) for
+how the frame is chosen and the top-level fallback.
 
 ---
 

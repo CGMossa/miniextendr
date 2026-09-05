@@ -126,6 +126,57 @@ C wrapper:     extern "C-unwind" fn(__miniextendr_call: SEXP, left: SEXP, right:
 
 For the unwrapped extern `"C-unwind"` path, the call slot does not exist, so the panic-to-error path becomes `Rf_error(msg)` and R falls back to `sys.call()` of the wrapper frame.
 
+## Internal entry points: caller attribution
+
+`noexport` exists for package-internal entry points, and the natural layout is a
+hand-written R function that validates its arguments and delegates to the
+generated wrapper. With the default attribution the user then sees the bridge:
+
+```text
+Error in call_attr_self_impl(x = value) : x must be positive, got -1
+```
+
+`#[miniextendr(noexport, call = caller)]` moves the attribution one frame up.
+The wrapper resolves its parent frame in its own frame first, then hands that
+call to `.Call()` and to the raise fallback:
+
+```r
+call_attr_caller_impl <- function(x) {
+  .mx_parent <- sys.parent()
+  .mx_def <- if (.mx_parent > 0L) sys.function(.mx_parent)
+  .mx_pc <- if (.mx_parent > 0L) sys.call(.mx_parent)
+  .mx_call <- if (typeof(.mx_def) == "closure") match.call(.mx_def, .mx_pc) else match.call()
+  .val <- .Call(C_mypkg_call_attr_caller_impl, .call = .mx_call, x)
+  if (inherits(.val, "rust_condition_value") && ...) return(.miniextendr_raise_condition(.val, .mx_call))
+  .val
+}
+```
+
+so the condition carries the hand-written function's call with *its* formals
+matched:
+
+```text
+Error in call_attr_caller(value = -1L) : x must be positive, got -1
+```
+
+The wrapper falls back to its own `match.call()` in two cases: `sys.parent()`
+is `0` (called from top level, also under `tryCatch()` there), or the parent
+frame's function is not a closure. The second case covers `eval()`'d code (a
+testthat block, `source()`, `local()`): R gives such a frame the `eval`
+primitive as its function, and `match.call()` rejects a non-closure
+`definition`. Every `sys.*` lookup is a plain statement in the wrapper's own
+frame on purpose: inside a promise forced by `match.call()`, `sys.call(0)`
+resolves to `match.call`'s own frame, not the wrapper's. The option requires
+`noexport` or `internal` (an exported function's caller is arbitrary user
+code), cannot combine with `no_call_attribution` / `fast` (no call slot to
+redirect), and applies to standalone functions only; class methods keep their
+own attribution. The frame is the *calling* frame, so an entry point reached
+through `lapply()` / `do.call()` reports that frame's call, the same way
+`sys.call(-1)` would. Fixture pair:
+`call_attr_caller_impl` / `call_attr_self_impl` in
+`rpkg/src/rust/call_attribution_demo.rs` with the delegates in
+`rpkg/R/call_attribution.R`, verified by `test-call-attribution.R`.
+
 ## Where this is emitted
 
 Every `.Call()` inside generated R wrappers goes through one source of truth: `DotCallBuilder` in `miniextendr-macros/src/r_wrapper_builder.rs`, which always prepends `.call = match.call()`. The C wrapper builder in `miniextendr-macros/src/c_wrapper_builder.rs` always declares `__miniextendr_call: SEXP` as the first parameter, so the convention is symmetric.

@@ -73,3 +73,33 @@ test_that("call attribution fixtures are not exported", {
 })
 
 # endregion
+
+# region: call = caller (internal entry point behind a hand-written function, #1450)
+
+test_that("call = caller attributes the condition to the hand-written caller", {
+  e <- tryCatch(miniextendr:::call_attr_caller(-1L), error = function(e) e)
+  expect_s3_class(e, "rust_error")
+  # `Result<_, String>` renders the Err through Debug (quoted) by default.
+  expect_match(conditionMessage(e), "x must be positive, got -1", fixed = TRUE)
+  # The caller's call, with the caller's formals matched.
+  expect_equal(conditionCall(e), quote(miniextendr:::call_attr_caller(value = -1L)))
+  expect_equal(miniextendr:::call_attr_caller(3L), 3L)
+})
+
+test_that("default noexport attribution still names the wrapper", {
+  e <- tryCatch(miniextendr:::call_attr_self(-1L), error = function(e) e)
+  expect_equal(conditionCall(e), quote(call_attr_self_impl(x = value)))
+})
+
+test_that("call = caller falls back to the wrapper's own call when called directly", {
+  e <- tryCatch(miniextendr:::call_attr_caller_impl(-1L), error = function(e) e)
+  expect_equal(conditionCall(e), quote(miniextendr:::call_attr_caller_impl(x = -1L)))
+})
+
+test_that("call = caller fixtures are not exported", {
+  ns <- readLines(system.file("NAMESPACE", package = "miniextendr"))
+  expect_false(any(grepl("call_attr_caller", ns)))
+  expect_false(any(grepl("call_attr_self", ns)))
+})
+
+# endregion

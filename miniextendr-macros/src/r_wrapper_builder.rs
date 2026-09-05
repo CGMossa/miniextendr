@@ -338,6 +338,66 @@ pub(crate) fn is_missing_type(ty: &syn::Type) -> bool {
 ///     .build();
 /// // => ".Call(C_Counter__add, .call = match.call(), x, n)"
 /// ```
+/// Which frame a generated wrapper hands to `.Call(.., .call = ..)` and uses as
+/// the raise fallback (`.miniextendr_raise_condition(.val, <default>)`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CallAttribution {
+    /// `.call = match.call()`: the wrapper's own call, formals matched (default).
+    #[default]
+    Wrapper,
+    /// `.call = .mx_call`, where the wrapper body first binds
+    /// `.mx_parent <- sys.parent()`, the parent frame's function (`.mx_def`)
+    /// and call (`.mx_pc`), then `.mx_call <- match.call(.mx_def, .mx_pc)`:
+    /// the caller's call with the caller's formals matched. It falls back to
+    /// the wrapper's own `match.call()` when there is no parent frame (top
+    /// level) or the parent frame is not a closure: `eval()`'d code such as a
+    /// testthat block or `source()` has the `eval` primitive as its frame
+    /// function, and `match.call()` rejects a non-closure definition. For a
+    /// `noexport` entry point behind a hand-written R function
+    /// (`#[miniextendr(noexport, call = caller)]`). Every `sys.*` lookup is a
+    /// plain statement in the wrapper's own frame, never a promise forced by
+    /// `match.call` (where `sys.call(0)` would resolve to `match.call`'s frame).
+    Caller,
+    /// `.call = NULL`: `no_call_attribution` / `fast`; the raise helper falls
+    /// back to the wrapper's `sys.call()`.
+    None,
+}
+
+impl CallAttribution {
+    /// The `.call = ...` argument for the `.Call()` line.
+    pub fn dot_call_arg(self) -> &'static str {
+        match self {
+            CallAttribution::Wrapper => ".call = match.call()",
+            CallAttribution::Caller => ".call = .mx_call",
+            CallAttribution::None => ".call = NULL",
+        }
+    }
+
+    /// The fallback call handed to `.miniextendr_raise_condition`.
+    pub fn raise_default(self) -> &'static str {
+        match self {
+            CallAttribution::Caller => ".mx_call",
+            CallAttribution::Wrapper | CallAttribution::None => "sys.call()",
+        }
+    }
+
+    /// Statements the wrapper body needs before the `.Call()` line: empty except
+    /// for [`CallAttribution::Caller`], which binds `.mx_call`. Each line ends
+    /// with a newline plus `indent`, so the result can be prepended to a body
+    /// whose first line is already positioned.
+    pub fn prelude(self, indent: &str) -> String {
+        match self {
+            CallAttribution::Caller => format!(
+                ".mx_parent <- sys.parent()\n{indent}\
+                 .mx_def <- if (.mx_parent > 0L) sys.function(.mx_parent)\n{indent}\
+                 .mx_pc <- if (.mx_parent > 0L) sys.call(.mx_parent)\n{indent}\
+                 .mx_call <- if (typeof(.mx_def) == \"closure\") match.call(.mx_def, .mx_pc) else match.call()\n{indent}"
+            ),
+            CallAttribution::Wrapper | CallAttribution::None => String::new(),
+        }
+    }
+}
+
 pub struct DotCallBuilder {
     /// The C entry point symbol name (e.g., `"C_Counter__increment"`).
     /// This is the first argument to `.Call()`.

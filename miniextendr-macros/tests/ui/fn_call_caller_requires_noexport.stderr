@@ -1,0 +1,7 @@
+error: `call = caller` attributes conditions to the wrapper's caller, which is only meaningful for a package-internal entry point; add `noexport` or `internal`.
+ --> tests/ui/fn_call_caller_requires_noexport.rs:9:1
+  |
+9 | #[miniextendr(call = caller)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the attribute macro `miniextendr` (in Nightly builds, run with -Z macro-backtrace for more info)
