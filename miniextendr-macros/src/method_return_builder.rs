@@ -63,9 +63,21 @@ pub fn condition_check_inline_block(call_expr: &str, inner: &str, indent: &str) 
 /// - `final_return`: The expression to return (typically `".val"` or `"invisible(.val)"`)
 /// - `indent`: Leading whitespace for the body lines (e.g., `"  "` for 2-space)
 pub fn standalone_body(call_expr: &str, final_return: &str, indent: &str) -> String {
+    standalone_body_with_call_default(call_expr, final_return, indent, "sys.call()")
+}
+
+/// [`standalone_body`] with an explicit raise fallback: `sys.call()` for the
+/// wrapper's own frame, `.mx_call` for `call = caller` wrappers (see
+/// `crate::r_wrapper_builder::CallAttribution::raise_default`).
+pub fn standalone_body_with_call_default(
+    call_expr: &str,
+    final_return: &str,
+    indent: &str,
+    call_default: &str,
+) -> String {
     format!(
         ".val <- {call_expr}\n\
-         {indent}if (inherits(.val, \"rust_condition_value\") && isTRUE(attr(.val, \"__rust_condition__\"))) return(.miniextendr_raise_condition(.val, sys.call()))\n\
+         {indent}if (inherits(.val, \"rust_condition_value\") && isTRUE(attr(.val, \"__rust_condition__\"))) return(.miniextendr_raise_condition(.val, {call_default}))\n\
          {indent}{final_return}"
     )
 }

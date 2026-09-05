@@ -403,3 +403,27 @@ fn snapshot_formals_and_call_args() {
     insta::assert_snapshot!(output);
 }
 // endregion
+
+#[test]
+fn call_attribution_strings() {
+    assert_eq!(CallAttribution::default(), CallAttribution::Wrapper);
+    assert_eq!(
+        CallAttribution::Wrapper.dot_call_arg(),
+        ".call = match.call()"
+    );
+    assert_eq!(CallAttribution::None.dot_call_arg(), ".call = NULL");
+    assert_eq!(CallAttribution::Caller.dot_call_arg(), ".call = .mx_call");
+    assert_eq!(CallAttribution::Wrapper.raise_default(), "sys.call()");
+    assert_eq!(CallAttribution::None.raise_default(), "sys.call()");
+    assert_eq!(CallAttribution::Caller.raise_default(), ".mx_call");
+    assert_eq!(CallAttribution::Wrapper.prelude("  "), "");
+    assert_eq!(CallAttribution::None.prelude("  "), "");
+    let prelude = CallAttribution::Caller.prelude("  ");
+    assert_eq!(
+        prelude,
+        ".mx_parent <- sys.parent()\n  \
+         .mx_def <- if (.mx_parent > 0L) sys.function(.mx_parent)\n  \
+         .mx_pc <- if (.mx_parent > 0L) sys.call(.mx_parent)\n  \
+         .mx_call <- if (typeof(.mx_def) == \"closure\") match.call(.mx_def, .mx_pc) else match.call()\n  "
+    );
+}

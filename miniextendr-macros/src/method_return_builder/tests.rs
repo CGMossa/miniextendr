@@ -83,3 +83,23 @@ fn test_return_other_class_list_marker() {
     let s4 = builder.build_s4_inline();
     assert!(s4.contains(".__MX_WRAP_LIST_RETURN_Board__(.val)"));
 }
+
+#[test]
+fn standalone_body_call_default_is_configurable() {
+    let default = crate::method_return_builder::standalone_body(".Call(C_f, x)", ".val", "  ");
+    assert!(
+        default.contains(".miniextendr_raise_condition(.val, sys.call())"),
+        "{default}"
+    );
+    let caller = crate::method_return_builder::standalone_body_with_call_default(
+        ".Call(C_f, x)",
+        ".val",
+        "  ",
+        ".mx_call",
+    );
+    assert!(
+        caller.contains(".miniextendr_raise_condition(.val, .mx_call))"),
+        "{caller}"
+    );
+    assert!(!caller.contains("sys.call()"), "{caller}");
+}

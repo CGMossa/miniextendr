@@ -1421,6 +1421,12 @@ impl ParsedMethod {
                             let val = value.value();
                             crate::miniextendr_fn::validate_postfix(&val, &value)?;
                             method_attrs.postfix = Some(val);
+                        } else if inner.path.is_ident("call") {
+                            return Err(inner.error(
+                                "`call = caller` is only supported on standalone `#[miniextendr]` \
+                                 functions (the internal-entry-point pattern); class methods keep \
+                                 their own call attribution",
+                            ));
                         } else if inner.path.is_ident("r_entry") {
                             let _: syn::Token![=] = inner.input.parse()?;
                             let value: syn::LitStr = inner.input.parse()?;
@@ -1715,6 +1721,12 @@ impl ParsedMethod {
                     let val = value.value();
                     crate::miniextendr_fn::validate_postfix(&val, &value)?;
                     method_attrs.postfix = Some(val);
+                } else if meta.path.is_ident("call") {
+                    return Err(meta.error(
+                        "`call = caller` is only supported on standalone `#[miniextendr]` \
+                         functions (the internal-entry-point pattern); class methods keep \
+                         their own call attribution",
+                    ));
                 } else if meta.path.is_ident("r_entry") {
                     let _: syn::Token![=] = meta.input.parse()?;
                     let value: syn::LitStr = meta.input.parse()?;

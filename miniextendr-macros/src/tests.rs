@@ -180,6 +180,39 @@ fn miniextendr_attr_postfix_parses_and_rejects_conflicts() {
 }
 
 #[test]
+fn miniextendr_attr_call_caller_parses_and_validates() {
+    let attrs = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(noexport, call = caller))
+        .expect("should parse call = caller");
+    assert!(attrs.call_caller);
+    assert!(
+        !attrs.no_call_attribution,
+        "explicit caller attribution keeps the call slot"
+    );
+
+    let attrs = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(internal, call = "caller"))
+        .expect("string form parses too");
+    assert!(attrs.call_caller);
+
+    let err = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(call = caller))
+        .err()
+        .expect("call = caller without noexport/internal must fail");
+    assert!(
+        err.to_string().contains("add `noexport` or `internal`"),
+        "{err}"
+    );
+
+    let err = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(noexport, call = caller, fast))
+        .err()
+        .expect("call = caller + fast must fail");
+    assert!(err.to_string().contains("no_call_attribution"), "{err}");
+
+    let err = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(noexport, call = wrapper))
+        .err()
+        .expect("only `caller` is accepted");
+    assert!(err.to_string().contains("accepts only `caller`"), "{err}");
+}
+
+#[test]
 fn dots_validation_stmt_formats_error_with_display_not_debug() {
     // Audit A8: `#[miniextendr(dots = typed_list!(...))]` used to inject
     // `.expect("dots validation failed")`, which Debug-formats the

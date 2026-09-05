@@ -753,6 +753,7 @@ pub fn miniextendr(
         unwrap_in_r,
         no_preconditions,
         no_call_attribution,
+        call_caller,
         return_pref,
         return_pref_span,
         s3_generic,
@@ -1110,13 +1111,24 @@ pub fn miniextendr(
     // instead of `match.call()` — saves ~1200 ns/call. The R-side
     // .miniextendr_raise_condition helper falls back to sys.call() so the
     // error UX is preserved (positional args instead of named).
+    let call_attribution = if no_call_attribution {
+        r_wrapper_builder::CallAttribution::None
+    } else if call_caller {
+        r_wrapper_builder::CallAttribution::Caller
+    } else {
+        r_wrapper_builder::CallAttribution::Wrapper
+    };
     if uses_internal_c_wrapper {
-        let call_arg = if no_call_attribution {
-            ".call = NULL".to_string()
-        } else {
-            ".call = match.call()".to_string()
-        };
-        r_call_args_strs.insert(0, call_arg);
+        r_call_args_strs.insert(0, call_attribution.dot_call_arg().to_string());
+    } else if call_caller {
+        // `extern "C-unwind"` fns have no generated call slot to redirect.
+        return syn::Error::new_spanned(
+            &parsed.item().sig.ident,
+            "`call = caller` needs the generated call slot; an `extern \"C-unwind\"` function \
+             has no `.call` argument to attribute",
+        )
+        .into_compile_error()
+        .into();
     }
 
     // Build the R body string consistently
@@ -1134,7 +1146,14 @@ pub fn miniextendr(
         } else {
             ".val"
         };
-        crate::method_return_builder::standalone_body(&call_expr, final_return, "  ")
+        let body = crate::method_return_builder::standalone_body_with_call_default(
+            &call_expr,
+            final_return,
+            "  ",
+            call_attribution.raise_default(),
+        );
+        // `call = caller` binds `.mx_call` in the wrapper's own frame first.
+        format!("{}{body}", call_attribution.prelude("  "))
     };
     // Determine R function name and S3-specific comments
     let is_s3_method = s3_generic.is_some() || s3_class.is_some();
