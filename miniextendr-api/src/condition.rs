@@ -183,16 +183,19 @@ pub type ConditionData = Vec<(String, crate::RValue)>;
 #[doc(hidden)]
 #[derive(Debug)]
 pub enum RCondition {
-    /// Raised by `error!(...)` / `error!(class = "...", ...)`.
+    /// Raised by `error!(...)` / `error!(class = "...", ...)`, and by the
+    /// `Result<T, E>` Err arm once reconstructed across a package boundary.
+    /// `class` is the user-supplied class vector (empty = none), prepended
+    /// to the `rust_error` layering on the R side.
     Error {
         message: String,
-        class: Option<String>,
+        class: Vec<String>,
         data: Option<ConditionData>,
     },
     /// Raised by `warning!(...)` / `warning!(class = "...", ...)`.
     Warning {
         message: String,
-        class: Option<String>,
+        class: Vec<String>,
         data: Option<ConditionData>,
     },
     /// Raised by `message!(...)`.
@@ -203,7 +206,7 @@ pub enum RCondition {
     /// Raised by `condition!(...)` / `condition!(class = "...", ...)`.
     Condition {
         message: String,
-        class: Option<String>,
+        class: Vec<String>,
         data: Option<ConditionData>,
     },
 }
@@ -211,6 +214,49 @@ pub enum RCondition {
 // endregion
 
 // region: Macros
+
+/// Internal: one condition-data field name, validated against the reserved
+/// slots. Not part of the public API.
+///
+/// - `lit "name"` / `ident name`: the name is a literal, so the reserved-name
+///   check runs at compile time (`const` assertion) and the field costs one
+///   `to_string()` at runtime.
+/// - `expr <e>`: a computed name; checked at runtime by
+///   [`crate::condition::check_condition_field_name`].
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __mx_condition_field_name {
+    (lit $name:literal) => {{
+        const _: () = ::core::assert!(
+            !$crate::condition::is_reserved_condition_field($name),
+            "condition data field name is reserved: `message`, `call` and `kind` are the condition's own slots; rename the field"
+        );
+        ($name).to_string()
+    }};
+    (ident $name:ident) => {{
+        const _: () = ::core::assert!(
+            !$crate::condition::is_reserved_condition_field(::core::stringify!($name)),
+            "condition data field name is reserved: `message`, `call` and `kind` are the condition's own slots; rename the field"
+        );
+        ::core::stringify!($name).to_string()
+    }};
+    (expr $name:expr) => {
+        $crate::condition::check_condition_field_name(($name).to_string())
+    };
+}
+
+/// Internal: one `(name, value)` pair of a bracketed `data = [...]` list; the
+/// name goes through the reserved-slot check (compile time for literals).
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __mx_condition_pair {
+    (($name:literal, $value:expr $(,)?)) => {
+        ($crate::__mx_condition_field_name!(lit $name), $crate::RValue::from($value))
+    };
+    (($name:expr, $value:expr $(,)?)) => {
+        ($crate::__mx_condition_field_name!(expr $name), $crate::RValue::from($value))
+    };
+}
 
 /// Internal: normalise a macro `data = ...` argument into
 /// `Option<ConditionData>`. Not part of the public API.
@@ -225,34 +271,79 @@ pub enum RCondition {
 /// Each `value` is converted via `RValue::from`, so any type with an `RValue`
 /// `From` impl (the scalar/vector/`Option`/wide-integer set) works without
 /// ceremony.
+///
+/// Field names are checked against the condition's own slots (`message` /
+/// `call` / `kind`): at compile time when the name is a literal or bare
+/// identifier, at runtime otherwise.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __mx_condition_data {
-    (($name:expr, $value:expr) $(,)?) => {
+    (($name:literal, $value:expr $(,)?)) => {
         ::std::option::Option::Some(::std::vec![(
-            ($name).to_string(),
+            $crate::__mx_condition_field_name!(lit $name),
             $crate::RValue::from($value),
         )])
     };
-    ([ $(($name:expr, $value:expr)),* $(,)? ]) => {
+    (($name:expr, $value:expr $(,)?)) => {
+        ::std::option::Option::Some(::std::vec![(
+            $crate::__mx_condition_field_name!(expr $name),
+            $crate::RValue::from($value),
+        )])
+    };
+    ([ $($pair:tt),* $(,)? ]) => {
         ::std::option::Option::Some(::std::vec![
-            $(
-                (
-                    ($name).to_string(),
-                    $crate::RValue::from($value),
-                ),
-            )*
+            $( $crate::__mx_condition_pair!($pair), )*
         ])
     };
     ({ $($name:ident = $value:expr),* $(,)? }) => {
         ::std::option::Option::Some(::std::vec![
             $(
                 (
-                    ::std::stringify!($name).to_string(),
+                    $crate::__mx_condition_field_name!(ident $name),
                     $crate::RValue::from($value),
                 ),
             )*
         ])
+    };
+}
+
+/// Internal: parse the shared option grid of `error!` / `warning!` /
+/// `condition!` into `(class, data, message)`. Not part of the public API.
+///
+/// Accepted orders (every part optional except the message):
+/// `class = ..`, then `data = ..`, then the `format!` arguments. `class` takes
+/// anything implementing [`crate::condition::ConditionClass`] (one string or
+/// several).
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __mx_condition_parts {
+    (class = $class:expr, data = $data:tt, $($arg:tt)*) => {
+        (
+            $crate::condition::ConditionClass::into_condition_class($class),
+            $crate::__mx_condition_data!($data),
+            ::std::format!($($arg)*),
+        )
+    };
+    (data = $data:tt, $($arg:tt)*) => {
+        (
+            ::std::vec::Vec::<::std::string::String>::new(),
+            $crate::__mx_condition_data!($data),
+            ::std::format!($($arg)*),
+        )
+    };
+    (class = $class:expr, $($arg:tt)*) => {
+        (
+            $crate::condition::ConditionClass::into_condition_class($class),
+            ::std::option::Option::<$crate::condition::ConditionData>::None,
+            ::std::format!($($arg)*),
+        )
+    };
+    ($($arg:tt)*) => {
+        (
+            ::std::vec::Vec::<::std::string::String>::new(),
+            ::std::option::Option::<$crate::condition::ConditionData>::None,
+            ::std::format!($($arg)*),
+        )
     };
 }
 
@@ -262,7 +353,9 @@ macro_rules! __mx_condition_data {
 /// The raised condition has class `c("rust_error", "simpleError", "error", "condition")`.
 ///
 /// An optional `class = "name"` form prepends a custom class for programmatic catching:
-/// `c("name", "rust_error", "simpleError", "error", "condition")`.
+/// `c("name", "rust_error", "simpleError", "error", "condition")`. `class` also
+/// takes a vector (`class = ["pkg_error_missing_field", "pkg_error"]`, or any
+/// [`ConditionClass`] value) so handlers can catch the family or the member.
 ///
 /// # Structured `data = ...` payloads
 ///
@@ -296,6 +389,12 @@ macro_rules! __mx_condition_data {
 ///
 /// Argument order is fixed: `class = ...` (optional), then `data = ...`
 /// (optional), then the format message.
+///
+/// Field names `message`, `call` and `kind` are the condition's own slots and
+/// are rejected (at compile time for literal / bare-identifier names, at
+/// runtime otherwise); give the field another name (`rule` instead of `kind`,
+/// say). A downstream error type with such a field renames it where the
+/// payload is built (`#[serde(rename)]`, a different key).
 ///
 /// **Supported value types**: scalars and `Vec`s of `i32`, `f64`, `bool`, and
 /// `String` (plus `&str` / `Vec<&str>`, converted to owned); their NA-aware
@@ -353,34 +452,14 @@ macro_rules! __mx_condition_data {
 /// ```
 #[macro_export]
 macro_rules! error {
-    (class = $class:expr, data = $data:tt, $($arg:tt)*) => {
+    ($($t:tt)*) => {{
+        let (__mx_class, __mx_data, __mx_message) = $crate::__mx_condition_parts!($($t)*);
         ::std::panic::panic_any($crate::condition::RCondition::Error {
-            message: ::std::format!($($arg)*),
-            class: ::std::option::Option::Some($class.to_string()),
-            data: $crate::__mx_condition_data!($data),
+            message: __mx_message,
+            class: __mx_class,
+            data: __mx_data,
         })
-    };
-    (data = $data:tt, $($arg:tt)*) => {
-        ::std::panic::panic_any($crate::condition::RCondition::Error {
-            message: ::std::format!($($arg)*),
-            class: ::std::option::Option::None,
-            data: $crate::__mx_condition_data!($data),
-        })
-    };
-    (class = $class:expr, $($arg:tt)*) => {
-        ::std::panic::panic_any($crate::condition::RCondition::Error {
-            message: ::std::format!($($arg)*),
-            class: ::std::option::Option::Some($class.to_string()),
-            data: ::std::option::Option::None,
-        })
-    };
-    ($($arg:tt)*) => {
-        ::std::panic::panic_any($crate::condition::RCondition::Error {
-            message: ::std::format!($($arg)*),
-            class: ::std::option::Option::None,
-            data: ::std::option::Option::None,
-        })
-    };
+    }};
 }
 
 /// Collision-free alias for [`crate::error!`].
@@ -458,34 +537,14 @@ macro_rules! rust_error {
 /// ```
 #[macro_export]
 macro_rules! warning {
-    (class = $class:expr, data = $data:tt, $($arg:tt)*) => {
+    ($($t:tt)*) => {{
+        let (__mx_class, __mx_data, __mx_message) = $crate::__mx_condition_parts!($($t)*);
         ::std::panic::panic_any($crate::condition::RCondition::Warning {
-            message: ::std::format!($($arg)*),
-            class: ::std::option::Option::Some($class.to_string()),
-            data: $crate::__mx_condition_data!($data),
+            message: __mx_message,
+            class: __mx_class,
+            data: __mx_data,
         })
-    };
-    (data = $data:tt, $($arg:tt)*) => {
-        ::std::panic::panic_any($crate::condition::RCondition::Warning {
-            message: ::std::format!($($arg)*),
-            class: ::std::option::Option::None,
-            data: $crate::__mx_condition_data!($data),
-        })
-    };
-    (class = $class:expr, $($arg:tt)*) => {
-        ::std::panic::panic_any($crate::condition::RCondition::Warning {
-            message: ::std::format!($($arg)*),
-            class: ::std::option::Option::Some($class.to_string()),
-            data: ::std::option::Option::None,
-        })
-    };
-    ($($arg:tt)*) => {
-        ::std::panic::panic_any($crate::condition::RCondition::Warning {
-            message: ::std::format!($($arg)*),
-            class: ::std::option::Option::None,
-            data: ::std::option::Option::None,
-        })
-    };
+    }};
 }
 
 /// Emit an R message from Rust with `rust_message` class layering.
@@ -588,34 +647,14 @@ macro_rules! message {
 /// ```
 #[macro_export]
 macro_rules! condition {
-    (class = $class:expr, data = $data:tt, $($arg:tt)*) => {
+    ($($t:tt)*) => {{
+        let (__mx_class, __mx_data, __mx_message) = $crate::__mx_condition_parts!($($t)*);
         ::std::panic::panic_any($crate::condition::RCondition::Condition {
-            message: ::std::format!($($arg)*),
-            class: ::std::option::Option::Some($class.to_string()),
-            data: $crate::__mx_condition_data!($data),
+            message: __mx_message,
+            class: __mx_class,
+            data: __mx_data,
         })
-    };
-    (data = $data:tt, $($arg:tt)*) => {
-        ::std::panic::panic_any($crate::condition::RCondition::Condition {
-            message: ::std::format!($($arg)*),
-            class: ::std::option::Option::None,
-            data: $crate::__mx_condition_data!($data),
-        })
-    };
-    (class = $class:expr, $($arg:tt)*) => {
-        ::std::panic::panic_any($crate::condition::RCondition::Condition {
-            message: ::std::format!($($arg)*),
-            class: ::std::option::Option::Some($class.to_string()),
-            data: ::std::option::Option::None,
-        })
-    };
-    ($($arg:tt)*) => {
-        ::std::panic::panic_any($crate::condition::RCondition::Condition {
-            message: ::std::format!($($arg)*),
-            class: ::std::option::Option::None,
-            data: ::std::option::Option::None,
-        })
-    };
+    }};
 }
 
 /// Collision-free alias for [`crate::condition!`].
@@ -641,6 +680,377 @@ macro_rules! condition {
 #[macro_export]
 macro_rules! rust_condition {
     ($($t:tt)*) => { $crate::condition!($($t)*) };
+}
+
+// endregion
+
+// region: Class vectors and reserved field names
+
+/// What the condition macros' `class = …` (and [`RError::class`]) accept: one
+/// class or several, as `&str` / `String` / arrays / `Vec` / slices.
+///
+/// The classes are prepended in order to the `rust_*` layering, so put the most
+/// specific first: `class = ["pkg_error_missing_field", "pkg_error"]` renders
+/// as `c("pkg_error_missing_field", "pkg_error", "rust_error", …)` and both
+/// `tryCatch(pkg_error_missing_field = …)` and `tryCatch(pkg_error = …)` match.
+pub trait ConditionClass {
+    /// The class vector, most specific first.
+    fn into_condition_class(self) -> Vec<String>;
+}
+
+impl ConditionClass for &str {
+    fn into_condition_class(self) -> Vec<String> {
+        vec![self.to_string()]
+    }
+}
+impl ConditionClass for String {
+    fn into_condition_class(self) -> Vec<String> {
+        vec![self]
+    }
+}
+impl ConditionClass for &String {
+    fn into_condition_class(self) -> Vec<String> {
+        vec![self.clone()]
+    }
+}
+impl<const N: usize> ConditionClass for [&str; N] {
+    fn into_condition_class(self) -> Vec<String> {
+        self.iter().map(|s| s.to_string()).collect()
+    }
+}
+impl<const N: usize> ConditionClass for [String; N] {
+    fn into_condition_class(self) -> Vec<String> {
+        self.into_iter().collect()
+    }
+}
+impl ConditionClass for Vec<&str> {
+    fn into_condition_class(self) -> Vec<String> {
+        self.into_iter().map(str::to_string).collect()
+    }
+}
+impl ConditionClass for Vec<String> {
+    fn into_condition_class(self) -> Vec<String> {
+        self
+    }
+}
+impl ConditionClass for &[&str] {
+    fn into_condition_class(self) -> Vec<String> {
+        self.iter().map(|s| s.to_string()).collect()
+    }
+}
+impl ConditionClass for &[String] {
+    fn into_condition_class(self) -> Vec<String> {
+        self.to_vec()
+    }
+}
+
+/// Condition-data field names that would overwrite the condition object's own
+/// slots when the R helper splices `data` in (`utils::modifyList` over
+/// `list(message, call, kind)`).
+pub const RESERVED_CONDITION_FIELDS: &[&str] = &["message", "call", "kind"];
+
+/// `true` for [`RESERVED_CONDITION_FIELDS`]. `const` so the macros can reject a
+/// literal field name at compile time:
+///
+/// ```compile_fail
+/// # use miniextendr_api as mx;
+/// # fn f() {
+/// mx::rust_error!(data = ("kind", 1), "boom");
+/// # }
+/// ```
+///
+/// Any other name is fine, so the fix for a clash is a rename at the source:
+///
+/// ```
+/// # use miniextendr_api as mx;
+/// # fn f() {
+/// mx::rust_error!(data = ("rule", 1), "boom");
+/// # }
+/// ```
+pub const fn is_reserved_condition_field(name: &str) -> bool {
+    const fn eq(a: &str, b: &str) -> bool {
+        let (a, b) = (a.as_bytes(), b.as_bytes());
+        if a.len() != b.len() {
+            return false;
+        }
+        let mut i = 0;
+        while i < a.len() {
+            if a[i] != b[i] {
+                return false;
+            }
+            i += 1;
+        }
+        true
+    }
+    eq(name, "message") || eq(name, "call") || eq(name, "kind")
+}
+
+/// Runtime half of the reserved-name check, for computed field names (the
+/// macros' `expr` path and [`RConditionError::data`] on user types). Panics
+/// when `name` is reserved; the panic becomes a plain `rust_error` in R,
+/// replacing the former silent overwrite.
+#[track_caller]
+pub fn check_condition_field_name(name: String) -> String {
+    if is_reserved_condition_field(&name) {
+        panic!(
+            "condition data field `{name}` is reserved: `message`, `call` and `kind` are the \
+             condition's own slots; rename the field."
+        );
+    }
+    name
+}
+
+/// Apply [`check_condition_field_name`] to every field of a payload.
+#[track_caller]
+pub fn check_condition_data(data: Option<ConditionData>) -> Option<ConditionData> {
+    data.map(|fields| {
+        fields
+            .into_iter()
+            .map(|(name, value)| (check_condition_field_name(name), value))
+            .collect()
+    })
+}
+
+// endregion
+
+// region: Classed `Result` errors — RConditionError + RError
+
+/// Give a `Result<T, E>` error type an R class vector and structured fields.
+///
+/// Every `#[miniextendr]` function or method returning `Result<T, E>` raises
+/// `Err(e)` as an R error. By default the error is a bare `rust_error` whose
+/// message is `format!("{e:?}")`. Implement this trait for `E` (or return
+/// [`RError`], which implements it) and the `Err` arm instead raises
+/// `c(<class()…>, "rust_error", "simpleError", "error", "condition")` with
+/// every `data()` field readable as `e$<name>`, so a thiserror-style error enum
+/// can keep `?` composition *and* give R handlers something to dispatch on:
+///
+/// ```ignore
+/// use miniextendr_api::condition::{ConditionData, RConditionError};
+///
+/// #[derive(Debug, thiserror::Error)]
+/// pub enum PkgError {
+///     #[error("column `{column}` is missing")]
+///     MissingColumn { column: String },
+///     #[error("{value} exceeds {max}")]
+///     TooLarge { value: f64, max: f64 },
+/// }
+///
+/// impl RConditionError for PkgError {
+///     fn message(&self) -> String { self.to_string() }
+///     fn class(&self) -> Vec<String> {
+///         let member = match self {
+///             PkgError::MissingColumn { .. } => "pkg_error_missing_column",
+///             PkgError::TooLarge { .. } => "pkg_error_too_large",
+///         };
+///         vec![member.into(), "pkg_error".into()]
+///     }
+///     fn data(&self) -> Option<ConditionData> {
+///         Some(match self {
+///             PkgError::MissingColumn { column } => vec![("column".into(), column.clone().into())],
+///             PkgError::TooLarge { value, max } => vec![("value".into(), (*value).into()), ("max".into(), (*max).into())],
+///         })
+///     }
+/// }
+///
+/// #[miniextendr]
+/// pub fn check(value: f64) -> Result<f64, PkgError> { /* uses `?` freely */ }
+/// ```
+///
+/// ```r
+/// tryCatch(check(1e9), pkg_error_too_large = function(e) e$max)   # member
+/// tryCatch(check(1e9), pkg_error = function(e) conditionMessage(e)) # family
+/// ```
+///
+/// Detection is by trait, not by attribute: the generated `Err` arm probes
+/// `E: RConditionError` first and falls back to the `Debug` rendering
+/// otherwise, so existing `Result<T, String>` / `Result<T, MyDebugError>`
+/// functions are unchanged. The condition's `kind` stays `"result_err"`.
+///
+/// `data()` field names must not be `message`, `call` or `kind` (see
+/// [`RESERVED_CONDITION_FIELDS`]); a reserved name raises a plain
+/// `rust_error` explaining the clash, so rename such a field at the source.
+pub trait RConditionError {
+    /// The condition message (`conditionMessage(e)`).
+    fn message(&self) -> String;
+    /// User classes, most specific first; empty for none.
+    fn class(&self) -> Vec<String> {
+        Vec::new()
+    }
+    /// Structured fields spliced into the condition object (`e$<name>`).
+    fn data(&self) -> Option<ConditionData> {
+        None
+    }
+}
+
+/// A ready-made classed error value for `Result<T, RError>` returns.
+///
+/// Carries a message, an optional class vector, structured fields and an
+/// optional field-name prefix, and implements [`RConditionError`]. Any
+/// `std::error::Error` converts into it with `?` / [`From`] (the message keeps
+/// the `caused by:` chain, like [`AsRError`]), after which the builder methods
+/// add the R-facing parts:
+///
+/// ```ignore
+/// use miniextendr_api::condition::RError;
+///
+/// #[miniextendr]
+/// pub fn parse_port(s: &str) -> Result<i32, RError> {
+///     let port: i32 = s
+///         .parse()
+///         .map_err(|e| RError::from(e).class(["pkg_bad_port", "pkg_error"]).data("input", s))?;
+///     Ok(port)
+/// }
+/// ```
+///
+/// ```r
+/// e <- tryCatch(parse_port("x"), pkg_bad_port = function(e) e)
+/// e$input          # "x"
+/// class(e)[1:2]    # "pkg_bad_port" "pkg_error"
+/// ```
+///
+/// `RError` deliberately does **not** implement `std::error::Error`: that
+/// keeps the blanket `From<E: Error>` coherent. It does implement `Display`
+/// (the message), so it also works with `#[miniextendr(unwrap_in_r)]`.
+#[derive(Debug, Clone)]
+pub struct RError {
+    message: String,
+    class: Vec<String>,
+    data: ConditionData,
+}
+
+impl RError {
+    /// A classless error with `message`.
+    pub fn new(message: impl Into<String>) -> Self {
+        RError {
+            message: message.into(),
+            class: Vec::new(),
+            data: Vec::new(),
+        }
+    }
+
+    /// Append user classes (most specific first). Accepts one string or a
+    /// vector, see [`ConditionClass`].
+    pub fn class(mut self, class: impl ConditionClass) -> Self {
+        self.class.extend(class.into_condition_class());
+        self
+    }
+
+    /// Attach a structured field readable as `e$<name>`. Any value with an
+    /// [`RValue`](crate::RValue) `From` impl works. The name must not be
+    /// `message`, `call` or `kind`; see [`RESERVED_CONDITION_FIELDS`].
+    pub fn data(mut self, name: impl Into<String>, value: impl Into<crate::RValue>) -> Self {
+        self.data.push((name.into(), value.into()));
+        self
+    }
+
+    /// The message.
+    pub fn message_str(&self) -> &str {
+        &self.message
+    }
+
+    /// The user classes, most specific first.
+    pub fn classes(&self) -> &[String] {
+        &self.class
+    }
+
+    /// The structured fields as attached (unprefixed).
+    pub fn fields(&self) -> &ConditionData {
+        &self.data
+    }
+}
+
+impl<E: std::error::Error> From<E> for RError {
+    /// Message = the error's `Display` plus its `source()` chain, one
+    /// `caused by:` line per link (same rendering as [`AsRError`]).
+    fn from(err: E) -> Self {
+        let mut message = err.to_string();
+        let mut current: &dyn std::error::Error = &err;
+        while let Some(source) = current.source() {
+            message.push_str("\n  caused by: ");
+            message.push_str(&source.to_string());
+            current = source;
+        }
+        RError::new(message)
+    }
+}
+
+impl std::fmt::Display for RError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl RConditionError for RError {
+    fn message(&self) -> String {
+        self.message.clone()
+    }
+    fn class(&self) -> Vec<String> {
+        self.class.clone()
+    }
+    fn data(&self) -> Option<ConditionData> {
+        (!self.data.is_empty()).then(|| self.data.clone())
+    }
+}
+
+/// The three parts the generated `Err` arm hands to
+/// [`crate::error_value::result_err_condition_value`].
+#[doc(hidden)]
+pub struct ErrParts {
+    pub message: String,
+    pub class: Vec<String>,
+    pub data: Option<ConditionData>,
+}
+
+/// Autoref-specialisation probe, preferred arm: `E: RConditionError`.
+///
+/// The generated code calls `(&e).__mx_err_parts()` with both probe traits in
+/// scope. Method resolution tries the receiver type `&E` by value first, which
+/// only this impl (on `E`, taking `&self`) satisfies; the `Debug` fallback on
+/// `&E` needs one more auto-ref and is only reached when `E` does not
+/// implement [`RConditionError`].
+#[doc(hidden)]
+pub trait ErrPartsClassed {
+    fn __mx_err_parts(&self) -> ErrParts;
+}
+
+impl<E: RConditionError> ErrPartsClassed for E {
+    #[track_caller]
+    fn __mx_err_parts(&self) -> ErrParts {
+        ErrParts {
+            message: self.message(),
+            class: self.class(),
+            data: check_condition_data(self.data()),
+        }
+    }
+}
+
+/// Autoref-specialisation probe, fallback arm: any `E: Debug` (the historical
+/// `format!("{e:?}")` rendering, no class, no data).
+#[doc(hidden)]
+pub trait ErrPartsDebug {
+    fn __mx_err_parts(&self) -> ErrParts;
+}
+
+impl<E: std::fmt::Debug> ErrPartsDebug for &E {
+    fn __mx_err_parts(&self) -> ErrParts {
+        ErrParts {
+            message: format!("{self:?}"),
+            class: Vec::new(),
+            data: None,
+        }
+    }
+}
+
+/// Internal: the `Err(e)` probe used by generated wrappers. Not public API.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __mx_result_err_parts {
+    ($e:expr) => {{
+        #[allow(unused_imports)]
+        use $crate::condition::{ErrPartsClassed as _, ErrPartsDebug as _};
+        (&$e).__mx_err_parts()
+    }};
 }
 
 // endregion
@@ -715,16 +1125,19 @@ impl RCondition {
             .string_elt_str(0)
             .unwrap_or(crate::error_value::kind::PANIC);
 
-        // Class slot is element [2] in the 4-element form (NULL in legacy form)
-        let class: Option<String> = if len >= 4 {
+        // Class slot is element [2] in the 4-element form (NULL in legacy form):
+        // a STRSXP of any length (the user class vector, family last).
+        let class: Vec<String> = if len >= 4 {
             let class_sexp = sexp.vector_elt(2);
-            if class_sexp.is_nil() {
-                None
+            if class_sexp.is_nil() || !class_sexp.is_character() {
+                Vec::new()
             } else {
-                class_sexp.string_elt_str(0).map(|s| s.to_string())
+                (0..class_sexp.len() as isize)
+                    .filter_map(|i| class_sexp.string_elt_str(i).map(str::to_string))
+                    .collect()
             }
         } else {
-            None
+            Vec::new()
         };
 
         use crate::error_value::kind as kind_const;
@@ -953,6 +1366,90 @@ mod condition_macro_tests {
     }
 
     #[test]
+    fn error_class_vector_and_keyed_data() {
+        let cond = catch(|| {
+            crate::error!(
+                class = ["member", "family"],
+                data = { rule = 1, detail = "inner" },
+                "layered"
+            )
+        });
+        match cond {
+            RCondition::Error {
+                message,
+                class,
+                data,
+            } => {
+                assert_eq!(message, "layered");
+                assert_eq!(class, vec!["member", "family"]);
+                assert_data(
+                    &data,
+                    &[
+                        ("rule", RValue::Integer(vec![Some(1)])),
+                        ("detail", RValue::Character(vec![Some("inner".to_string())])),
+                    ],
+                );
+            }
+            other => panic!("wrong variant: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn error_class_vector_from_vec_string() {
+        let classes = vec!["a".to_string(), "b".to_string()];
+        let cond = catch(move || crate::warning!(class = classes, "w"));
+        match cond {
+            RCondition::Warning { class, .. } => assert_eq!(class, vec!["a", "b"]),
+            other => panic!("wrong variant: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn reserved_field_name_runtime_check_panics() {
+        let name = String::from("kind");
+        let payload = std::panic::catch_unwind(move || crate::error!(data = (name, 1), "x"))
+            .expect_err("must panic");
+        let msg = payload
+            .downcast_ref::<String>()
+            .cloned()
+            .or_else(|| payload.downcast_ref::<&str>().map(|s| s.to_string()))
+            .expect("plain panic message");
+        assert!(msg.contains("reserved"), "got: {msg}");
+        assert!(msg.contains("rename"), "got: {msg}");
+    }
+
+    #[test]
+    fn rerror_reserved_field_rejected_at_err_arm() {
+        use super::RError;
+        let err = std::panic::AssertUnwindSafe(RError::new("m").data("kind", 2));
+        let payload = std::panic::catch_unwind(move || crate::__mx_result_err_parts!(err.0))
+            .err()
+            .expect("must panic");
+        let msg = payload
+            .downcast_ref::<String>()
+            .cloned()
+            .or_else(|| payload.downcast_ref::<&str>().map(|s| s.to_string()))
+            .expect("plain panic message");
+        assert!(msg.contains("reserved"), "got: {msg}");
+        assert!(msg.contains("`kind`"), "got: {msg}");
+    }
+
+    #[test]
+    fn rerror_builder_and_from_error() {
+        use super::{RConditionError, RError};
+        let e: RError = "x".parse::<i32>().unwrap_err().into();
+        let e = e.class(["member", "family"]).data("input", "x");
+        assert!(e.message_str().contains("invalid digit"));
+        assert_eq!(RConditionError::class(&e), vec!["member", "family"]);
+        let data = RConditionError::data(&e).expect("data");
+        assert_eq!(data[0].0, "input");
+
+        assert!(RConditionError::data(&RError::new("m")).is_none());
+        assert!(super::is_reserved_condition_field("call"));
+        assert!(!super::is_reserved_condition_field("calls"));
+    }
+
+    #[test]
     fn error_message_only_backcompat() {
         let cond = catch(|| crate::error!("plain {}", 42));
         match cond {
@@ -962,7 +1459,7 @@ mod condition_macro_tests {
                 data,
             } => {
                 assert_eq!(message, "plain 42");
-                assert!(class.is_none());
+                assert!(class.is_empty());
                 assert!(data.is_none());
             }
             other => panic!("wrong variant: {other:?}"),
@@ -979,7 +1476,7 @@ mod condition_macro_tests {
                 data,
             } => {
                 assert_eq!(message, "missing field: x");
-                assert_eq!(class.as_deref(), Some("my_error"));
+                assert_eq!(class, vec!["my_error"]);
                 assert!(data.is_none());
             }
             other => panic!("wrong variant: {other:?}"),
@@ -997,7 +1494,7 @@ mod condition_macro_tests {
                 data,
             } => {
                 assert_eq!(message, "v = 41");
-                assert!(class.is_none());
+                assert!(class.is_empty());
                 assert_data(&data, &[("value", RValue::Integer(vec![Some(41)]))]);
             }
             other => panic!("wrong variant: {other:?}"),
@@ -1029,7 +1526,7 @@ mod condition_macro_tests {
                 data,
             } => {
                 assert_eq!(message, "out of range");
-                assert_eq!(class.as_deref(), Some("validation_error"));
+                assert_eq!(class, vec!["validation_error"]);
                 assert_data(
                     &data,
                     &[
@@ -1058,7 +1555,7 @@ mod condition_macro_tests {
                 data,
             } => {
                 assert_eq!(message, "dropped");
-                assert_eq!(class.as_deref(), Some("trunc"));
+                assert_eq!(class, vec!["trunc"]);
                 assert_data(&data, &[("dropped", RValue::Integer(vec![Some(3)]))]);
             }
             other => panic!("wrong variant: {other:?}"),
@@ -1088,7 +1585,7 @@ mod condition_macro_tests {
                 data,
             } => {
                 assert_eq!(message, "processed 10");
-                assert_eq!(class.as_deref(), Some("progress"));
+                assert_eq!(class, vec!["progress"]);
                 assert_data(&data, &[("n", RValue::Integer(vec![Some(10)]))]);
             }
             other => panic!("wrong variant: {other:?}"),
@@ -1142,7 +1639,7 @@ mod condition_macro_tests {
         });
         match cond {
             RCondition::Warning { data, class, .. } => {
-                assert_eq!(class.as_deref(), Some("trunc"));
+                assert_eq!(class, vec!["trunc"]);
                 assert_data(
                     &data,
                     &[

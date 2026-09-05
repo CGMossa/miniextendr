@@ -41,8 +41,10 @@
       class = c(.class, "rust_condition", "simpleCondition", "condition"))),
     panic = stop(structure(list(message = .msg, call = .call, kind = "panic"),
       class = c("rust_error", "simpleError", "error", "condition"))),
-    stop(structure(list(message = .msg, call = .call, kind = .val$kind),
-      class = c("rust_error", "simpleError", "error", "condition")))
+    # result_err / none_err / conversion / other: an error whose class vector and
+    # data (if any) come from the Rust side, e.g. a `Result<T, E: RConditionError>`.
+    stop(structure(.cond_fields(list(message = .msg, call = .call, kind = .val$kind)),
+      class = c(.class, "rust_error", "simpleError", "error", "condition")))
   )
   invisible(NULL)
 }

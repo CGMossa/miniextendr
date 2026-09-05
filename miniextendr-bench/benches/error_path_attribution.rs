@@ -86,7 +86,7 @@ fn l3_rcondition_error(bencher: divan::Bencher) {
             || -> SEXP {
                 std::panic::panic_any(RCondition::Error {
                     message: "oops".to_string(),
-                    class: None,
+                    class: vec![],
                     data: None,
                 });
             },
@@ -112,7 +112,7 @@ fn l3b_rcondition_error_classed(bencher: divan::Bencher) {
             || -> SEXP {
                 std::panic::panic_any(RCondition::Error {
                     message: "oops".to_string(),
-                    class: Some("my_class".to_string()),
+                    class: vec!["my_class".to_string()],
                     data: None,
                 });
             },

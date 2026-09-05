@@ -2931,7 +2931,7 @@ pub fn gc_stress_condition_data() {
             make_rust_condition_value_with_data(
                 "gc stress condition",
                 miniextendr_api::error_value::kind::ERROR,
-                Some("gc_stress_class"),
+                &["gc_stress_class".to_string()],
                 None,
                 Some(data),
             )

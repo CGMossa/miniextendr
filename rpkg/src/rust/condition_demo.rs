@@ -29,7 +29,7 @@ pub fn demo_error_custom_class(class: &str, msg: &str) {
     // the macro takes a literal. Use the enum directly for the variable-class case.
     std::panic::panic_any(RCondition::Error {
         message: msg.to_string(),
-        class: Some(class.to_string()),
+        class: vec![class.to_string()],
         data: None,
     });
 }
@@ -53,7 +53,7 @@ pub fn demo_warning(msg: &str) {
 pub fn demo_warning_custom_class(class: &str, msg: &str) {
     std::panic::panic_any(RCondition::Warning {
         message: msg.to_string(),
-        class: Some(class.to_string()),
+        class: vec![class.to_string()],
         data: None,
     });
 }
@@ -89,7 +89,7 @@ pub fn demo_condition(msg: &str) {
 pub fn demo_condition_custom_class(class: &str, msg: &str) {
     std::panic::panic_any(RCondition::Condition {
         message: msg.to_string(),
-        class: Some(class.to_string()),
+        class: vec![class.to_string()],
         data: None,
     });
 }

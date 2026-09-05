@@ -181,8 +181,36 @@ pub unsafe fn make_rust_condition_value(
     class: Option<&str>,
     call: Option<SEXP>,
 ) -> SEXP {
+    let class: Vec<String> = class.map(|c| vec![c.to_string()]).unwrap_or_default();
     // SAFETY: caller upholds the main-thread + valid-allocation-context contract.
-    unsafe { make_rust_condition_value_with_data(message, kind, class, call, None) }
+    unsafe { make_rust_condition_value_with_data(message, kind, &class, call, None) }
+}
+
+/// Build the tagged value for a `Result<T, E>::Err` from the parts the
+/// generated wrapper probed off `e` (see
+/// [`crate::__mx_result_err_parts!`]): `kind = "result_err"`, the error's
+/// class vector (empty for the plain `Debug` fallback) and its structured
+/// fields.
+///
+/// # Safety
+///
+/// Same contract as [`make_rust_condition_value_with_data`]: R main thread,
+/// valid allocation context. Every generated `Err` arm runs inside the
+/// wrapper's `with_r_unwind_protect` closure, which satisfies it.
+pub unsafe fn result_err_condition_value(
+    parts: crate::condition::ErrParts,
+    call: Option<SEXP>,
+) -> SEXP {
+    // SAFETY: forwarded from the caller.
+    unsafe {
+        make_rust_condition_value_with_data(
+            &parts.message,
+            kind::RESULT_ERR,
+            &parts.class,
+            call,
+            parts.data,
+        )
+    }
 }
 
 /// Build a tagged condition-value SEXP for transport across the Rust→R boundary.
@@ -217,7 +245,8 @@ pub unsafe fn make_rust_condition_value(
 ///
 /// * `message` - Human-readable condition message
 /// * `kind` - Condition kind — one of the constants in [`kind`].
-/// * `class` - Optional user-supplied class name to prepend to the layered vector
+/// * `class` - User-supplied classes to prepend to the layered vector, most
+///   specific first (`c(<class…>, "rust_error", …)`); empty for none.
 /// * `call` - Optional R call SEXP for error context. When `None`, uses `R_NilValue`.
 /// * `data` - Optional named condition-data payload (from the macros' `data =
 ///   ...` form). When `Some`, each `(name, value)` becomes a named element of a
@@ -226,7 +255,7 @@ pub unsafe fn make_rust_condition_value(
 pub unsafe fn make_rust_condition_value_with_data(
     message: &str,
     kind: &str,
-    class: Option<&str>,
+    class: &[String],
     call: Option<SEXP>,
     data: Option<crate::condition::ConditionData>,
 ) -> SEXP {
@@ -253,14 +282,24 @@ pub unsafe fn make_rust_condition_value_with_data(
         let kind_sexp = scope.protect_raw(SEXP::scalar_string(kind_charsxp));
         list.set_vector_elt(1, kind_sexp);
 
-        // Element 2: optional custom class (NULL when not provided).
-        // Only the Some-branch allocates; nil is constant.
-        let class_sexp = if let Some(class_name) = class {
-            let class_cstr = to_cstring_lossy(class_name, "rust_condition");
-            let class_charsxp = sys::Rf_mkCharCE(class_cstr.as_ptr(), CE_UTF8);
-            scope.protect_raw(SEXP::scalar_string(class_charsxp))
-        } else {
+        // Element 2: optional custom class vector (NULL when empty). The STRSXP
+        // is protected before its CHARSXPs are allocated; the R helper splices
+        // it with `c(.class, "rust_error", ...)`, so any length works.
+        let class_sexp = if class.is_empty() {
             SEXP::nil()
+        } else {
+            let n: isize = class
+                .len()
+                .try_into()
+                .expect("condition class count exceeds isize::MAX");
+            let class_vec = scope.protect_raw(sys::Rf_allocVector(SEXPTYPE::STRSXP, n));
+            for (i, class_name) in class.iter().enumerate() {
+                let idx: isize = i.try_into().expect("index exceeds isize::MAX");
+                let class_cstr = to_cstring_lossy(class_name, "rust_condition");
+                let class_charsxp = sys::Rf_mkCharCE(class_cstr.as_ptr(), CE_UTF8);
+                class_vec.set_string_elt(idx, class_charsxp);
+            }
+            class_vec
         };
         list.set_vector_elt(2, class_sexp);
 

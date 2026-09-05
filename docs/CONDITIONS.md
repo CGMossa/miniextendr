@@ -13,9 +13,12 @@ uses.
 | `message!(...)` | `message()` | `rust_message` | prints, continues |
 | `condition!(...)` | `signalCondition()` | `rust_condition` | silent no-op |
 
-All four support an optional `class = "name"` argument to prepend a custom class
-for programmatic catching, and an optional `data = ...` argument to attach
-structured named fields readable as `e$<name>` in handlers.
+All four support an optional `class = ...` argument to prepend custom classes
+for programmatic catching (one string or a vector, most specific first), and an
+optional `data = ...` argument to attach structured named fields readable as
+`e$<name>` in handlers.
+`Result<T, E>` returns get the same treatment through the
+[`RConditionError`](#classed-result-errors-with-rconditionerror-and-rerror) trait.
 
 > **Import note.** `error!` and `condition!` are shadowed by the crate-root
 > modules `error` / `condition`, so `use miniextendr_api::*;` (or a direct
@@ -49,7 +52,15 @@ class(e)
 # With class = "my_err":
 class(e)
 # error!(class = "my_err", "...") → c("my_err", "rust_error", "simpleError", "error", "condition")
+
+# With a class vector (member first, family second), so handlers can catch either:
+# error!(class = ["pkg_error_missing_field", "pkg_error"], "...")
+#   → c("pkg_error_missing_field", "pkg_error", "rust_error", "simpleError", "error", "condition")
 ```
+
+`class =` accepts anything implementing `ConditionClass`: `&str`, `String`,
+`[&str; N]`, `Vec<String>`, slices. The same vector form is available on
+`warning!` and `condition!`.
 
 ## Runnable examples
 
@@ -153,9 +164,36 @@ are materialised on R's main thread at the unwind boundary. Consequently,
 `data = ...` works identically from worker-thread and main-thread code, but a
 live `SEXP` or arbitrary `IntoR` value cannot ride along.
 
-Reserved names: fields named `message`, `call`, or `kind` would override the
-condition's own slots (the R helper splices via `utils::modifyList`) — avoid
-them.
+#### Reserved names
+
+`message`, `call` and `kind` are the condition's own slots (the R helper
+splices `data` over them with `utils::modifyList`), so they are **rejected**
+as field names: at compile time when the name is a literal or a bare
+identifier (`data = ("kind", 1)`, `data = { kind = 1 }`), at runtime otherwise
+(a plain `rust_error` explaining the clash, instead of the former silent
+overwrite).
+
+There is no escape hatch, deliberately: `message` and `call` are what R's
+`conditionMessage()` / `conditionCall()` read, and `kind` is the framework's
+transport tag, so a field with one of those names is a naming clash to fix
+where the payload is built (a different key, `#[serde(rename)]` on a derived
+struct, a rename in your `RConditionError::data()` impl). Renaming every field
+with a prefix to rescue one would make `e$<name>` access inconsistent across
+conditions.
+
+```rust
+error!(
+    class = "pkg_sparse_rule",
+    data = { rule = kind, column = column },
+    "sparse rule on `{column}`"
+);
+```
+
+```r
+e <- tryCatch(f(), pkg_sparse_rule = function(e) e)
+e$rule      # the field
+e$kind      # still "error" (the transport tag)
+```
 
 ### `warning!()`
 
@@ -229,6 +267,87 @@ withCallingHandlers(
 # progress: step 3
 # NULL
 ```
+
+## Classed `Result` errors with `RConditionError` and `RError`
+
+A `#[miniextendr]` function or method returning `Result<T, E>` raises `Err(e)`
+as an R error. By default that error is a bare `rust_error` whose message is
+`format!("{e:?}")` and whose `kind` is `"result_err"`. To give R handlers
+something to dispatch on without giving up `?` composition, implement
+`miniextendr_api::condition::RConditionError` for the error type:
+
+```rust
+use miniextendr_api::condition::{ConditionData, RConditionError};
+
+#[derive(Debug, thiserror::Error)]
+pub enum PkgError {
+    #[error("field `{field}` is missing")]
+    MissingField { field: String },
+    #[error("{value} exceeds the maximum {max}")]
+    OutOfRange { value: f64, max: f64 },
+}
+
+impl RConditionError for PkgError {
+    fn message(&self) -> String { self.to_string() }
+    fn class(&self) -> Vec<String> {
+        let member = match self {
+            PkgError::MissingField { .. } => "pkg_error_missing_field",
+            PkgError::OutOfRange { .. } => "pkg_error_out_of_range",
+        };
+        vec![member.into(), "pkg_error".into()]
+    }
+    fn data(&self) -> Option<ConditionData> {
+        Some(match self {
+            PkgError::MissingField { field } => vec![("field".into(), field.as_str().into())],
+            PkgError::OutOfRange { value, max } =>
+                vec![("value".into(), (*value).into()), ("max".into(), (*max).into())],
+        })
+    }
+}
+
+#[miniextendr]
+pub fn check(value: f64) -> Result<f64, PkgError> {
+    if value > 100.0 { return Err(PkgError::OutOfRange { value, max: 100.0 }); }
+    Ok(value)
+}
+```
+
+```r
+e <- tryCatch(check(150), error = function(e) e)
+class(e)
+# [1] "pkg_error_out_of_range" "pkg_error" "rust_error" "simpleError" "error" "condition"
+e$value; e$max
+# [1] 150
+# [1] 100
+tryCatch(check(150), pkg_error = function(e) "family handler")
+# [1] "family handler"
+```
+
+Detection is by trait, not by attribute: the generated `Err` arm probes
+`E: RConditionError` first and falls back to the `Debug` rendering otherwise,
+so existing `Result<T, String>` functions behave exactly as before. `kind`
+stays `"result_err"`. Field names follow the reserved-name rule above; a
+reserved name from `data()` raises a `rust_error` describing the clash.
+
+For one-off cases, `RError` is a ready-made classed value. Any
+`std::error::Error` converts into it with `?` or `From` (the message keeps the
+`caused by:` chain), and builders add the R-facing parts:
+
+```rust
+use miniextendr_api::condition::RError;
+
+#[miniextendr]
+pub fn parse_port(s: &str) -> Result<i32, RError> {
+    let port: i32 = s
+        .parse()
+        .map_err(|e| RError::from(e).class(["pkg_bad_port", "pkg_error"]).data("input", s))?;
+    Ok(port)
+}
+```
+
+`RError` implements `Display` (the message) but not `std::error::Error`, which
+keeps the blanket `From<E: Error>` coherent; it works with
+`#[miniextendr(unwrap_in_r)]` too.
 
 ## Trait-ABI and ALTREP error class layering
 

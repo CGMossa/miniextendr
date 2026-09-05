@@ -24,7 +24,7 @@ type RCondition = miniextendr_api::condition::RCondition;
 fn raise_error_with_class(class: &str, msg: &str) -> ! {
     std::panic::panic_any(RCondition::Error {
         message: msg.to_string(),
-        class: Some(class.to_string()),
+        class: vec![class.to_string()],
         data: None,
     });
 }
@@ -32,7 +32,7 @@ fn raise_error_with_class(class: &str, msg: &str) -> ! {
 fn raise_warning_with_class(class: &str, msg: &str) -> ! {
     std::panic::panic_any(RCondition::Warning {
         message: msg.to_string(),
-        class: Some(class.to_string()),
+        class: vec![class.to_string()],
         data: None,
     });
 }
@@ -40,7 +40,7 @@ fn raise_warning_with_class(class: &str, msg: &str) -> ! {
 fn raise_condition_with_class(class: &str, msg: &str) -> ! {
     std::panic::panic_any(RCondition::Condition {
         message: msg.to_string(),
-        class: Some(class.to_string()),
+        class: vec![class.to_string()],
         data: None,
     });
 }
