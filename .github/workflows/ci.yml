@@ -98,6 +98,20 @@ jobs:
           fi
 
   # ===========================================================================
+  # GitHub Actions workflow lint
+  # ===========================================================================
+  workflow-lint:
+    name: Workflow lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Run actionlint
+        uses: docker://rhysd/actionlint:1.7.12
+        with:
+          args: -color
+
+  # ===========================================================================
   # Version consistency check
   # ===========================================================================
   version-check:
@@ -753,7 +767,7 @@ jobs:
       - name: Install just
         run: |
           brew install just
-          echo "$(brew --prefix)/bin" >> $GITHUB_PATH
+          echo "$(brew --prefix)/bin" >> "$GITHUB_PATH"
 
       - name: Install autoconf
         run: |
@@ -770,10 +784,10 @@ jobs:
         run: |
           if [ "$(uname -m)" = "x86_64" ]; then
             sudo xcode-select -s /Applications/Xcode_16.2.app || true
-            echo "MACOSX_DEPLOYMENT_TARGET=11.0" >> $GITHUB_ENV
+            echo "MACOSX_DEPLOYMENT_TARGET=11.0" >> "$GITHUB_ENV"
           else
             sudo xcode-select -s /Applications/Xcode_26.0.app || true
-            echo "MACOSX_DEPLOYMENT_TARGET=14.0" >> $GITHUB_ENV
+            echo "MACOSX_DEPLOYMENT_TARGET=14.0" >> "$GITHUB_ENV"
           fi
           echo "xcode is set: $(xcode-select --print-path)"
           xcrun --show-sdk-version || true
@@ -788,13 +802,13 @@ jobs:
       - name: Download CRAN system libraries
         run: |
           sudo mkdir -p /opt
-          sudo chown $USER /opt
+          sudo chown "$USER" /opt
           curl --retry 3 --fail-with-body -sSL \
             https://github.com/r-universe-org/macos-libs/releases/download/2025-12-13/cranlibs-everything.tar.xz \
             -o libs.tar.xz
           sudo tar -xf libs.tar.xz -C / opt
           rm -f libs.tar.xz
-          echo "PKG_CONFIG_PATH=/opt/R/$(uname -m)/lib/pkgconfig:/opt/R/$(uname -m)/share/pkgconfig" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=/opt/R/$(uname -m)/lib/pkgconfig:/opt/R/$(uname -m)/share/pkgconfig" >> "$GITHUB_ENV"
 
       - name: Setup R
         uses: r-lib/actions/setup-r@v2
@@ -819,7 +833,7 @@ jobs:
 
       - name: Set RUSTC_WRAPPER if sccache available
         if: steps.sccache.outcome == 'success'
-        run: echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+        run: echo "RUSTC_WRAPPER=sccache" >> "$GITHUB_ENV"
 
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
@@ -1601,7 +1615,7 @@ jobs:
           # Remove vendor/ so tarball only contains inst/vendor.tar.xz
           rm -rf rpkg/vendor
           R CMD build rpkg
-          echo "TARBALL=$(ls -1 miniextendr_*.tar.gz)" >> $GITHUB_ENV
+          echo "TARBALL=$(ls -1 miniextendr_*.tar.gz)" >> "$GITHUB_ENV"
 
       - name: R CMD check (CRAN-like, from tarball)
         run: |
@@ -1797,6 +1811,7 @@ jobs:
     name: CI Success
     needs:
       - generated-files-check
+      - workflow-lint
       - version-check
       - sync-checks
       - docs-link-check
@@ -1820,6 +1835,7 @@ jobs:
         run: |
           results=(
             "${{ needs.generated-files-check.result }}"
+            "${{ needs.workflow-lint.result }}"
             "${{ needs.version-check.result }}"
             "${{ needs.sync-checks.result }}"
             "${{ needs.docs-link-check.result }}"
@@ -1827,8 +1843,8 @@ jobs:
             "${{ needs.rust-tests.result }}"
             "${{ needs.changes.result }}"
             "${{ needs.r-check-linux.result }}"
-            # "${{ needs.r-check-macos.result }}"   # non-gating, see #95
-            # "${{ needs.r-check-windows.result }}" # DISABLED
+            # r-check-macos is non-gating, see #95
+            # r-check-windows is disabled
             "${{ needs.r-tests.result }}"
             "${{ needs.r-stress-tests.result }}"
             "${{ needs.cross-package-tests.result }}"
