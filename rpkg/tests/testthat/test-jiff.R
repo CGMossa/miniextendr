@@ -236,6 +236,34 @@ test_that("jiff: empty ALTREP JiffTimestampVec has length 0", {
 
 # endregion
 
+# region: ALTREP (JiffZonedVec)
+
+test_that("jiff: JiffZonedVec constructor preserves values and timezone", {
+  input <- c(
+    "2025-01-01T00:00:00[America/New_York]",
+    "2025-06-01T12:00:00[America/New_York]"
+  )
+  result <- jiff_zoned_vec_new(input)
+
+  expect_s3_class(result, "POSIXct")
+  expect_length(result, 2L)
+  expect_identical(attr(result, "tzone"), "America/New_York")
+  expect_identical(
+    jiff_zoned_vec_first_element(result),
+    "2025-01-01T00:00:00-05:00[America/New_York]"
+  )
+})
+
+test_that("jiff: JiffZonedVec rejects mixed timezone input", {
+  input <- c(
+    "2025-01-01T00:00:00[America/New_York]",
+    "2025-01-01T00:00:00[Europe/London]"
+  )
+  expect_error(jiff_zoned_vec_new(input), "timezone")
+})
+
+# endregion
+
 # region: civil::DateTime ExternalPtr (RDateTime adapter trait)
 
 test_that("jiff: civil::DateTime ExternalPtr component accessors work", {

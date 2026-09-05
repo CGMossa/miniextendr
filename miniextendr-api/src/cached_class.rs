@@ -215,7 +215,7 @@ pub fn set_posixct_utc(sexp: crate::SEXP) {
 /// Set class = `c("POSIXct", "POSIXt")` and tzone = `iana` on an SEXP.
 ///
 /// Used by the jiff integration to round-trip `Zoned` timezone identity.
-/// Falls back to `"UTC"` for zones without an IANA name (e.g., fixed-offset zones).
+/// Callers pass `"UTC"` for zones without an IANA name (e.g., fixed-offset zones).
 ///
 /// # Safety
 ///
@@ -227,8 +227,12 @@ pub fn set_posixct_tz(sexp: crate::SEXP, iana: &str) {
     // Build a one-element STRSXP for the tzone attribute.
     unsafe {
         let tzone_charsxp = crate::SEXP::charsxp(iana);
+        // R's API requires a returned object to be protected immediately: the
+        // STRSXP allocation below may collect a newly-created CHARSXP before
+        // it is installed in the container.
+        let _tzone_charsxp_guard = crate::OwnedProtect::new(tzone_charsxp);
         let tzone_sexp = crate::sys::Rf_allocVector(crate::SEXPTYPE::STRSXP, 1);
-        let _guard = crate::OwnedProtect::new(tzone_sexp);
+        let _tzone_guard = crate::OwnedProtect::new(tzone_sexp);
         tzone_sexp.set_string_elt(0, tzone_charsxp);
         sexp.set_attr(tzone_symbol(), tzone_sexp);
     }

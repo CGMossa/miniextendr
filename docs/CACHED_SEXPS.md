@@ -22,7 +22,9 @@ cached_strsxp!(pub(crate) fn date_class_sexp() = [c"Date"]);
 cached_strsxp!(pub(crate) fn posixct_class_sexp() = [c"POSIXct", c"POSIXt"]);
 
 // Cache a names vector:
-cached_strsxp!(pub(crate) fn condition_names_sexp() = [c"error", c"kind", c"class", c"call"]);
+cached_strsxp!(
+    pub(crate) fn condition_names_sexp() = [c"error", c"kind", c"class", c"call", c"data"]
+);
 
 // With feature gates:
 cached_symbol!(
@@ -91,7 +93,7 @@ Use the macros instead of writing this by hand.
   `"data.frame"`, `"Date"`, `"factor"`)
 - Attribute symbols used per-element or per-vector (`tzone`, `mx_raw_type`,
   `ptype`, `size`)
-- Names vectors with fixed structure (`c("error", "kind", "call")`)
+- Names vectors with fixed structure (`c("error", "kind", "class", "call", "data")`)
 
 **Don't cache:**
 
@@ -111,11 +113,12 @@ items use the narrowest `#[cfg]` that covers their callers:
 | `rust_condition_class_sexp()` | (none) |
 | `condition_names_sexp()` | (none) |
 | `rust_condition_attr_symbol()` | (none) |
-| `posixct_class_sexp()` | `any(time, arrow)` |
-| `date_class_sexp()` | `any(time, arrow)` |
-| `tzone_symbol()` | `any(time, arrow)` |
-| `set_posixct_utc()` | `time` |
-| `utc_tzone_sexp()` | `time` |
+| `posixct_class_sexp()` | `any(time, jiff, arrow)` |
+| `date_class_sexp()` | `any(time, jiff, arrow)` |
+| `tzone_symbol()` | `any(time, jiff, arrow)` |
+| `set_posixct_utc()` | `any(time, jiff)` |
+| `utc_tzone_sexp()` | `any(time, jiff)` |
+| `set_posixct_tz()` | `jiff` |
 | `mx_raw_type_symbol()` | `raw_conversions` |
 | `ptype_symbol()` | `vctrs` |
 | `size_symbol()` | `vctrs` |

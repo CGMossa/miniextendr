@@ -451,8 +451,8 @@ pub fn gc_stress_native_sexp_altrep() {
 ///
 /// Constructs a single-timezone `JiffZonedVec` with several `America/New_York`
 /// timestamps, converts it to an SEXP via `into_sexp`, and forces element access
-/// to verify that both the `into_sexp_altrep` allocation and the `set_posixct_tz`
-/// PROTECT path are GC-safe.
+/// to verify that both the `into_sexp_altrep` allocation and the
+/// `set_posixct_tz` class/timezone attributes survive intact.
 ///
 /// No arguments — suitable for the fast gctorture no-arg fixture sweep.
 #[cfg(feature = "jiff")]
@@ -475,8 +475,15 @@ pub fn gc_stress_jiff_zoned_vec() {
     // Convert to SEXP (exercises ALTREP allocation + set_posixct_tz PROTECT path).
     let sexp = vec.into_posixct_sexp();
 
-    // Force element access via the ALTREP Elt path.
+    // Assert the metadata created by set_posixct_tz. Merely reading ALTREP
+    // elements would not detect a collected or reused tzone CHARSXP.
     use miniextendr_api::prelude::SexpExt as _;
+    let tzone_symbol = unsafe { miniextendr_api::sys::Rf_install(c"tzone".as_ptr()) };
+    let tzone = sexp.get_attr(tzone_symbol);
+    assert_eq!(tzone.xlength(), 1);
+    assert_eq!(tzone.string_elt(0).r_char_str(), Some("America/New_York"));
+
+    // Force element access via the ALTREP Elt path.
     let n = sexp.len();
     assert_eq!(n, 3);
     for i in 0..n {
