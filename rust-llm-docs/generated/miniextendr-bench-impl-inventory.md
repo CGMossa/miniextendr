@@ -2,7 +2,7 @@
 
 Source: `target/doc/miniextendr_bench.json`
 
-Traits with impls: 39
+Traits with impls: 40
 
 ## Summary (impl count per trait)
 
@@ -27,6 +27,7 @@ Traits with impls: 39
 | `Drop` | 4 | 4 |
 | `Clone` | 2 | 2 |
 | `CloneToUninit` | 2 | 0 |
+| `ConsumingFallible` | 2 | 0 |
 | `Copy` | 2 | 2 |
 | `Equivalent` | 2 | 0 |
 | `RClone` | 2 | 0 |

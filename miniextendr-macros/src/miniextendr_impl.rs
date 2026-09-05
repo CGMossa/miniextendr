@@ -662,6 +662,10 @@ pub struct MethodAttrs {
     /// than the Rust method. The C symbol is still derived from the Rust name.
     /// Cannot be combined with `generic = "..."` on the same method.
     pub r_name: Option<String>,
+    /// Append a fixed suffix to the Rust method name for the R-facing name
+    /// (`#[miniextendr(postfix = "_impl")]` on `fn bump` yields `bump_impl`).
+    /// Exclusive with `r_name` and `generic`; the C symbol is unchanged.
+    pub postfix: Option<String>,
     /// R code to inject at the very top of the method body (before all built-in checks).
     pub r_entry: Option<String>,
     /// R code to inject after all built-in checks, immediately before `.Call()`.
@@ -1252,6 +1256,22 @@ impl ParsedMethod {
             ));
         }
 
+        // postfix derives the R name from the Rust name; it cannot combine
+        // with another naming source.
+        if attrs.postfix.is_some() && attrs.r_name.is_some() {
+            return Err(syn::Error::new(
+                span,
+                "`postfix` and `r_name` both set the R method name; use one of them.",
+            ));
+        }
+        if attrs.postfix.is_some() && attrs.generic.is_some() {
+            return Err(syn::Error::new(
+                span,
+                "`postfix` and `generic` cannot be used on the same method. \
+                 Generic dispatch names the R method after the generic.",
+            ));
+        }
+
         // r_name and generic are mutually exclusive
         if attrs.r_name.is_some() && attrs.generic.is_some() {
             return Err(syn::Error::new(
@@ -1395,6 +1415,12 @@ impl ParsedMethod {
                                 return Err(syn::Error::new_spanned(value, "r_name must not be empty"));
                             }
                             method_attrs.r_name = Some(val);
+                        } else if inner.path.is_ident("postfix") {
+                            let _: syn::Token![=] = inner.input.parse()?;
+                            let value: syn::LitStr = inner.input.parse()?;
+                            let val = value.value();
+                            crate::miniextendr_fn::validate_postfix(&val, &value)?;
+                            method_attrs.postfix = Some(val);
                         } else if inner.path.is_ident("r_entry") {
                             let _: syn::Token![=] = inner.input.parse()?;
                             let value: syn::LitStr = inner.input.parse()?;
@@ -1445,7 +1471,7 @@ impl ParsedMethod {
                             }
                         } else {
                             return Err(inner.error(
-                                "unknown method option; expected one of: ignore, constructor, finalize, private, active, worker, no_worker, main_thread, no_main_thread, check_interrupt, coerce, no_coerce, rng, unwrap_in_r, generic, class, getter, setter, validate, prop, default, required, frozen, deprecated, no_dots, dispatch, fallback, no_shortcut, convert_from, convert_to, deep_clone, r_on_exit"
+                                "unknown method option; expected one of: ignore, constructor, finalize, private, active, worker, no_worker, main_thread, no_main_thread, check_interrupt, coerce, no_coerce, rng, unwrap_in_r, generic, class, getter, setter, validate, prop, default, required, frozen, deprecated, no_dots, dispatch, fallback, no_shortcut, convert_from, convert_to, deep_clone, r_on_exit, r_name, postfix"
                             ));
                         }
                         Ok(())
@@ -1683,6 +1709,12 @@ impl ParsedMethod {
                         return Err(syn::Error::new_spanned(value, "r_name must not be empty"));
                     }
                     method_attrs.r_name = Some(val);
+                } else if meta.path.is_ident("postfix") {
+                    let _: syn::Token![=] = meta.input.parse()?;
+                    let value: syn::LitStr = meta.input.parse()?;
+                    let val = value.value();
+                    crate::miniextendr_fn::validate_postfix(&val, &value)?;
+                    method_attrs.postfix = Some(val);
                 } else if meta.path.is_ident("r_entry") {
                     let _: syn::Token![=] = meta.input.parse()?;
                     let value: syn::LitStr = meta.input.parse()?;
@@ -1751,7 +1783,7 @@ impl ParsedMethod {
                     method_attrs.dots_spec = Some(quote::quote!(#mac));
                 } else {
                     return Err(meta.error(
-                        "unknown attribute; expected one of: env, r6, s3, s4, s7, vctrs, defaults, unsafe, check_interrupt, coerce, no_coerce, rng, unwrap_in_r, as, lifecycle, r_name, r_entry, r_post_checks, r_on_exit, noexport, internal, dots = typed_list!(...)"
+                        "unknown attribute; expected one of: env, r6, s3, s4, s7, vctrs, defaults, unsafe, check_interrupt, coerce, no_coerce, rng, unwrap_in_r, as, lifecycle, r_name, postfix, r_entry, r_post_checks, r_on_exit, noexport, internal, dots = typed_list!(...)"
                     ));
                 }
                 Ok(())
@@ -2123,12 +2155,16 @@ impl ParsedMethod {
 
     /// R-facing method name.
     ///
-    /// Returns `r_name` if set, otherwise the Rust ident as a string.
+    /// Returns `r_name` if set, otherwise the Rust ident with `postfix`
+    /// appended when given, otherwise the Rust ident as a string.
     pub fn r_method_name(&self) -> String {
-        self.method_attrs
-            .r_name
-            .clone()
-            .unwrap_or_else(|| self.ident.to_string())
+        if let Some(r_name) = &self.method_attrs.r_name {
+            return r_name.clone();
+        }
+        match &self.method_attrs.postfix {
+            Some(postfix) => format!("{}{postfix}", self.ident),
+            None => self.ident.to_string(),
+        }
     }
 
     /// C wrapper identifier for this method.

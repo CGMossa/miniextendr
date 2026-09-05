@@ -767,6 +767,7 @@ pub fn miniextendr(
         doc,
         c_symbol,
         r_name: fn_r_name,
+        postfix: fn_postfix,
         r_entry,
         r_post_checks,
         r_on_exit,
@@ -1157,6 +1158,11 @@ pub fn miniextendr(
         s3_method_comment = format!("{}#' @method {} {}\n", import_comment, generic, class);
     } else if let Some(ref custom_name) = fn_r_name {
         r_wrapper_ident_str = custom_name.clone();
+        s3_method_comment = String::new();
+    } else if let Some(ref postfix) = fn_postfix {
+        // `postfix = "_impl"`: the R wrapper is `<rust_name><postfix>`; the C
+        // symbol keeps the Rust name.
+        r_wrapper_ident_str = format!("{rust_ident}{postfix}");
         s3_method_comment = String::new();
     } else if abi.is_some() {
         r_wrapper_ident_str = format!("unsafe_{}", rust_ident);

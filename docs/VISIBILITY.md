@@ -55,6 +55,7 @@ fn internal_helper(x: i32) -> i32 {
 | `internal` | Omit `@export`; add `@keywords internal`; appears in `?help` only when searched directly |
 | `export` | Force `@export` on a non-`pub` function |
 | `r_name = "..."` | Rename the R wrapper (e.g. `r_name = "is.widget"`); does not affect NAMESPACE membership |
+| `postfix = "..."` | Append a suffix to the Rust name for the R wrapper (`postfix = "_impl"` on `fn f` gives `f_impl`); states the "hand-written `f()` delegates to generated `f_impl()`" convention once. Exclusive with `r_name` and `s3(...)` |
 | `c_symbol = "..."` | Rename the C symbol used in `.Call()` and `R_CallMethodDef`. The value is used verbatim — no crate prefix is added, so **you** own its cross-package uniqueness on webR (see `docs/WEBR.md`) |
 
 ### When to use each option
@@ -66,6 +67,7 @@ fn internal_helper(x: i32) -> i32 {
 | Internal helper that should appear in `?help` search | `#[miniextendr(internal)]` |
 | Non-`pub` function that must be exported | `#[miniextendr(export)]` (rare; prefer making the fn `pub`) |
 | Rename the R-facing name | `r_name = "my.function"` |
+| Internal entry point behind a hand-written R function | `#[miniextendr(noexport, postfix = "_impl")]` |
 | Rename the C symbol (e.g. to avoid collision) | `c_symbol = "pkg_my_fn"` |
 
 ### Mutually exclusive combinations
@@ -75,6 +77,8 @@ The following combinations are compile errors:
 - `internal + noexport` — `internal` is a strict superset; drop `noexport`
 - `export + noexport` — contradictory
 - `export + internal` — contradictory
+- `postfix + r_name` — both set the R wrapper name; use one
+- `postfix + s3(...)` — S3 method names are always `generic.class`
 
 ---
 
@@ -153,6 +157,40 @@ pub fn is_widget(x: i32) -> bool {
 
 The R wrapper is named `is.widget` (valid R identifier style). The C symbol remains
 derived from the Rust identifier (`C_mypkg_is_widget`). NAMESPACE gets `export(is.widget)`.
+
+### postfix: state the internal-entry-point convention once
+
+A common layout keeps the documented R function hand-written (argument checking,
+defaults, `match.arg()`) and has it delegate to the generated wrapper. With
+`r_name` every such entry point spells its own name again in a string; `postfix`
+derives it from the Rust name:
+
+```rust
+#[miniextendr(noexport, postfix = "_impl")]
+pub fn summarise_widget(x: i32) -> i32 {
+    x * 2
+}
+```
+
+```r
+# Generated (not exported):
+summarise_widget_impl <- function(x) .Call(C_mypkg_summarise_widget, x)
+
+# Hand-written, in R/:
+#' @export
+summarise_widget <- function(x) {
+  stopifnot(is.numeric(x), length(x) == 1L)
+  summarise_widget_impl(as.integer(x))
+}
+```
+
+The value is appended verbatim to the Rust identifier and must be a valid R
+identifier fragment (letters, digits, `_`, `.`). The C symbol is unchanged.
+Inherent impl methods accept it too (`obj$bump_impl()` on R6/Env,
+`bump_impl.Widget` on S3, the generic name on S4/S7); trait impls take their R
+names from the trait declaration and do not. There is no crate-level default:
+proc-macro invocations share no state, so the attribute is per item (#1454
+sketches a `[package.metadata]` alternative).
 
 ---
 

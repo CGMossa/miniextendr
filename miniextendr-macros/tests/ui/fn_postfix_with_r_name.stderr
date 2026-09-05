@@ -1,0 +1,7 @@
+error: `postfix` and `r_name` both set the R wrapper name; use one of them.
+ --> tests/ui/fn_postfix_with_r_name.rs:9:1
+  |
+9 | #[miniextendr(noexport, postfix = "_impl", r_name = "widget_internal")]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the attribute macro `miniextendr` (in Nightly builds, run with -Z macro-backtrace for more info)

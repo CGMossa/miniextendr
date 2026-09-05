@@ -139,6 +139,47 @@ fn miniextendr_attr_accepts_unwrap_in_r() {
 }
 
 #[test]
+fn miniextendr_attr_postfix_parses_and_rejects_conflicts() {
+    let attrs = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(noexport, postfix = "_impl"))
+        .expect("should parse postfix");
+    assert_eq!(attrs.postfix.as_deref(), Some("_impl"));
+    assert!(attrs.noexport);
+    assert!(attrs.r_name.is_none());
+
+    let err = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(postfix = "_impl", r_name = "f2"))
+        .err()
+        .expect("postfix + r_name must fail");
+    assert!(
+        err.to_string().contains("both set the R wrapper name"),
+        "{err}"
+    );
+
+    let err = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(
+        postfix = "_impl",
+        s3(generic = "print", class = "widget")
+    ))
+    .err()
+    .expect("postfix + s3 must fail");
+    assert!(
+        err.to_string().contains("cannot be used with `s3("),
+        "{err}"
+    );
+
+    let err = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(postfix = ""))
+        .err()
+        .expect("empty postfix must fail");
+    assert!(err.to_string().contains("must not be empty"), "{err}");
+
+    let err = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(postfix = "-impl"))
+        .err()
+        .expect("non-identifier postfix must fail");
+    assert!(
+        err.to_string().contains("valid R identifier fragment"),
+        "{err}"
+    );
+}
+
+#[test]
 fn dots_validation_stmt_formats_error_with_display_not_debug() {
     // Audit A8: `#[miniextendr(dots = typed_list!(...))]` used to inject
     // `.expect("dots validation failed")`, which Debug-formats the

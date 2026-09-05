@@ -1045,6 +1045,25 @@ impl MiniextendrFunctionParsed {
 ///
 /// Returns a compile error spanning the offending token when the RHS is not a
 /// `&str` literal. `field` is used in the diagnostic (e.g. `"c_symbol"`).
+/// `postfix = "..."` must be a non-empty R identifier fragment: it is appended
+/// verbatim to the Rust name, so anything outside letters, digits, `_` and `.`
+/// would produce an R name that needs backticks.
+pub(crate) fn validate_postfix(val: &str, span: &dyn quote::ToTokens) -> syn::Result<()> {
+    if val.is_empty() {
+        return Err(syn::Error::new_spanned(span, "postfix must not be empty"));
+    }
+    if !val
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '.')
+    {
+        return Err(syn::Error::new_spanned(
+            span,
+            "postfix must be a valid R identifier fragment (letters, digits, `_`, `.`)",
+        ));
+    }
+    Ok(())
+}
+
 fn parse_lit_str(nv: &syn::MetaNameValue, field: &str) -> syn::Result<String> {
     match &nv.value {
         syn::Expr::Lit(syn::ExprLit {
@@ -1195,6 +1214,12 @@ pub(crate) struct MiniextendrFnAttrs {
     /// than the Rust function. The C symbol is still derived from the Rust name.
     /// Cannot be combined with `s3(generic/class)` — use `generic`/`class` for S3 naming.
     pub(crate) r_name: Option<String>,
+    /// Append a fixed suffix to the Rust name for the R wrapper
+    /// (`#[miniextendr(noexport, postfix = "_impl")]` on `fn f` yields `f_impl`).
+    /// States the "hand-written `f()` delegates to generated `f_impl()`"
+    /// convention without repeating the name in `r_name`. Exclusive with
+    /// `r_name` and `s3(...)`; the C symbol is unchanged.
+    pub(crate) postfix: Option<String>,
     /// R code to inject at the very top of the wrapper body (before all built-in checks).
     ///
     /// Use `#[miniextendr(r_entry = "x <- as.integer(x)")]` to run R code before
@@ -1310,6 +1335,7 @@ impl syn::parse::Parse for MiniextendrFnAttrs {
         let mut doc = None;
         let mut c_symbol = None;
         let mut r_name = None;
+        let mut postfix = None;
         let mut r_entry = None;
         let mut r_post_checks = None;
         let mut r_on_exit = None;
@@ -1511,6 +1537,10 @@ impl syn::parse::Parse for MiniextendrFnAttrs {
                             ));
                         }
                         r_name = Some(val);
+                    } else if nv.path.is_ident("postfix") {
+                        let val = parse_lit_str(&nv, "postfix")?;
+                        validate_postfix(&val, &nv.value)?;
+                        postfix = Some(val);
                     } else if nv.path.is_ident("r_entry") {
                         r_entry = Some(parse_lit_str(&nv, "r_entry")?);
                     } else if nv.path.is_ident("r_post_checks") {
@@ -1534,7 +1564,8 @@ impl syn::parse::Parse for MiniextendrFnAttrs {
                                 "unknown `#[miniextendr]` key-value option `{}`. \
                                  Key-value options are: `prefer = \"...\"`, `dots = typed_list!(...)`, \
                                  `lifecycle = \"...\"`, `doc = \"...\"`, `c_symbol = \"...\"`, \
-                                 `r_name = \"...\"`, `r_entry = \"...\"`, `r_post_checks = \"...\"`, \
+                                 `r_name = \"...\"`, `postfix = \"...\"`, `r_entry = \"...\"`, \
+                                 `r_post_checks = \"...\"`, \
                                  `r_on_exit = \"...\"`",
                                 key_name,
                             ),
@@ -1659,6 +1690,22 @@ impl syn::parse::Parse for MiniextendrFnAttrs {
         }
 
         // Validate: `r_name` is incompatible with S3 naming (`s3(generic/class)`)
+        // Validate: `postfix` derives the wrapper name from the Rust name; it
+        // cannot combine with another naming source.
+        if postfix.is_some() && r_name.is_some() {
+            return Err(syn::Error::new(
+                proc_macro2::Span::call_site(),
+                "`postfix` and `r_name` both set the R wrapper name; use one of them.",
+            ));
+        }
+        if postfix.is_some() && (s3_generic.is_some() || s3_class.is_some()) {
+            return Err(syn::Error::new(
+                proc_macro2::Span::call_site(),
+                "`postfix` cannot be used with `s3(generic = ..., class = ...)`. \
+                 S3 method names are always `generic.class`.",
+            ));
+        }
+
         if r_name.is_some() && (s3_generic.is_some() || s3_class.is_some()) {
             return Err(syn::Error::new(
                 proc_macro2::Span::call_site(),
@@ -1690,6 +1737,7 @@ impl syn::parse::Parse for MiniextendrFnAttrs {
             doc,
             c_symbol,
             r_name,
+            postfix,
             r_entry,
             r_post_checks,
             r_on_exit,

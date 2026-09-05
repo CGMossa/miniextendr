@@ -491,11 +491,14 @@ impl<'a> MethodContext<'a> {
 
     /// Get the generic name (uses override if present).
     pub fn generic_name(&self) -> String {
+        // Explicit `generic = ".."` wins; otherwise the R-facing method name
+        // (`r_name` / `postfix` / Rust ident) doubles as the generic, so a
+        // renamed S3/S7 instance method dispatches under its R name.
         self.method
             .method_attrs
             .generic
             .clone()
-            .unwrap_or_else(|| self.method.ident.to_string())
+            .unwrap_or_else(|| self.method.r_method_name())
     }
 
     /// Generate a source location comment for this method.
