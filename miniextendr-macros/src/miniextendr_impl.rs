@@ -3456,8 +3456,21 @@ pub fn generate_as_coercion_methods(parsed_impl: &ParsedImpl) -> String {
             if !method.doc_tags.is_empty() {
                 crate::roxygen::push_roxygen_tags(&mut lines, &method.doc_tags);
             }
-            lines.push(format!("#' @name {}", s3_method_name));
-            lines.push(format!("#' @rdname {}", class_name));
+            // The method's own doc tags were pushed verbatim above, so only
+            // inject the defaults a user did not supply (same rule as
+            // `MethodDocBuilder`): a method-level `@rdname` splits the
+            // coercion onto its own page instead of being duplicated.
+            if !crate::roxygen::has_roxygen_tag(&method.doc_tags, "name") {
+                lines.push(format!("#' @name {}", s3_method_name));
+            }
+            if crate::roxygen::has_roxygen_tag(&method.doc_tags, "rdname") {
+                // Own page: needs a title (see `MethodDocBuilder::build`).
+                if !crate::roxygen::has_roxygen_tag(&method.doc_tags, "title") {
+                    lines.push(format!("#' @title {}", s3_method_name));
+                }
+            } else {
+                lines.push(format!("#' @rdname {}", class_name));
+            }
             lines.push(crate::roxygen::method_source_tag(type_ident, &method.ident));
         }
 

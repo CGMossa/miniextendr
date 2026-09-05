@@ -141,6 +141,29 @@ pub(super) fn generate_trait_r_wrapper(
     }
 }
 
+/// `@rdname` for a trait method's own wrapper block: the method-level
+/// override when the doc comment carries one, else the type's shared page.
+/// Generics and consts always use the type page (#1438).
+fn method_rdname<'a>(method: &'a TraitMethod, type_str: &'a str) -> &'a str {
+    method.rdname.as_deref().unwrap_or(type_str)
+}
+
+/// Attach a structural `@title` to a prose-less roxygen block that has been
+/// split onto its own page by a method-level `@rdname`; without one roxygen2
+/// skips the page ("no name and/or title"). No-op on the shared type page,
+/// which gets its title from the class block.
+fn title_if_split(
+    builder: crate::r_wrapper_builder::RoxygenBuilder,
+    method: &TraitMethod,
+    title: &str,
+) -> crate::r_wrapper_builder::RoxygenBuilder {
+    if method.rdname.is_some() {
+        builder.title(title)
+    } else {
+        builder
+    }
+}
+
 /// Generate Env-style R wrapper code for trait methods.
 ///
 /// Env-class trait methods use a namespace hierarchy: `Type$Trait$method(x, ...)`.
@@ -190,10 +213,14 @@ fn generate_trait_env_r_wrapper(
         let target = ctx.namespace_target(ClassSystem::Env);
 
         // Build roxygen tags
-        let roxygen = RoxygenBuilder::new()
-            .name(target.clone())
-            .rdname(&type_str)
-            .build();
+        let roxygen = title_if_split(
+            RoxygenBuilder::new()
+                .name(target.clone())
+                .rdname(method_rdname(method, &type_str)),
+            method,
+            &target,
+        )
+        .build();
         lines.extend(roxygen);
 
         // Check for 'x' parameter collision in instance methods
@@ -311,13 +338,24 @@ fn generate_trait_s3_r_wrapper(
         let s3_method_name = format!("{}.{}", generic_name, type_str);
         let ctx = TraitMethodContext::new(method, type_ident, trait_name);
 
-        // S3 generic roxygen (only create if doesn't exist)
-        // Use type-qualified @name to avoid duplicate aliases across types
-        let generic_roxygen = RoxygenBuilder::new()
-            .title(format!("S3 generic for `{}`", generic_name))
+        // S3 generic roxygen (only create if doesn't exist). The type-qualified
+        // @name avoids duplicate aliases across types, but it is also the S3
+        // method's own name, so the generic block must follow a method-level
+        // `@rdname` onto the split page or R CMD check reports the alias as
+        // duplicated across two pages. The `@title` is inert on the type page
+        // (the type block's title comes first) and would beat the method's
+        // structural title on a split page, so it is only emitted when the
+        // block stays on the type page.
+        let generic_roxygen = RoxygenBuilder::new();
+        let generic_roxygen = if method.rdname.is_none() {
+            generic_roxygen.title(format!("S3 generic for `{}`", generic_name))
+        } else {
+            generic_roxygen
+        };
+        let generic_roxygen = generic_roxygen
             .custom(format!("S3 generic for `{}`", generic_name))
             .name(format!("{}.{}", generic_name, type_str))
-            .rdname(&type_str)
+            .rdname(method_rdname(method, &type_str))
             .custom("@param x An object")
             .custom("@param ... Additional arguments passed to methods")
             .source(format!(
@@ -333,10 +371,13 @@ fn generate_trait_s3_r_wrapper(
         lines.push(String::new());
 
         // S3 method roxygen (include @param tags from method doc comments)
-        let mut method_roxygen = RoxygenBuilder::new()
-            .rdname(&type_str)
-            .export()
-            .method(&generic_name, &type_str);
+        let mut method_roxygen = title_if_split(
+            RoxygenBuilder::new().rdname(method_rdname(method, &type_str)),
+            method,
+            &s3_method_name,
+        )
+        .export()
+        .method(&generic_name, &type_str);
         for tag in &method.param_tags {
             method_roxygen = method_roxygen.custom(tag.clone());
         }
@@ -399,7 +440,7 @@ fn generate_trait_s3_r_wrapper(
         ));
         let roxygen = RoxygenBuilder::new()
             .name(target.clone())
-            .rdname(&type_str)
+            .rdname(method_rdname(method, &type_str))
             .build();
         lines.extend(roxygen);
 
@@ -522,7 +563,12 @@ fn generate_trait_s4_r_wrapper(
         lines.push(String::new());
 
         // S4 method roxygen + definition (include @param tags from method doc comments)
-        lines.push(format!("#' @rdname {}", type_str));
+        lines.push(format!("#' @rdname {}", method_rdname(method, &type_str)));
+        if method.rdname.is_some() {
+            // Split page (#1438): the S4 method object supplies the name; a
+            // structural title is still needed or roxygen2 skips the page.
+            lines.push(format!("#' @title {}", generic_name));
+        }
         for tag in &method.param_tags {
             lines.push(format!("#' {}", tag));
         }
@@ -560,7 +606,7 @@ fn generate_trait_s4_r_wrapper(
         ));
         let roxygen = RoxygenBuilder::new()
             .name(&fn_name)
-            .rdname(&type_str)
+            .rdname(method_rdname(method, &type_str))
             .export()
             .build();
         lines.extend(roxygen);
@@ -756,7 +802,7 @@ fn generate_trait_s7_r_wrapper(
                 }
             }
             lines.push(format!("#' @name {}", shortcut_name));
-            lines.push(format!("#' @rdname {}", type_str));
+            lines.push(format!("#' @rdname {}", method_rdname(method, &type_str)));
             lines.push(format!(
                 "#' @source Generated by miniextendr from `impl {} for {}` (`{}` shortcut)",
                 trait_name, type_ident, method_name
@@ -801,7 +847,7 @@ fn generate_trait_s7_r_wrapper(
         ));
         let roxygen = RoxygenBuilder::new()
             .name(format!("{}${}${}", type_str, trait_str, r_name))
-            .rdname(&type_str)
+            .rdname(method_rdname(method, &type_str))
             .build();
         lines.extend(roxygen);
 
@@ -924,10 +970,14 @@ fn generate_trait_r6_r_wrapper(
 
         // Namespace-member roxygen — a `$<-` assignment target, so roxygen emits
         // no `\usage` and needs no per-formal `@param` docs (matches Env; #1141).
-        let roxygen = RoxygenBuilder::new()
-            .name(target.clone())
-            .rdname(&type_str)
-            .build();
+        let roxygen = title_if_split(
+            RoxygenBuilder::new()
+                .name(target.clone())
+                .rdname(method_rdname(method, &type_str)),
+            method,
+            &target,
+        )
+        .build();
         lines.extend(roxygen);
 
         let call = ctx.instance_call(".ptr");
@@ -957,7 +1007,7 @@ fn generate_trait_r6_r_wrapper(
         ));
         let roxygen = RoxygenBuilder::new()
             .name(target.clone())
-            .rdname(&type_str)
+            .rdname(method_rdname(method, &type_str))
             .build();
         lines.extend(roxygen);
 

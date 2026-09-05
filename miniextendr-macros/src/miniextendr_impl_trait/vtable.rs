@@ -527,8 +527,10 @@ fn extract_methods(impl_item: &ItemImpl) -> syn::Result<Vec<TraitMethod>> {
             });
             let attrs = parse_trait_method_attrs(&method.attrs)?;
 
-            // Extract @param tags from method doc comments
+            // Extract @param tags (and a per-method @rdname override) from
+            // method doc comments
             let all_tags = crate::roxygen::roxygen_tags_from_attrs(&method.attrs);
+            let rdname = crate::roxygen::rdname_value(&all_tags).map(str::to_owned);
             let param_tags: Vec<String> = all_tags
                 .into_iter()
                 .filter(|tag| tag.starts_with("@param"))
@@ -547,6 +549,7 @@ fn extract_methods(impl_item: &ItemImpl) -> syn::Result<Vec<TraitMethod>> {
                 unwrap_in_r: attrs.unwrap_in_r,
                 param_defaults: attrs.defaults,
                 param_tags,
+                rdname,
                 skip: attrs.skip,
                 r_name: attrs.r_name,
                 strict: attrs.strict,
