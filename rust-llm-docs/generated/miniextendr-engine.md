@@ -16,9 +16,9 @@ and keep `nonapi` disabled.
 
 ## Quick start
 
-```ignore
+```no_run
 // SAFETY: Must be called once, from the main thread.
-let engine = unsafe {
+let _engine = unsafe {
     miniextendr_engine::REngine::build()
         .with_args(&["R", "--quiet", "--vanilla"])
         .init()
@@ -26,8 +26,7 @@ let engine = unsafe {
 };
 
 // ... use R APIs from the main thread ...
-
-std::mem::forget(engine); // optional: intentionally leak the handle
+// R remains initialized when the handle leaves scope.
 ```
 
 ## Initialization details
@@ -37,7 +36,7 @@ std::mem::forget(engine); // optional: intentionally leak the handle
 
 ## Runtime sentinel
 
-```ignore
+```no_run
 if miniextendr_engine::r_initialized_sentinel() {
     // R has been initialized in this process.
 }
@@ -67,6 +66,13 @@ R cleanup (via `Rf_endEmbeddedR`) is intentionally NOT called because it
 performs non-reentrant operations that can crash if called during Drop
 or concurrent with other cleanup. The OS reclaims all resources on process exit.
 
+The handle cannot be constructed directly; only a successful
+[`REngineBuilder::init`] can create it.
+
+```compile_fail
+let _forged = miniextendr_engine::REngine;
+```
+
 **Inherent associated items:**
 
 #### `build`
@@ -87,12 +93,17 @@ Builder for configuring and initializing the R runtime.
 
 #### Example
 
-```ignore
-let engine = REngine::build()
-    .with_args(&["R", "--quiet", "--no-save"])
-    .interactive(false)
-    .signal_handlers(false)
-    .init()?;
+```no_run
+# fn main() -> Result<(), miniextendr_engine::REngineError> {
+let _engine = unsafe {
+    miniextendr_engine::REngine::build()
+        .with_args(&["R", "--quiet", "--no-save"])
+        .interactive(false)
+        .signal_handlers(false)
+        .init()?
+};
+# Ok(())
+# }
 ```
 
 **Inherent associated items:**

@@ -171,11 +171,17 @@ differs slightly:
 use miniextendr_engine::REngine;
 
 fn main() {
-    // REngine::build() handles R initialization
-    let _r = REngine::build().unwrap();
+    // SAFETY: initialize embedded R once, on the thread that will own R API work.
+    let _r = unsafe {
+        REngine::build()
+            .init()
+            .expect("failed to initialize embedded R")
+    };
 
-    // After this, you can call R APIs
-    // miniextendr_runtime_init() is called automatically
+    // Register that same thread before calling miniextendr-api's checked FFI.
+    miniextendr_api::miniextendr_runtime_init();
+
+    // After this, call R APIs only from this thread.
 }
 ```
 
