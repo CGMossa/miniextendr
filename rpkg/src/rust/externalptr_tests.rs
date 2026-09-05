@@ -1,6 +1,7 @@
 //! Tests for ExternalPtr functionality.
 
 use miniextendr_api::externalptr::ErasedExternalPtr;
+use miniextendr_api::externalptr::ExternalPtr;
 use miniextendr_api::miniextendr;
 use miniextendr_api::prelude::SEXP;
 
@@ -175,7 +176,32 @@ pub unsafe extern "C-unwind" fn C_extptr_is_point(ptr: SEXP) -> SEXP {
 /// Test creating and reading an ExternalPtr entirely on the main thread.
 #[miniextendr(noexport)]
 pub fn test_extptr_on_main_thread() -> i32 {
-    use miniextendr_api::externalptr::ExternalPtr;
     let ptr = ExternalPtr::new(Counter { value: 99 });
     ptr.value
+}
+
+// Exercise the documented `Send` contract with an R-owned pointer: argument
+// conversion borrows the live EXTPTRSXP on the main thread, then the generated
+// wrapper moves the handle to the worker before this function reads it.
+#[cfg(feature = "worker-thread")]
+#[miniextendr(worker, noexport)]
+pub fn extptr_worker_value(ptr: ExternalPtr<Counter>) -> i32 {
+    ptr.value
+}
+
+// Round-trip a borrowed handle through the worker. Returning it must preserve
+// the original R identity; no fresh EXTPTRSXP or deep-cloned Counter is wanted.
+#[cfg(feature = "worker-thread")]
+#[miniextendr(worker, noexport)]
+pub fn extptr_worker_identity(ptr: ExternalPtr<Counter>) -> ExternalPtr<Counter> {
+    ptr
+}
+
+// `into_inner` performs checked R external-pointer operations. Calling it on
+// the worker must route those operations to the main thread, move out Counter,
+// and leave the original R external pointer cleared rather than double-freeing.
+#[cfg(feature = "worker-thread")]
+#[miniextendr(worker, noexport)]
+pub fn extptr_worker_into_inner(ptr: ExternalPtr<Counter>) -> i32 {
+    ExternalPtr::into_inner(ptr).value
 }
