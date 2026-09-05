@@ -83,6 +83,12 @@ Only `default` features are enabled automatically.
 Enables the build-time lint that checks `#[miniextendr]` source-level attributes
 for consistency. Warns on missing or mismatched annotations.
 
+The advisories are delivered through rustc's `deprecated` lint (the macro emits a
+`#[deprecated]` const that the generated code reads), so a crate that sets
+`#![deny(deprecated)]` — or builds with `-D warnings` / `RUSTFLAGS=-Dwarnings` —
+escalates them to hard errors. That is a reasonable strict mode, but be aware the
+escalation is controlled by your lint configuration, not by this feature.
+
 Forwarded to `miniextendr-macros/doc-lint`. Disable with `default-features = false` if
 the lint causes issues during development.
 
