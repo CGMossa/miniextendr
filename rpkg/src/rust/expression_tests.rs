@@ -34,6 +34,26 @@ pub fn expr_call_builder(x: SEXP) -> Result<SEXP, String> {
     }
 }
 
+/// Build `c(1L, ..., 8L)` with freshly allocated inline arguments.
+///
+/// This exercises the ergonomic builder form shown in the public docs: each
+/// argument must remain reachable while later scalar allocations occur.
+#[miniextendr(noexport)]
+pub fn expr_call_inline_arguments() -> Result<SEXP, String> {
+    unsafe {
+        RCall::new("c")
+            .arg(SEXP::scalar_integer(1))
+            .arg(SEXP::scalar_integer(2))
+            .arg(SEXP::scalar_integer(3))
+            .arg(SEXP::scalar_integer(4))
+            .arg(SEXP::scalar_integer(5))
+            .arg(SEXP::scalar_integer(6))
+            .arg(SEXP::scalar_integer(7))
+            .arg(SEXP::scalar_integer(8))
+            .eval_base()
+    }
+}
+
 /// Resolve `name` in the base namespace and report whether it is a function.
 /// Errors if the name does not resolve.
 /// @param name Character scalar name to look up.

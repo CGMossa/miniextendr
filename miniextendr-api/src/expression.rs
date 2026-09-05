@@ -26,6 +26,7 @@
 //! ```
 
 use crate::gc_protect::{OwnedProtect, ProtectScope};
+use crate::protect_pool::ProtectPool;
 use crate::sexp_ext::PairListExt;
 use crate::sys::{
     self, ParseStatus, R_BaseEnv, R_EmptyEnv, R_GlobalEnv, R_ParseVector, R_tryEvalSilent,
@@ -249,9 +250,32 @@ pub struct RCall {
     fun: SEXP,
     /// Arguments as (optional_name, value) pairs.
     args: Vec<(Option<CString>, SEXP)>,
+    /// Roots the callable and every argument for the builder's lifetime.
+    ///
+    /// Besides keeping inline allocations alive, `ProtectPool` makes `RCall`
+    /// `!Send + !Sync`: construction, mutation, and drop stay on R's thread.
+    roots: ProtectPool,
 }
 
 impl RCall {
+    /// Root a callable and initialize an empty builder.
+    ///
+    /// `fun` may be a freshly allocated, unprotected closure. The temporary
+    /// stack root keeps it alive while the pool allocates its backing VECSXP.
+    #[inline]
+    unsafe fn from_callable(fun: SEXP) -> Self {
+        unsafe {
+            let fun_guard = OwnedProtect::new(fun);
+            let mut roots = ProtectPool::new(4);
+            roots.insert(fun_guard.get());
+            RCall {
+                fun,
+                args: Vec::new(),
+                roots,
+            }
+        }
+    }
+
     /// Start building a call to a named R function.
     ///
     /// The function is looked up via `Rf_install`, which returns an interned symbol.
@@ -266,10 +290,7 @@ impl RCall {
     #[inline]
     pub unsafe fn new(fun_name: &str) -> Self {
         let c_name = CString::new(fun_name).expect("function name must not contain null bytes");
-        RCall {
-            fun: unsafe { Rf_install(c_name.as_ptr()) },
-            args: Vec::new(),
-        }
+        unsafe { Self::from_callable(Rf_install(c_name.as_ptr())) }
     }
 
     /// Start building a call to a function given as a C string literal.
@@ -281,10 +302,7 @@ impl RCall {
     /// Must be called from the R main thread.
     #[inline]
     pub unsafe fn from_cstr(fun_name: &CStr) -> Self {
-        RCall {
-            fun: unsafe { Rf_install(fun_name.as_ptr()) },
-            args: Vec::new(),
-        }
+        unsafe { Self::from_callable(Rf_install(fun_name.as_ptr())) }
     }
 
     /// Start building a call with a function SEXP (closure, builtin, etc.).
@@ -294,15 +312,18 @@ impl RCall {
     /// `fun` must be a valid SEXP representing a callable R object.
     #[inline]
     pub unsafe fn from_sexp(fun: SEXP) -> Self {
-        RCall {
-            fun,
-            args: Vec::new(),
-        }
+        unsafe { Self::from_callable(fun) }
     }
 
     /// Add a positional argument.
     #[inline]
     pub fn arg(mut self, value: SEXP) -> Self {
+        // The temporary stack root covers `ProtectPool::insert` if growing the
+        // backing VECSXP allocates. The pool then owns the lasting root.
+        unsafe {
+            let value_guard = OwnedProtect::new(value);
+            self.roots.insert(value_guard.get());
+        }
         self.args.push((None, value));
         self
     }
@@ -315,6 +336,10 @@ impl RCall {
     #[inline]
     pub fn named_arg(mut self, name: &str, value: SEXP) -> Self {
         let c_name = CString::new(name).expect("argument name must not contain null bytes");
+        unsafe {
+            let value_guard = OwnedProtect::new(value);
+            self.roots.insert(value_guard.get());
+        }
         self.args.push((Some(c_name), value));
         self
     }
@@ -326,8 +351,8 @@ impl RCall {
     ///
     /// # Safety
     ///
-    /// Must be called from the R main thread. All argument SEXPs must still
-    /// be valid (protected or otherwise reachable by R's GC).
+    /// Must be called from the R main thread. The builder keeps the callable
+    /// and every argument rooted until it is dropped.
     pub unsafe fn build(&self) -> SEXP {
         unsafe {
             // Build the argument pairlist from back to front using Rf_cons.
@@ -360,7 +385,7 @@ impl RCall {
     ///
     /// - Must be called from the R main thread.
     /// - `env` must be a valid ENVSXP.
-    /// - All argument SEXPs must still be valid.
+    /// - The builder must not outlive the active R session.
     ///
     /// # Returns
     ///
@@ -439,12 +464,10 @@ impl RCall {
                 return Err(get_r_error_message());
             }
 
-            // fun_sexp is the closure; it is reachable via R_GlobalEnv bindings,
-            // so we don't need explicit protection for the RCall builder lifetime.
-            Ok(RCall {
-                fun: fun_sexp,
-                args: Vec::new(),
-            })
+            // Root the resolved closure for the builder lifetime. This is
+            // load-bearing even for closures that are not namespace bindings
+            // (the same constructor backs `RCall::from_sexp`).
+            Ok(RCall::from_sexp(fun_sexp))
         }
     }
 }
@@ -636,37 +659,6 @@ mod tests {
 
     // These tests verify compilation and basic invariants.
     // Full integration tests require the R runtime.
-
-    #[test]
-    fn rcall_arg_accumulation() {
-        // Verify the builder pattern accumulates args correctly.
-        // We can't call R functions without an R runtime, but we can
-        // check that the Vec grows as expected.
-        let call = RCall {
-            fun: SEXP(std::ptr::null_mut()),
-            args: Vec::new(),
-        };
-        let call = call
-            .arg(SEXP(std::ptr::null_mut()))
-            .arg(SEXP(std::ptr::null_mut()));
-        assert_eq!(call.args.len(), 2);
-        assert!(call.args[0].0.is_none());
-        assert!(call.args[1].0.is_none());
-    }
-
-    #[test]
-    fn rcall_named_arg() {
-        let call = RCall {
-            fun: SEXP(std::ptr::null_mut()),
-            args: Vec::new(),
-        };
-        let call = call.named_arg("collapse", SEXP(std::ptr::null_mut()));
-        assert_eq!(call.args.len(), 1);
-        assert_eq!(
-            call.args[0].0.as_ref().unwrap(),
-            &CString::new("collapse").unwrap()
-        );
-    }
 
     #[test]
     fn renv_types_are_sized() {

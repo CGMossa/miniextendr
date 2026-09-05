@@ -34,6 +34,21 @@ test_that("expr_call_builder propagates R evaluation errors", {
   expect_error(expr_call_builder("not a number"))
 })
 
+test_that("RCall keeps freshly allocated inline arguments reachable", {
+  skip_gc_stress_if_disabled()
+  gctorture(TRUE)
+  on.exit(gctorture(FALSE), add = TRUE)
+
+  ok <- 0L
+  for (i in seq_len(20L)) {
+    if (identical(miniextendr:::expr_call_inline_arguments(), 1:8)) {
+      ok <- ok + 1L
+    }
+  }
+  gctorture(FALSE)
+  expect_equal(ok, 20L)
+})
+
 test_that("expr_env_lookup resolves base-namespace bindings", {
   expect_true(expr_env_lookup("sum"))
   expect_false(expr_env_lookup("pi")) # resolves, but not a function
