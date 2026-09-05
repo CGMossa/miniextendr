@@ -13904,6 +13904,23 @@ Must be called from the R main thread.
 
 Panics if `name` contains a null byte.
 
+### `externalptr::ConsumedSlot`
+
+```rust
+pub struct ConsumedSlot
+```
+
+Marker left in an `EXTPTRSXP` slot while a consuming (`self` by value)
+method runs, and left behind for good if that method panics.
+
+`#[miniextendr]` methods taking bare `self` move the stored value out of
+the R handle with [`ExternalPtr::<()>::take_for_consuming`], call the
+method, and either write the result back
+([`ExternalPtr::<()>::restore_after_consuming`], for `self -> Self`) or
+leave the slot consumed (terminal `self -> T`). A slot holding this marker
+makes every later method call on the handle fail with a "consumed" error
+instead of a type mismatch; the finaliser drops the marker like any value.
+
 ### `externalptr::ExternalPtr`
 
 ```rust
@@ -14187,6 +14204,14 @@ Check whether the stored `Box<dyn Any>` contains a `T`.
 
 Uses `Any::is` for authoritative runtime type checking.
 
+#### `is_consumed`
+
+```rust
+fn is_consumed(self: &Self) -> bool
+```
+
+Whether the slot holds the [`ConsumedSlot`] marker.
+
 #### `is_null`
 
 ```rust
@@ -14376,6 +14401,17 @@ The caller must not use the original and the alias to create overlapping
 mutable references (`as_mut`). In typical use (returning from a method),
 the borrow of the original ends when the method returns, so this is safe.
 
+#### `restore_after_consuming`
+
+```rust
+fn restore_after_consuming<T: TypedExternal>(self: &mut Self, value: T)
+```
+
+Put a value back into a slot emptied by [`Self::take_for_consuming`]
+(the write-back half of `self -> Self`). Replaces whatever the slot
+holds; the `TypedExternal` tag in the `prot` slot is unchanged because
+the type is the same.
+
 #### `set_protected`
 
 ```rust
@@ -14427,6 +14463,19 @@ Skips thread safety checks for performance-critical paths.
 
 Must be called from the R main thread. Only use in ALTREP callbacks
 or other contexts where you're certain you're on the main thread.
+
+#### `take_for_consuming`
+
+```rust
+fn take_for_consuming<T: TypedExternal>(self: &mut Self) -> Option<T>
+```
+
+Move the stored `T` out of the handle, leaving [`ConsumedSlot`] behind.
+
+Returns `None` when the slot does not hold a `T` (wrong type, null, or
+already consumed); the slot is untouched in that case. The outer
+`Box<Box<dyn Any>>` cell stays allocated, so the finaliser and every
+other accessor keep working on the marker.
 
 #### `type_name`
 
@@ -26400,6 +26449,22 @@ returns it directly.
 - `fn into_dataframe_split(self: Self) -> List`
   - Partition the rows by variant into one `data.frame` per variant.
 
+### `externalptr::ConsumingFallible`
+
+```rust
+pub trait ConsumingFallible: Clone
+```
+
+Bound for the receiver of a **fallible** consuming method
+(`self -> Result<Self, E>` / `self -> Option<Self>`).
+
+The generated wrapper calls the method on a clone of the stored value and
+only overwrites the R handle on `Ok` / `Some`, so a failed step leaves the
+R object exactly as it was, which is what an interactive R user expects
+from `obj |> add_step(-1)` erroring. Blanket-implemented for every
+`T: Clone`; the `on_unimplemented` text below is what rustc prints when
+the type is not `Clone`.
+
 ### `externalptr::IntoExternalPtr`
 
 ```rust
@@ -31614,6 +31679,25 @@ Skips thread safety checks for performance-critical ALTREP callbacks.
 
 - `x` must be a valid ALTREP SEXP
 - Must be called from the R main thread (guaranteed in ALTREP callbacks)
+
+### `externalptr::clone_for_consuming`
+
+```rust
+fn clone_for_consuming<T: ConsumingFallible>(value: &T) -> T
+```
+
+Clone the stored value for a fallible consuming step (see
+[`ConsumingFallible`]). Free function so codegen can name the bound.
+
+### `externalptr::handle_downcast_failed`
+
+```rust
+fn handle_downcast_failed<T: TypedExternal>(ptr: &ExternalPtr<()>) -> never
+```
+
+Panic with the right message when a handle's stored value is not a `T`:
+"consumed" if a previous `self`-by-value step failed, type mismatch
+otherwise. Used by generated method preludes instead of a bare `expect`.
 
 ### `factor::build_factor`
 

@@ -68,3 +68,38 @@ impl VctrsNoRdGated {
 }
 
 // endregion
+
+// region: postfix: internal entry points named from the Rust name (#1451)
+
+/// Internal entry point for the hand-written `export_control_delegate()` in
+/// `R/export_control.R`: the R wrapper is `export_control_delegate_impl`, the
+/// C symbol keeps the Rust name. `noexport` keeps it out of NAMESPACE.
+#[miniextendr(noexport, postfix = "_impl")]
+pub fn export_control_delegate(x: i32) -> i32 {
+    x * 2
+}
+
+/// R6 class whose method is renamed through `postfix`.
+#[derive(miniextendr_api::ExternalPtr)]
+pub struct ExportControlWidget {
+    n: i32,
+}
+
+/// Widget for the method-level `postfix` fixture.
+/// @param n Starting value.
+#[miniextendr(r6)]
+impl ExportControlWidget {
+    /// Creates a widget.
+    pub fn new(n: i32) -> Self {
+        ExportControlWidget { n }
+    }
+
+    /// Adds `by` to the stored value; the R method is `bump_impl`.
+    /// @param by Increment.
+    #[miniextendr(postfix = "_impl")]
+    pub fn bump(&self, by: i32) -> i32 {
+        self.n + by
+    }
+}
+
+// endregion

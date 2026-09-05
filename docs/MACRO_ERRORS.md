@@ -217,6 +217,20 @@ The R handle stores the value itself, so a method can take `self`,
 `self: Box<Self>`, `Rc<Self>`, `Arc<Self>` and friends cannot be handed over;
 unwrap to `self` or take `&self`.
 
+### "`postfix` and `r_name` both set the R wrapper name"
+
+`postfix = "_impl"` derives the R name from the Rust identifier; `r_name = "..."`
+replaces it. Giving both is contradictory, so it is rejected rather than letting
+one silently win. Keep `postfix` when the name should follow the Rust name,
+`r_name` when it should not. The method-level variant says "R method name" and
+also rejects `postfix` together with `generic = "..."`. See
+[VISIBILITY.md](VISIBILITY.md#postfix-state-the-internal-entry-point-convention-once).
+
+### "`postfix` cannot be used with `s3(generic = ..., class = ...)`"
+
+Standalone S3 methods are always named `generic.class`, so there is nothing for
+a postfix to append to. Rename through `generic` instead.
+
 ## Debugging Tips
 
 1. **Run [`just lint`](https://github.com/A2-ai/miniextendr/blob/main/justfile)** before building: it catches attribute issues earlier than compile errors

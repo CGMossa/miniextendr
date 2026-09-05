@@ -833,6 +833,8 @@ Per-method attributes for class system customization.
   - vctrs protocol method override.
 - `r_name`: `Option<String>`
   - Override R method name.
+- `postfix`: `Option<String>`
+  - Append a fixed suffix to the Rust method name for the R-facing name
 - `r_entry`: `Option<String>`
   - R code to inject at the very top of the method body (before all built-in checks).
 - `r_post_checks`: `Option<String>`
@@ -1124,8 +1126,12 @@ Inferred from: no env + named "new" + returns Self.
 fn is_finalizer(self: &Self) -> bool
 ```
 
-Returns true if this is likely a finalizer.
-Inferred from: consumes self (by value) + doesn't return Self.
+Returns true if this method is the R6 finalizer.
+
+Only the explicit `#[miniextendr(r6(finalize))]` marker qualifies. It
+used to be inferred from "takes `self` by value and does not return
+`Self`", which silently hid consuming methods on every class system
+(#1432).
 
 #### `is_private`
 
@@ -1157,7 +1163,8 @@ fn r_method_name(self: &Self) -> String
 
 R-facing method name.
 
-Returns `r_name` if set, otherwise the Rust ident as a string.
+Returns `r_name` if set, otherwise the Rust ident with `postfix`
+appended when given, otherwise the Rust ident as a string.
 
 #### `returns_option_self`
 
@@ -1172,6 +1179,15 @@ exactly like a bare `Self` return (wrapped class object via
 `None` via the normal `Option` error path (see
 [`crate::c_wrapper_builder::ReturnHandling::OptionExternalPtr`]).
 Symmetric with [`Self::returns_result_self`].
+
+#### `returns_option_self_ref`
+
+```rust
+fn returns_option_self_ref(self: &Self) -> bool
+```
+
+`-> Option<&Self>` / `-> Option<&mut Self>`: the `Option` sibling of
+[`Self::returns_result_self_ref`]; `None` raises the usual absence error.
 
 #### `returns_other_class`
 
@@ -1260,6 +1276,17 @@ is treated exactly like a bare `Self` return (wrapped class object via
 [`crate::ReturnStrategy::for_method`]); the C wrapper still raises on
 `Err` via the normal `Result` error path (see
 [`crate::c_wrapper_builder::ReturnHandling::ResultExternalPtr`]).
+
+#### `returns_result_self_ref`
+
+```rust
+fn returns_result_self_ref(self: &Self) -> bool
+```
+
+`-> Result<&Self, E>` / `-> Result<&mut Self, E>`: a fallible in-place
+builder step (#1433). `Ok` hands back the same handle like
+[`Self::returns_self_ref`]; `Err` raises through the normal `Result`
+error path.
 
 #### `returns_self`
 
@@ -2377,6 +2404,10 @@ the Rust value back to R and how errors/None values are surfaced.
   - Returns `Self` -- wraps the value in an `ExternalPtr` via `ExternalPtr::new`.
 - `SelfHandle`
   - Returns `&Self` / `&mut Self` (an in-place builder) -- evaluates the call
+- `SelfHandleResult`
+  - Fallible in-place step whose call expression yields `Result<(), E>`
+- `SelfHandleOption`
+  - `Option` sibling of [`SelfHandleResult`](Self::SelfHandleResult): the
 - `IntoR`
   - Returns an arbitrary type `T: IntoR` -- converts via `IntoR::into_sexp`.
 - `OptionUnit`
@@ -2634,7 +2665,7 @@ Receiver kind for methods.
 - `RefMut`
   - `&mut self` - mutable borrow
 - `Value`
-  - `self` - consuming (not supported in v1)
+  - `self` (or `self: Self`) - consuming. The C wrapper moves the value out
 - `ExternalPtrRef`
   - `self: &ExternalPtr<Self>` — immutable borrow of the wrapping ExternalPtr
 - `ExternalPtrRefMut`
@@ -2650,7 +2681,8 @@ Receiver kind for methods.
 fn is_instance(self: &Self) -> bool
 ```
 
-Returns true if this is an instance method (has self).
+Returns true if this is an instance method (has self), including the
+consuming `self` receiver.
 
 #### `is_mut`
 

@@ -3602,6 +3602,98 @@ fn consuming_builder_impl() -> syn::ItemImpl {
     }
 }
 
+/// `#[miniextendr(postfix = "_impl")]` on a method appends to the Rust name
+/// for the R-facing method (#1451); `r_name` still wins when both paths are
+/// compared, and unannotated methods keep the Rust name.
+#[test]
+fn method_postfix_renames_the_r_method() {
+    let parsed = parse_impl(
+        ClassSystem::S3,
+        syn::parse_quote! {
+            impl Widget {
+                pub fn new(n: i32) -> Self { unimplemented!() }
+                #[miniextendr(postfix = "_impl")]
+                pub fn bump(&self, by: i32) -> i32 { unimplemented!() }
+                #[miniextendr(r_name = "peek_at")]
+                pub fn peek(&self) -> i32 { unimplemented!() }
+                pub fn plain(&self) -> i32 { unimplemented!() }
+            }
+        },
+    );
+    let name = |n: &str| {
+        parsed
+            .methods
+            .iter()
+            .find(|m| m.ident == n)
+            .unwrap()
+            .r_method_name()
+    };
+    assert_eq!(name("bump"), "bump_impl");
+    assert_eq!(name("peek"), "peek_at");
+    assert_eq!(name("plain"), "plain");
+
+    let wrapper = generate_s3_r_wrapper(&parsed);
+    assert!(
+        wrapper.contains("bump_impl.Widget <- function(x, by, ...)"),
+        "{wrapper}"
+    );
+    assert!(!wrapper.contains("bump.Widget <- function"), "{wrapper}");
+    // `r_name` on an S3 instance method also names the generic (previously
+    // the Rust ident leaked through `generic_name()`).
+    assert!(
+        wrapper.contains("peek_at.Widget <- function(x, ...)"),
+        "{wrapper}"
+    );
+    assert!(!wrapper.contains("peek.Widget <- function"), "{wrapper}");
+    // The C symbol keeps the Rust name.
+    let tokens = c_wrapper_tokens(&parsed, "bump");
+    assert!(tokens.contains("Widget__bump"), "{tokens}");
+    assert!(!tokens.contains("bump_impl"), "{tokens}");
+}
+
+/// `postfix` cannot combine with another naming source on a method.
+#[test]
+fn method_postfix_validation() {
+    let err = ParsedImpl::parse(
+        default_impl_attrs(ClassSystem::S3),
+        syn::parse_quote! {
+            impl Widget {
+                #[miniextendr(postfix = "_impl", r_name = "bump2")]
+                pub fn bump(&self, by: i32) -> i32 { unimplemented!() }
+            }
+        },
+    )
+    .expect_err("postfix + r_name must fail");
+    assert!(
+        err.to_string().contains("both set the R method name"),
+        "{err}"
+    );
+
+    let err = ParsedImpl::parse(
+        default_impl_attrs(ClassSystem::S3),
+        syn::parse_quote! {
+            impl Widget {
+                #[miniextendr(s3(generic = "format"), postfix = "_impl")]
+                pub fn bump(&self, by: i32) -> i32 { unimplemented!() }
+            }
+        },
+    )
+    .expect_err("postfix + generic must fail");
+    assert!(err.to_string().contains("`postfix` and `generic`"), "{err}");
+
+    let err = ParsedImpl::parse(
+        default_impl_attrs(ClassSystem::S3),
+        syn::parse_quote! {
+            impl Widget {
+                #[miniextendr(postfix = "")]
+                pub fn bump(&self, by: i32) -> i32 { unimplemented!() }
+            }
+        },
+    )
+    .expect_err("empty postfix must fail");
+    assert!(err.to_string().contains("must not be empty"), "{err}");
+}
+
 fn c_wrapper_tokens(parsed: &ParsedImpl, name: &str) -> String {
     let method = parsed.methods.iter().find(|m| m.ident == name).unwrap();
     let r_wrappers_const = syn::parse_quote! { R_WRAPPERS_TEST };

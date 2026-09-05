@@ -38,7 +38,9 @@ test_that("noexport function is callable but not exported", {
 test_that("internal function has an alias in the rendered Rd", {
   rd_db <- tryCatch(tools::Rd_db("miniextendr"), error = function(e) NULL)
   skip_if(is.null(rd_db), "tools::Rd_db('miniextendr') unavailable — package not installed")
-  rd_name <- grep("export_control", names(rd_db), value = TRUE)[1]
+  # Anchor on the page name: `export_control_delegate.Rd` (the hand-written
+  # delegate around the postfixed entry point) also matches a bare prefix.
+  rd_name <- grep("^export_control_tests", names(rd_db), value = TRUE)[1]
   skip_if(is.na(rd_name), "export_control_tests.Rd not found — package not documented")
 
   rd <- rd_db[[rd_name]]
@@ -113,3 +115,22 @@ test_that("noexport trait method has no alias in the rendered Rd", {
 })
 
 # endregion
+
+test_that("postfix names the internal entry point from the Rust name (#1451)", {
+  # Generated wrapper: Rust `export_control_delegate` + postfix `_impl`.
+  expect_equal(miniextendr:::export_control_delegate_impl(4L), 8L)
+  expect_false("export_control_delegate_impl" %in% getNamespaceExports("miniextendr"))
+  ns <- readLines(system.file("NAMESPACE", package = "miniextendr"))
+  expect_false(any(grepl("export_control_delegate_impl", ns)))
+
+  # Hand-written public surface delegates to it.
+  expect_true(any(grepl("^export\\(export_control_delegate\\)$", ns)))
+  expect_equal(export_control_delegate(4), 8L)
+  expect_error(export_control_delegate("a"), "is.numeric")
+})
+
+test_that("postfix renames an impl method", {
+  w <- ExportControlWidget$new(5L)
+  expect_equal(w$bump_impl(2L), 7L)
+  expect_null(w$bump)
+})
