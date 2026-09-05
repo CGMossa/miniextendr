@@ -333,6 +333,28 @@ pub fn convert_from_r(sexp: SEXP) -> Vec<i32> {
 }
 ```
 
+### Owned values: `RValue::from_serde`
+
+`to_r` allocates a `SEXP`, so it needs the R main thread. When a value has to
+be built somewhere else first (a worker thread, a panic payload, a condition's
+`data =`), serialize into the owned, `Send` `RValue` tree instead and
+materialise it later:
+
+```rust
+use miniextendr_api::RValue;
+
+let v: RValue = RValue::from_serde(&point)?;
+// equivalently: miniextendr_api::serde::to_rvalue(&point)?
+```
+
+The mapping is the table above: homogeneous `Vec<scalar>` coalesces to an
+atomic vector, structs and string-keyed maps become named lists, unit variants
+become strings, data variants become `list(Variant = ...)`. `None` becomes
+`NULL`, not a typed `NA`, because the serializer never sees the absent inner
+type. `#[miniextendr(serde_error)]` uses this to turn a serde-tagged error enum
+into a classed R condition; see
+[CONDITIONS.md](CONDITIONS.md#deriving-the-classes-from-serde-miniextendrserde_error).
+
 ## Columnar `data.frame` Assembly
 
 For `&[T: Serialize]`, `vec_to_dataframe` produces a column-oriented R

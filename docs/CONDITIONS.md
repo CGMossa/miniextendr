@@ -18,7 +18,9 @@ for programmatic catching (one string or a vector, most specific first), and an
 optional `data = ...` argument to attach structured named fields readable as
 `e$<name>` in handlers.
 `Result<T, E>` returns get the same treatment through the
-[`RConditionError`](#classed-result-errors-with-rconditionerror-and-rerror) trait.
+[`RConditionError`](#classed-result-errors-with-rconditionerror-and-rerror) trait,
+or, for error enums that already derive `serde::Serialize`, through
+[`#[miniextendr(serde_error)]`](#deriving-the-classes-from-serde-miniextendrserde_error).
 
 > **Import note.** `error!` and `condition!` are shadowed by the crate-root
 > modules `error` / `condition`, so `use miniextendr_api::*;` (or a direct
@@ -348,6 +350,65 @@ pub fn parse_port(s: &str) -> Result<i32, RError> {
 `RError` implements `Display` (the message) but not `std::error::Error`, which
 keeps the blanket `From<E: Error>` coherent; it works with
 `#[miniextendr(unwrap_in_r)]` too.
+
+### Deriving the classes from serde: `#[miniextendr(serde_error)]`
+
+When the error type already derives `serde::Serialize` (for logging, JSON
+transport, or a downstream client), the same information can drive the R
+condition without an `RConditionError` impl. `#[miniextendr(serde_error)]`
+serializes the `Err` value: the enum variant becomes the member class
+`<prefix>_<variant>`, the variant's fields become `e$<name>`, and the message
+comes from `Display`. Requires the `serde` feature.
+
+```rust
+#[derive(Debug, thiserror::Error, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum EngineError {
+    #[error("field `{field}` is missing")]
+    MissingField { field: String },
+    #[error("{value} exceeds the maximum {max}")]
+    OutOfRange { value: f64, max: f64 },
+}
+
+#[miniextendr(serde_error)]
+pub fn check(value: f64) -> Result<f64, EngineError> {
+    if value > 100.0 { return Err(EngineError::OutOfRange { value, max: 100.0 }); }
+    Ok(value)
+}
+```
+
+```r
+e <- tryCatch(check(150), error = function(e) e)
+class(e)
+# [1] "mypkg_error_out_of_range" "mypkg_error" "rust_error" "simpleError" "error" "condition"
+e$value; e$max
+# [1] 150
+# [1] 100
+```
+
+- The family class defaults to `<crate>_error`, from the Rust crate name at
+  compile time. Override it with `serde_error(prefix = "engine")`.
+- Internally tagged enums (`#[serde(tag = "kind")]`) have the tag field
+  consumed as the variant, so it never collides with the framework's own
+  `e$kind` (`"result_err"`). Name a different tag with
+  `serde_error(tag = "type")`. Externally tagged enums (serde's default)
+  report the variant name verbatim (`mypkg_error_OutOfRange`; add
+  `#[serde(rename_all = "snake_case")]` for snake_case).
+- Struct variants contribute their fields. A newtype variant with a struct
+  payload contributes that struct's fields; any other newtype or tuple payload
+  lands under `e$value`. Unit variants carry classes only. A value that
+  serializes without variant information (a plain struct, a string) gets just
+  the family class.
+- Values follow the `RValue` mapping (`RValue::from_serde`, see
+  [SERDE_R.md](SERDE_R.md#owned-values-rvaluefrom_serde)): scalars,
+  homogeneous `Vec<T>` as atomic vectors, nested structs as named lists,
+  `None` as `NULL`. The reserved names above apply to the payload fields; a
+  clash raises a `rust_error` describing it, exactly as for `data()`.
+- `serde_error` needs a `Result` return type and cannot be combined with
+  `unwrap_in_r`; both are compile errors.
+- Choose `RConditionError` when the message or class vector needs to differ
+  from the serde shape; `serde_error` is the zero-boilerplate path for enums
+  that are already serde-tagged.
 
 ## Trait-ABI and ALTREP error class layering
 

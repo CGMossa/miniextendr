@@ -182,6 +182,44 @@ pub enum ReturnHandling {
     AsNativeOf,
 }
 
+/// How the generated `Err` arm turns an error value into condition parts
+/// (message, class vector, structured data).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub enum ErrPartsMode {
+    /// Autoref-specialisation probe (`__mx_result_err_parts!`): `RConditionError`
+    /// when the error type implements it, `Debug` otherwise.
+    #[default]
+    Probe,
+    /// `#[miniextendr(serde_error)]`: serialize the error with serde; the enum
+    /// variant becomes the member class `<prefix>_<variant>`, the payload fields
+    /// become the condition's data. `tag` is the internally-tagged discriminator
+    /// field consumed as the variant (`#[serde(tag = "kind")]`).
+    Serde { tag: String, prefix: String },
+}
+
+impl ErrPartsMode {
+    /// Resolve a parsed `serde_error` spec (or its absence) into a mode.
+    pub fn from_spec(spec: Option<&crate::miniextendr_fn::SerdeErrorSpec>) -> Self {
+        match spec {
+            None => ErrPartsMode::Probe,
+            Some(spec) => ErrPartsMode::Serde {
+                tag: spec.tag().to_string(),
+                prefix: spec.prefix(),
+            },
+        }
+    }
+
+    /// The expression yielding an `ErrParts` from the bound error `e`.
+    pub fn expr(&self) -> TokenStream {
+        match self {
+            ErrPartsMode::Probe => quote! { ::miniextendr_api::__mx_result_err_parts!(e) },
+            ErrPartsMode::Serde { tag, prefix } => quote! {
+                ::miniextendr_api::condition::serde_err_parts(&e, #tag, #prefix)
+            },
+        }
+    }
+}
+
 /// All information needed to generate a C wrapper function for an R-exported Rust item.
 ///
 /// This struct abstracts over the differences between standalone `#[miniextendr]` functions
@@ -240,6 +278,8 @@ pub struct CWrapperContext {
     /// `isize`, `usize` and their `Vec` variants) instead of regular `IntoR::into_sexp`.
     /// Set by `#[miniextendr(strict)]`.
     pub strict: bool,
+    /// How `Err` values become condition parts. Set by `#[miniextendr(serde_error)]`.
+    pub err_parts: ErrPartsMode,
     /// Parameter names with `#[miniextendr(match_arg, several_ok)]` — use
     /// `match_arg_vec_from_sexp` (instead of `TryFromSexp`) for the `Vec<T>` conversion
     /// so each element is validated against the enum's `MatchArg::CHOICES`.
@@ -291,6 +331,7 @@ impl CWrapperContext {
             has_self: false,
             call_method_def_ident: None,
             strict: false,
+            err_parts: ErrPartsMode::Probe,
             match_arg_several_ok_params: Vec::new(),
             preserve_param_names: false,
             vis: syn::Visibility::Inherited,
@@ -723,6 +764,7 @@ impl CWrapperContext {
     /// tagged condition SEXP (which the R-side wrapper raises).
     fn generate_return_handling(&self, call_expr: &TokenStream) -> TokenStream {
         let fn_ident = &self.fn_ident;
+        let err_parts = self.err_parts.expr();
 
         match &self.return_handling {
             ReturnHandling::Unit => {
@@ -760,7 +802,7 @@ impl CWrapperContext {
                     let __result: ::core::result::Result<(), _> = #call_expr;
                     if let Err(e) = __result {
                         return unsafe { ::miniextendr_api::error_value::result_err_condition_value(
-                            ::miniextendr_api::__mx_result_err_parts!(e), Some(__miniextendr_call),
+                            #err_parts, Some(__miniextendr_call),
                         ) };
                     }
                     self_sexp
@@ -861,7 +903,7 @@ impl CWrapperContext {
                     let __result = #call_expr;
                     if let Err(e) = __result {
                         return unsafe { ::miniextendr_api::error_value::result_err_condition_value(
-                            ::miniextendr_api::__mx_result_err_parts!(e), Some(__miniextendr_call),
+                            #err_parts, Some(__miniextendr_call),
                         ) };
                     }
                     ::miniextendr_api::SEXP::nil()
@@ -873,7 +915,7 @@ impl CWrapperContext {
                     match __result {
                         Ok(v) => v,
                         Err(e) => return unsafe { ::miniextendr_api::error_value::result_err_condition_value(
-                            ::miniextendr_api::__mx_result_err_parts!(e), Some(__miniextendr_call),
+                            #err_parts, Some(__miniextendr_call),
                         ) },
                     }
                 }
@@ -886,7 +928,7 @@ impl CWrapperContext {
                     let #result_ident = match __result {
                         Ok(v) => v,
                         Err(e) => return unsafe { ::miniextendr_api::error_value::result_err_condition_value(
-                            ::miniextendr_api::__mx_result_err_parts!(e), Some(__miniextendr_call),
+                            #err_parts, Some(__miniextendr_call),
                         ) },
                     };
                     #conversion
@@ -912,7 +954,7 @@ impl CWrapperContext {
                     let __result = match __result {
                         Ok(v) => v,
                         Err(e) => return unsafe { ::miniextendr_api::error_value::result_err_condition_value(
-                            ::miniextendr_api::__mx_result_err_parts!(e), Some(__miniextendr_call),
+                            #err_parts, Some(__miniextendr_call),
                         ) },
                     };
                     ::miniextendr_api::into_r::IntoR::into_sexp(
@@ -962,6 +1004,7 @@ impl CWrapperContext {
         call_expr: &TokenStream,
     ) -> (TokenStream, TokenStream) {
         let fn_ident = &self.fn_ident;
+        let err_parts = self.err_parts.expr();
 
         match &self.return_handling {
             ReturnHandling::Unit => {
@@ -1106,7 +1149,7 @@ impl CWrapperContext {
                     match __miniextendr_result {
                         Ok(()) => ::miniextendr_api::SEXP::nil(),
                         Err(e) => unsafe { ::miniextendr_api::error_value::result_err_condition_value(
-                            ::miniextendr_api::__mx_result_err_parts!(e), Some(__miniextendr_call),
+                            #err_parts, Some(__miniextendr_call),
                         ) },
                     }
                 };
@@ -1118,7 +1161,7 @@ impl CWrapperContext {
                     match __miniextendr_result {
                         Ok(v) => v,
                         Err(e) => unsafe { ::miniextendr_api::error_value::result_err_condition_value(
-                            ::miniextendr_api::__mx_result_err_parts!(e), Some(__miniextendr_call),
+                            #err_parts, Some(__miniextendr_call),
                         ) },
                     }
                 };
@@ -1136,7 +1179,7 @@ impl CWrapperContext {
                             None,
                         ),
                         Err(e) => unsafe { ::miniextendr_api::error_value::result_err_condition_value(
-                            ::miniextendr_api::__mx_result_err_parts!(e), Some(__miniextendr_call),
+                            #err_parts, Some(__miniextendr_call),
                         ) },
                     }
                 };
@@ -1171,7 +1214,7 @@ impl CWrapperContext {
                             None,
                         ),
                         Err(e) => unsafe { ::miniextendr_api::error_value::result_err_condition_value(
-                            ::miniextendr_api::__mx_result_err_parts!(e), Some(__miniextendr_call),
+                            #err_parts, Some(__miniextendr_call),
                         ) },
                     }
                 };
@@ -1431,6 +1474,8 @@ pub struct CWrapperContextBuilder {
     call_method_def_ident: Option<syn::Ident>,
     /// Enable strict checked conversions for lossy return types.
     strict: bool,
+    /// How `Err` values become condition parts.
+    err_parts: ErrPartsMode,
     /// Parameter names with `match_arg + several_ok` — forwarded to
     /// `RustConversionBuilder::with_match_arg_several_ok` so each element of the
     /// Vec is decoded via `match_arg_vec_from_sexp` (enum's `MatchArg::CHOICES`).
@@ -1548,6 +1593,13 @@ impl CWrapperContextBuilder {
         self
     }
 
+    /// Choose how `Err` values become condition parts (default: the
+    /// `RConditionError`/`Debug` probe). See [`ErrPartsMode`].
+    pub fn err_parts(mut self, mode: ErrPartsMode) -> Self {
+        self.err_parts = mode;
+        self
+    }
+
     /// Record a parameter as `match_arg + several_ok`.
     ///
     /// Passed through to `RustConversionBuilder::with_match_arg_several_ok`, which
@@ -1655,6 +1707,7 @@ impl CWrapperContextBuilder {
             has_self: self.has_self,
             call_method_def_ident: self.call_method_def_ident,
             strict: self.strict,
+            err_parts: self.err_parts,
             match_arg_several_ok_params: self.match_arg_several_ok_params,
             preserve_param_names: self.preserve_param_names,
             vis: self.vis,

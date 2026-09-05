@@ -751,6 +751,7 @@ pub fn miniextendr(
         coerce_all,
         rng,
         unwrap_in_r,
+        serde_error,
         no_preconditions,
         no_call_attribution,
         call_caller,
@@ -879,12 +880,25 @@ pub fn miniextendr(
     // - Whether result should be invisible
     let rust_result_ident =
         syn::Ident::new("__miniextendr_rust_result", proc_macro2::Span::mixed_site());
+    // `serde_error` only has an `Err` arm to act on when the fn returns `Result`.
+    if serde_error.is_some() && !return_type_analysis::output_is_result(output) {
+        return syn::Error::new_spanned(
+            output,
+            "`#[miniextendr(serde_error)]` requires a `Result<T, E>` return type: it classes \
+             the condition raised from the `Err` arm",
+        )
+        .into_compile_error()
+        .into();
+    }
+    let err_parts = c_wrapper_builder::ErrPartsMode::from_spec(serde_error.as_ref());
+
     let return_analysis = return_type_analysis::analyze_return_type(
         output,
         &rust_result_ident,
         rust_ident,
         unwrap_in_r,
         strict,
+        &err_parts,
     );
 
     let returns_sexp = return_analysis.returns_sexp;
@@ -1030,6 +1044,7 @@ pub fn miniextendr(
             .call_expr(fn_call_expr)
             .thread_strategy(thread_strategy)
             .return_handling(fn_return_handling)
+            .err_parts(err_parts)
             .cfg_attrs(cfg_attrs.clone())
             .vis(vis.clone())
             .generics(generics.clone())

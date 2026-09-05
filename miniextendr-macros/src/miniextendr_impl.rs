@@ -609,6 +609,9 @@ pub struct MethodAttrs {
     pub dots_spec: Option<proc_macro2::TokenStream>,
     /// Return `Result<T, E>` to R without unwrapping.
     pub unwrap_in_r: bool,
+    /// Build the `Err` arm's condition from the error's serde output
+    /// (`#[miniextendr(serde_error)]`, optionally `serde_error(tag = .., prefix = ..)`).
+    pub serde_error: Option<crate::miniextendr_fn::SerdeErrorSpec>,
     /// Parameter defaults from `#[miniextendr(defaults(param = "value", ...))]`
     pub defaults: std::collections::HashMap<String, String>,
     /// Span of `defaults(...)` for error reporting.
@@ -1272,6 +1275,15 @@ impl ParsedMethod {
             ));
         }
 
+        // serde_error classes the raised condition; unwrap_in_r never raises.
+        if attrs.serde_error.is_some() && attrs.unwrap_in_r {
+            return Err(syn::Error::new(
+                span,
+                "`serde_error` cannot be used with `unwrap_in_r`: `unwrap_in_r` returns the \
+                 `Result` to R as a value, so there is no raised condition to class.",
+            ));
+        }
+
         // r_name and generic are mutually exclusive
         if attrs.r_name.is_some() && attrs.generic.is_some() {
             return Err(syn::Error::new(
@@ -1355,6 +1367,9 @@ impl ParsedMethod {
                             method_attrs.rng = true;
                         } else if inner.path.is_ident("unwrap_in_r") {
                             method_attrs.unwrap_in_r = true;
+                        } else if inner.path.is_ident("serde_error") {
+                            method_attrs.serde_error =
+                                crate::miniextendr_fn::parse_serde_error_nested(&inner)?;
                         } else if inner.path.is_ident("generic") {
                             let _: syn::Token![=] = inner.input.parse()?;
                             let value: syn::LitStr = inner.input.parse()?;
@@ -1477,7 +1492,7 @@ impl ParsedMethod {
                             }
                         } else {
                             return Err(inner.error(
-                                "unknown method option; expected one of: ignore, constructor, finalize, private, active, worker, no_worker, main_thread, no_main_thread, check_interrupt, coerce, no_coerce, rng, unwrap_in_r, generic, class, getter, setter, validate, prop, default, required, frozen, deprecated, no_dots, dispatch, fallback, no_shortcut, convert_from, convert_to, deep_clone, r_on_exit, r_name, postfix"
+                                "unknown method option; expected one of: ignore, constructor, finalize, private, active, worker, no_worker, main_thread, no_main_thread, check_interrupt, coerce, no_coerce, rng, unwrap_in_r, serde_error, generic, class, getter, setter, validate, prop, default, required, frozen, deprecated, no_dots, dispatch, fallback, no_shortcut, convert_from, convert_to, deep_clone, r_on_exit, r_name, postfix"
                             ));
                         }
                         Ok(())
@@ -1584,6 +1599,9 @@ impl ParsedMethod {
                     method_attrs.rng = true;
                 } else if meta.path.is_ident("unwrap_in_r") {
                     method_attrs.unwrap_in_r = true;
+                } else if meta.path.is_ident("serde_error") {
+                    method_attrs.serde_error =
+                        crate::miniextendr_fn::parse_serde_error_nested(&meta)?;
                 } else if meta.path.is_ident("as") {
                     // Parse as = "data.frame", as = "list", etc.
                     method_attrs.as_coercion_span = Some(meta.path.span());
@@ -1795,7 +1813,7 @@ impl ParsedMethod {
                     method_attrs.dots_spec = Some(quote::quote!(#mac));
                 } else {
                     return Err(meta.error(
-                        "unknown attribute; expected one of: env, r6, s3, s4, s7, vctrs, defaults, unsafe, check_interrupt, coerce, no_coerce, rng, unwrap_in_r, as, lifecycle, r_name, postfix, r_entry, r_post_checks, r_on_exit, noexport, internal, dots = typed_list!(...)"
+                        "unknown attribute; expected one of: env, r6, s3, s4, s7, vctrs, defaults, unsafe, check_interrupt, coerce, no_coerce, rng, unwrap_in_r, serde_error, as, lifecycle, r_name, postfix, r_entry, r_post_checks, r_on_exit, noexport, internal, dots = typed_list!(...)"
                     ));
                 }
                 Ok(())
@@ -2608,6 +2626,15 @@ impl ParsedImpl {
                     attrs.class_system,
                     fn_item.sig.ident.span(),
                 )?;
+                if method.method_attrs.serde_error.is_some()
+                    && !output_is_result(&fn_item.sig.output)
+                {
+                    return Err(syn::Error::new(
+                        fn_item.sig.ident.span(),
+                        "`#[miniextendr(serde_error)]` requires a `Result<T, E>` return type: it \
+                         classes the condition raised from the `Err` arm",
+                    ));
+                }
                 methods.push(method);
             }
         }
@@ -3149,6 +3176,9 @@ pub fn generate_method_c_wrapper(
         .call_expr(call_expr)
         .thread_strategy(thread_strategy)
         .return_handling(return_handling)
+        .err_parts(crate::c_wrapper_builder::ErrPartsMode::from_spec(
+            method.method_attrs.serde_error.as_ref(),
+        ))
         .cfg_attrs(parsed_impl.cfg_attrs.clone())
         .type_context(type_ident.clone());
 

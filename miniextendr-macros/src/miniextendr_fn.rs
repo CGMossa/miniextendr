@@ -1087,12 +1087,13 @@ fn parse_lit_str(nv: &syn::MetaNameValue, field: &str) -> syn::Result<String> {
 /// NameValue bool, parenthesized bool) all read from the same list and can't
 /// drift.
 const FN_BOOL_FLAGS_HELP: &str = "invisible, visible, check_interrupt, worker, no_worker, coerce, no_coerce, \
-     rng, unwrap_in_r, strict, no_strict, \
+     rng, unwrap_in_r, serde_error, strict, no_strict, \
      no_preconditions, no_call_attribution, fast, no_fast, \
      internal, noexport, export";
 
 /// Comma-separated list of fn-level nested options, for error messages.
-const FN_NESTED_OPTIONS_HELP: &str = "`s3(...)`, `lifecycle(...)`, `defaults(...)`";
+const FN_NESTED_OPTIONS_HELP: &str =
+    "`s3(...)`, `lifecycle(...)`, `defaults(...)`, `r_on_exit(...)`, `serde_error(...)`";
 
 /// Parsed arguments for the `#[miniextendr(...)]` attribute on functions.
 ///
@@ -1143,6 +1144,9 @@ pub(crate) struct MiniextendrFnAttrs {
     pub(crate) rng: bool,
     /// Return `Result<T, E>` to R without unwrapping.
     pub(crate) unwrap_in_r: bool,
+    /// Build the `Err` arm's condition from the error's serde output
+    /// (`#[miniextendr(serde_error)]`, optionally `serde_error(tag = .., prefix = ..)`).
+    pub(crate) serde_error: Option<SerdeErrorSpec>,
     /// Skip emission of the R-side `stopifnot(...)` precondition block.
     ///
     /// `TryFromSexp` already raises a typed Rust error on mismatched input,
@@ -1280,6 +1284,112 @@ impl ROnExit {
     }
 }
 
+/// `#[miniextendr(serde_error)]`: derive the `Err` arm's condition class and
+/// data from the error type's `serde::Serialize` output instead of the
+/// `RConditionError`/`Debug` probe.
+///
+/// The enum variant (external tagging, or the `tag` field of an internally
+/// tagged enum) becomes the member class `<prefix>_<variant>`; the payload
+/// fields become the condition's data. Defaults: `tag = "kind"`,
+/// `prefix = "<crate>_error"` (from `CARGO_CRATE_NAME` at expansion time).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct SerdeErrorSpec {
+    /// Internally-tagged discriminator field name (`#[serde(tag = "...")]`).
+    pub tag: Option<String>,
+    /// Condition class prefix (family class).
+    pub prefix: Option<String>,
+}
+
+impl SerdeErrorSpec {
+    /// The discriminator field consumed as the variant name.
+    pub fn tag(&self) -> &str {
+        self.tag.as_deref().unwrap_or("kind")
+    }
+
+    /// The family class; `<crate>_error` unless overridden.
+    pub fn prefix(&self) -> String {
+        self.prefix
+            .clone()
+            .unwrap_or_else(default_serde_error_prefix)
+    }
+
+    fn apply(&mut self, nv: &syn::MetaNameValue) -> syn::Result<()> {
+        if nv.path.is_ident("tag") {
+            let val = parse_lit_str(nv, "tag")?;
+            if val.is_empty() {
+                return Err(syn::Error::new_spanned(
+                    &nv.value,
+                    "serde_error tag must not be empty",
+                ));
+            }
+            self.tag = Some(val);
+        } else if nv.path.is_ident("prefix") {
+            let val = parse_lit_str(nv, "prefix")?;
+            if val.is_empty() {
+                return Err(syn::Error::new_spanned(
+                    &nv.value,
+                    "serde_error prefix must not be empty",
+                ));
+            }
+            self.prefix = Some(val);
+        } else {
+            return Err(syn::Error::new_spanned(
+                &nv.path,
+                "unknown serde_error option; expected `tag` or `prefix`",
+            ));
+        }
+        Ok(())
+    }
+}
+
+/// Default family class for `serde_error`: `<crate>_error`, from the crate being
+/// compiled (cargo sets `CARGO_CRATE_NAME` for the rustc invocation that runs
+/// this proc macro).
+pub(crate) fn default_serde_error_prefix() -> String {
+    let krate = std::env::var("CARGO_CRATE_NAME").unwrap_or_else(|_| "rust".to_string());
+    format!("{krate}_error")
+}
+
+/// Parse `serde_error(tag = "...", prefix = "...")` given as a `Meta::List`.
+pub(crate) fn parse_serde_error_list(list: &syn::MetaList) -> syn::Result<SerdeErrorSpec> {
+    let mut spec = SerdeErrorSpec::default();
+    let pairs = list.parse_args_with(
+        syn::punctuated::Punctuated::<syn::MetaNameValue, syn::Token![,]>::parse_terminated,
+    )?;
+    for nv in &pairs {
+        spec.apply(nv)?;
+    }
+    Ok(spec)
+}
+
+/// Parse the tail of a `serde_error` option inside `parse_nested_meta`: a bare
+/// flag, `= true/false`, or `(tag = "...", prefix = "...")`. `Ok(None)` means
+/// the option was explicitly disabled (`serde_error = false`).
+pub(crate) fn parse_serde_error_nested(
+    meta: &syn::meta::ParseNestedMeta,
+) -> syn::Result<Option<SerdeErrorSpec>> {
+    let input = meta.input;
+    if input.peek(syn::Token![=]) {
+        let _: syn::Token![=] = input.parse()?;
+        let value: syn::LitBool = input.parse()?;
+        return Ok(value.value.then(SerdeErrorSpec::default));
+    }
+    if input.peek(syn::token::Paren) {
+        let content;
+        syn::parenthesized!(content in input);
+        let pairs = content.parse_terminated(
+            <syn::MetaNameValue as syn::parse::Parse>::parse,
+            syn::Token![,],
+        )?;
+        let mut spec = SerdeErrorSpec::default();
+        for nv in &pairs {
+            spec.apply(nv)?;
+        }
+        return Ok(Some(spec));
+    }
+    Ok(Some(SerdeErrorSpec::default()))
+}
+
 #[derive(Clone, Copy, Default)]
 /// Preferred return-conversion path for `IntoR`.
 pub(crate) enum ReturnPref {
@@ -1326,6 +1436,7 @@ impl syn::parse::Parse for MiniextendrFnAttrs {
         let mut coerce_all: Option<bool> = None;
         let mut rng = false;
         let mut unwrap_in_r = false;
+        let mut serde_error: Option<SerdeErrorSpec> = None;
         let mut no_preconditions: Option<bool> = None;
         let mut no_call_attribution: Option<bool> = None;
         let mut return_pref = ReturnPref::Auto;
@@ -1376,6 +1487,8 @@ impl syn::parse::Parse for MiniextendrFnAttrs {
                             rng = true;
                         } else if ident == "unwrap_in_r" {
                             unwrap_in_r = true;
+                        } else if ident == "serde_error" {
+                            serde_error = Some(SerdeErrorSpec::default());
                         } else if ident == "worker" {
                             force_worker = Some(true);
                         } else if ident == "no_worker" {
@@ -1441,6 +1554,8 @@ impl syn::parse::Parse for MiniextendrFnAttrs {
                                 rng = val;
                             } else if ident == "unwrap_in_r" {
                                 unwrap_in_r = val;
+                            } else if ident == "serde_error" {
+                                serde_error = val.then(SerdeErrorSpec::default);
                             } else if ident == "strict" {
                                 strict = Some(val);
                             } else if ident == "no_strict" {
@@ -1667,6 +1782,8 @@ impl syn::parse::Parse for MiniextendrFnAttrs {
                             )
                         })?;
                         r_on_exit = Some(ROnExit { expr, add, after });
+                    } else if list.path.is_ident("serde_error") {
+                        serde_error = Some(parse_serde_error_list(&list)?);
                     } else if let Some(ident) = list.path.get_ident() {
                         // Bool-flag parenthesized form (e.g. `strict(true)`) is not
                         // supported — write `strict` alone or `strict = true` instead.
@@ -1757,6 +1874,17 @@ impl syn::parse::Parse for MiniextendrFnAttrs {
             ));
         }
 
+        // Validate: `serde_error` classes the raised condition; `unwrap_in_r`
+        // never raises (the Result is returned as a value), so combining them
+        // is a contradiction.
+        if serde_error.is_some() && unwrap_in_r {
+            return Err(syn::Error::new(
+                proc_macro2::Span::call_site(),
+                "`serde_error` cannot be used with `unwrap_in_r`: `unwrap_in_r` returns the \
+                 `Result` to R as a value, so there is no raised condition to class.",
+            ));
+        }
+
         Ok(Self {
             force_worker: force_worker.unwrap_or(cfg!(feature = "worker-default")),
             force_invisible,
@@ -1764,6 +1892,7 @@ impl syn::parse::Parse for MiniextendrFnAttrs {
             coerce_all: coerce_all.unwrap_or(cfg!(feature = "coerce-default")),
             rng,
             unwrap_in_r,
+            serde_error,
             no_preconditions: no_preconditions.unwrap_or(cfg!(feature = "fast-default")),
             // An explicit `call = caller` overrides the `fast-default` feature's
             // `.call = NULL`: the user asked for attribution.

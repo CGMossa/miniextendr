@@ -1,0 +1,5 @@
+error: `#[miniextendr(serde_error)]` requires a `Result<T, E>` return type: it classes the condition raised from the `Err` arm
+ --> tests/ui/fn_serde_error_non_result.rs:9:39
+  |
+9 | fn bad_serde_error_non_result(x: i32) -> i32 {
+  |                                       ^^^^^^

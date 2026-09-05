@@ -5872,6 +5872,43 @@ scalars. Useful for API responses, config files, logging, or `jsonlite` interop.
 
 Requires the `serde_json` feature.
 
+### `serde::rvalue_ser`
+
+`pub mod rvalue_ser;`
+
+Serializer for converting Rust values to [`RValue`] via serde.
+
+The owned, `Send` counterpart of [`super::ser::RSerializer`]: the same type
+mapping, but the output is an [`RValue`] tree instead of a live `SEXP`, so it
+can be built on any thread and travel through `panic_any`. This is what
+condition `data =` payloads and `#[miniextendr(serde_error)]` need: a
+serialized error's fields have to cross the unwind (and possibly the
+worker→main thread) boundary before any R object exists.
+
+#### Type mapping
+
+| Rust | [`RValue`] |
+|---|---|
+| `bool` | `Logical([Some(b)])` |
+| `i8` / `i16` / `i32` / `u8` / `u16` | `Integer([Some(v)])` |
+| `i64` / `u32` / `u64` | `Integer` when the value fits `i32` and is not `NA_integer_`, else `Double` |
+| `f32` / `f64` | `Double([v])` |
+| `char` / `str` / `String` | `Character([Some(s)])` |
+| `serialize_bytes` | `Raw` |
+| `()` / unit struct / `None` | `Null` |
+| unit enum variant | `Character([Some("Variant")])` |
+| newtype struct | transparent |
+| newtype / tuple / struct enum variant | `List([("Variant", payload)])` |
+| sequence of same-kind scalars | one atomic vector |
+| other sequences, tuples | unnamed `List` |
+| struct, map with string keys | named `List` |
+
+`None` becomes `Null`, not a typed `NA`: the serializer never sees the
+inner type of an absent `Option`. A `Vec<Option<T>>` therefore becomes a
+list with `NULL` holes, exactly as [`RSerializer::to_sexp`] renders it.
+
+[`RSerializer::to_sexp`]: super::ser::RSerializer::to_sexp
+
 ### `sexp`
 
 `pub mod sexp;`
@@ -8727,6 +8764,10 @@ with [`RRng`]. Enable with `features = ["rand_distr"]`.
 ### `pub use rust_decimal_impl::RDecimalOps;`
 
 ### `pub use rvalue::RValue;`
+
+### `pub use rvalue_ser::RValueSerializer;`
+
+### `pub use rvalue_ser::to_rvalue;`
 
 ### `pub use ser::RSerializer;`
 
@@ -20859,6 +20900,72 @@ fn parse_config(json: FromJson<Config>) -> i32 {
 
 - `0`: `T`
 
+### `serde::rvalue_ser::RValueMap`
+
+```rust
+pub struct RValueMap
+```
+
+Map accumulator; keys must serialize to a single string.
+
+### `serde::rvalue_ser::RValueSeq`
+
+```rust
+pub struct RValueSeq
+```
+
+Sequence / tuple accumulator: sequences coalesce homogeneous scalars, tuples
+always stay lists.
+
+### `serde::rvalue_ser::RValueSerializer`
+
+```rust
+pub struct RValueSerializer
+```
+
+Serializer that converts Rust values to an owned [`RValue`] tree.
+
+```
+use miniextendr_api::RValue;
+use miniextendr_api::serde::Serialize;
+
+#[derive(Serialize)]
+struct Point { x: f64, tag: String }
+
+let v = RValue::from_serde(&Point { x: 1.5, tag: "a".into() }).unwrap();
+match v {
+    RValue::List(fields) => {
+        assert_eq!(fields[0].0.as_deref(), Some("x"));
+        assert!(matches!(&fields[0].1, RValue::Double(d) if d == &[1.5]));
+    }
+    other => panic!("expected a named list, got {other:?}"),
+}
+```
+
+### `serde::rvalue_ser::RValueStruct`
+
+```rust
+pub struct RValueStruct
+```
+
+Struct accumulator → named list in field order.
+
+### `serde::rvalue_ser::RValueStructVariant`
+
+```rust
+pub struct RValueStructVariant
+```
+
+`Enum::Variant { a, b }` → `List([("Variant", List([("a", ..), ("b", ..)]))])`.
+
+### `serde::rvalue_ser::RValueTupleVariant`
+
+```rust
+pub struct RValueTupleVariant
+```
+
+`Enum::Variant(a, b)` → `List([("Variant", List([a, b]))])`.
+
 ### `serde::ser::MapSerializer`
 
 ```rust
@@ -24080,6 +24187,15 @@ borrows across the `Send` boundary a condition payload crosses.
 # use miniextendr_api::RValue;
 assert_eq!(RValue::debug(0..=100).as_str(), Some("0..=100"));
 ```
+
+#### `from_serde`
+
+```rust
+fn from_serde<T: ?Sized + Serialize>(value: &T) -> Result<Self, RSerdeError>
+```
+
+Build an [`RValue`] from any `Serialize` value; see [`to_rvalue`] and
+the [module docs](self) for the type mapping.
 
 #### `is_null`
 
@@ -35085,6 +35201,14 @@ Same as [`dataframe_to_vec`].
 
 Same as [`dataframe_to_vec`] — single-underscore nested-struct path
 matching.
+
+### `serde::rvalue_ser::to_rvalue`
+
+```rust
+fn to_rvalue<T: ?Sized + Serialize>(value: &T) -> Result<crate::rvalue::RValue, super::error::RSerdeError>
+```
+
+Serialize any `Serialize` value into an [`RValue`].
 
 ### `serde::traits::from_r`
 
