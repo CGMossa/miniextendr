@@ -25,7 +25,7 @@ rarray_matrix_dims(x)
 rarray_matrix_column(x, col)
 }
 \arguments{
-\item{x}{A numeric matrix.}
+\item{x}{An R vector or matrix accepted by the selected helper.}
 
 \item{col}{1-based column index. Errors if \code{col} is not in \verb{1..=ncol}.}
 }

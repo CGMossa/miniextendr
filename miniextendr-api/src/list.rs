@@ -188,7 +188,11 @@ impl List {
     /// Get row names from the `dimnames` attribute.
     #[inline]
     pub fn get_rownames(self) -> Option<SEXP> {
-        let rownames = unsafe { sys::Rf_GetRowNames(self.0) };
+        let dimnames = self.0.get_dimnames();
+        if dimnames.is_nil() {
+            return None;
+        }
+        let rownames = unsafe { sys::Rf_GetRowNames(dimnames) };
         if rownames.is_nil() {
             None
         } else {
