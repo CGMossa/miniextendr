@@ -20,7 +20,7 @@ optional `data = ...` argument to attach structured named fields readable as
 `Result<T, E>` returns get the same treatment through the
 [`RConditionError`](#classed-result-errors-with-rconditionerror-and-rerror) trait,
 or, for error enums that already derive `serde::Serialize`, through
-[`#[miniextendr(serde_error)]`](#deriving-the-classes-from-serde-with-serde_error).
+[`#[miniextendr(serde_error)]`](#deriving-the-classes-from-a-serde-error-type).
 
 > **Import note.** `error!` and `condition!` are shadowed by the crate-root
 > modules `error` / `condition`, so `use miniextendr_api::*;` (or a direct
@@ -351,7 +351,7 @@ pub fn parse_port(s: &str) -> Result<i32, RError> {
 keeps the blanket `From<E: Error>` coherent; it works with
 `#[miniextendr(unwrap_in_r)]` too.
 
-### Deriving the classes from serde with serde_error
+### Deriving the classes from a serde error type
 
 When the error type already derives `serde::Serialize` (for logging, JSON
 transport, or a downstream client), the same information can drive the R
