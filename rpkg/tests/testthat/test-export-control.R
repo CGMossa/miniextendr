@@ -38,7 +38,9 @@ test_that("noexport function is callable but not exported", {
 test_that("internal function has an alias in the rendered Rd", {
   rd_db <- tryCatch(tools::Rd_db("miniextendr"), error = function(e) NULL)
   skip_if(is.null(rd_db), "tools::Rd_db('miniextendr') unavailable — package not installed")
-  rd_name <- grep("export_control", names(rd_db), value = TRUE)[1]
+  # Anchor on the page name: `export_control_delegate.Rd` (the hand-written
+  # delegate around the postfixed entry point) also matches a bare prefix.
+  rd_name <- grep("^export_control_tests", names(rd_db), value = TRUE)[1]
   skip_if(is.na(rd_name), "export_control_tests.Rd not found — package not documented")
 
   rd <- rd_db[[rd_name]]
