@@ -3640,7 +3640,10 @@ fn method_postfix_renames_the_r_method() {
     assert!(!wrapper.contains("bump.Widget <- function"), "{wrapper}");
     // `r_name` on an S3 instance method also names the generic (previously
     // the Rust ident leaked through `generic_name()`).
-    assert!(wrapper.contains("peek_at.Widget <- function(x, ...)"), "{wrapper}");
+    assert!(
+        wrapper.contains("peek_at.Widget <- function(x, ...)"),
+        "{wrapper}"
+    );
     assert!(!wrapper.contains("peek.Widget <- function"), "{wrapper}");
     // The C symbol keeps the Rust name.
     let tokens = c_wrapper_tokens(&parsed, "bump");
