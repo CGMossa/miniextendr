@@ -181,7 +181,11 @@ transport tag, so a field with one of those names is a naming clash to fix
 where the payload is built (a different key, `#[serde(rename)]` on a derived
 struct, a rename in your `RConditionError::data()` impl). Renaming every field
 with a prefix to rescue one would make `e$<name>` access inconsistent across
-conditions.
+conditions. When the payload is an error type's own serde shape that other
+consumers read, do the renaming at the condition boundary instead:
+`#[miniextendr(serde_error)]` takes `skip(..)` / `rename(..)` and drops a
+`message` field that merely echoes `Display` (see
+[Payload fields named `message`](#payload-fields-named-message)).
 
 ```rust
 error!(
@@ -403,9 +407,52 @@ e$value; e$max
   [SERDE_R.md](SERDE_R.md#owned-values-rvaluefrom_serde)): scalars,
   homogeneous `Vec<T>` as atomic vectors, nested structs as named lists,
   `None` as `NULL`. The reserved names above apply to the payload fields; a
-  clash raises a `rust_error` describing it, exactly as for `data()`.
+  clash raises a `rust_error` describing it, exactly as for `data()`, with
+  the exceptions below.
 - `serde_error` needs a `Result` return type and cannot be combined with
   `unwrap_in_r`; both are compile errors.
+
+#### Payload fields named `message`
+
+A wrapped parser or foreign error is usually `Variant { message: String }`,
+and renaming that field at the source changes a serialization other consumers
+read. Three rules keep the zero-boilerplate path open for that shape:
+
+```rust
+#[derive(Debug, thiserror::Error, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ParserError {
+    #[error("line {line}: {message}")]
+    Parse { message: String, line: u32 },
+    #[error("{message}")]
+    Wrapped { message: String },
+}
+
+#[miniextendr(serde_error(skip("message")))]
+pub fn parse(text: String) -> Result<f64, ParserError> { /* ... */ }
+
+#[miniextendr(serde_error(rename(message = "detail")))]
+pub fn parse_keep(text: String) -> Result<f64, ParserError> { /* ... */ }
+```
+
+- `serde_error(skip("message", ...))` drops the named payload fields before
+  the reserved-name check. `Parse` reaches R as `mypkg_error_parse` with
+  `e$line` and the `Display` text as `conditionMessage(e)`; the wrapped text
+  survives only where `Display` includes it.
+- `serde_error(rename(message = "detail", ...))` splices the field under the
+  new name (`e$detail`). The source may be an identifier or, for a serde-renamed
+  field whose name is not one, a string literal: `rename("kebab-name" = "kebab")`.
+  A target may not be `message`, `call` or `kind`; that is a compile error.
+- With no option, a `message` field whose value is exactly the `Display` text
+  is dropped as redundant with the condition's own `message` slot. `Wrapped`
+  above therefore needs nothing; `Parse` (whose `Display` adds the line) still
+  raises the reserved-name error unless skipped or renamed.
+
+Both options name the field as it serializes and are a no-op for variants
+that lack it, so one attribute covers an enum whose variants differ. The macro
+cannot see the error type's fields at expansion time; only the option grammar
+is checked there. A field named `call` or `kind` has no equality rule and
+must be skipped or renamed.
 - Choose `RConditionError` when the message or class vector needs to differ
   from the serde shape; `serde_error` is the zero-boilerplate path for enums
   that are already serde-tagged.

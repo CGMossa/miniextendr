@@ -1292,13 +1292,31 @@ impl ROnExit {
 /// tagged enum) becomes the member class `<prefix>_<variant>`; the payload
 /// fields become the condition's data. Defaults: `tag = "kind"`,
 /// `prefix = "<crate>_error"` (from `CARGO_CRATE_NAME` at expansion time).
+///
+/// Field control (#1457): `skip("a", "b")` drops payload fields by name,
+/// `rename(a = "b")` splices field `a` as `b`. Both name the field as it
+/// serializes; a variant that lacks the field is unaffected. The macro cannot
+/// see the error type's fields, so only the option grammar is checked here;
+/// a `rename` target may not be one of the reserved condition slots.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct SerdeErrorSpec {
     /// Internally-tagged discriminator field name (`#[serde(tag = "...")]`).
     pub tag: Option<String>,
     /// Condition class prefix (family class).
     pub prefix: Option<String>,
+    /// Payload fields dropped from the condition data.
+    pub skip: Vec<String>,
+    /// Payload fields spliced under another name: `(from, to)`.
+    pub rename: Vec<(String, String)>,
 }
+
+/// The condition's own slots, mirrored from
+/// `miniextendr_api::condition::RESERVED_CONDITION_FIELDS` (the macros crate
+/// cannot depend on the API crate). The runtime check remains the backstop.
+const RESERVED_CONDITION_FIELDS: &[&str] = &["message", "call", "kind"];
+
+const SERDE_ERROR_OPTIONS_HELP: &str =
+    "unknown serde_error option; expected `tag`, `prefix`, `skip(...)` or `rename(...)`";
 
 impl SerdeErrorSpec {
     /// The discriminator field consumed as the variant name.
@@ -1313,32 +1331,168 @@ impl SerdeErrorSpec {
             .unwrap_or_else(default_serde_error_prefix)
     }
 
-    fn apply(&mut self, nv: &syn::MetaNameValue) -> syn::Result<()> {
-        if nv.path.is_ident("tag") {
-            let val = parse_lit_str(nv, "tag")?;
-            if val.is_empty() {
+    /// Parse `serde_error(...)` contents: a comma-separated list of options.
+    fn from_metas<'a>(metas: impl IntoIterator<Item = &'a syn::Meta>) -> syn::Result<Self> {
+        let mut spec = SerdeErrorSpec::default();
+        for meta in metas {
+            spec.apply(meta)?;
+        }
+        spec.finish()?;
+        Ok(spec)
+    }
+
+    fn apply(&mut self, meta: &syn::Meta) -> syn::Result<()> {
+        match meta {
+            syn::Meta::NameValue(nv) if nv.path.is_ident("tag") => {
+                self.tag = Some(non_empty_lit_str(nv, "tag")?);
+            }
+            syn::Meta::NameValue(nv) if nv.path.is_ident("prefix") => {
+                self.prefix = Some(non_empty_lit_str(nv, "prefix")?);
+            }
+            syn::Meta::List(list) if list.path.is_ident("skip") => {
+                let names = list.parse_args_with(
+                    syn::punctuated::Punctuated::<syn::LitStr, syn::Token![,]>::parse_terminated,
+                )?;
+                if names.is_empty() {
+                    return Err(syn::Error::new_spanned(
+                        list,
+                        "serde_error skip needs at least one field name: `skip(\"message\")`",
+                    ));
+                }
+                for lit in &names {
+                    let name = lit.value();
+                    if name.is_empty() {
+                        return Err(syn::Error::new_spanned(
+                            lit,
+                            "serde_error skip field name must not be empty",
+                        ));
+                    }
+                    if self.skip.contains(&name) {
+                        return Err(syn::Error::new_spanned(
+                            lit,
+                            format!("serde_error skip names `{name}` twice"),
+                        ));
+                    }
+                    self.skip.push(name);
+                }
+            }
+            syn::Meta::List(list) if list.path.is_ident("rename") => {
+                let pairs = list.parse_args_with(
+                    syn::punctuated::Punctuated::<RenamePair, syn::Token![,]>::parse_terminated,
+                )?;
+                if pairs.is_empty() {
+                    return Err(syn::Error::new_spanned(
+                        list,
+                        "serde_error rename needs at least one pair: `rename(message = \"detail\")`",
+                    ));
+                }
+                for pair in pairs {
+                    let RenamePair { from, to, span } = pair;
+                    if from.is_empty() || to.is_empty() {
+                        return Err(syn::Error::new(
+                            span,
+                            "serde_error rename names must not be empty",
+                        ));
+                    }
+                    if RESERVED_CONDITION_FIELDS.contains(&to.as_str()) {
+                        return Err(syn::Error::new(
+                            span,
+                            format!(
+                                "serde_error rename target `{to}` is reserved: `message`, `call` \
+                                 and `kind` are the condition's own slots"
+                            ),
+                        ));
+                    }
+                    if self.rename.iter().any(|(f, _)| *f == from) {
+                        return Err(syn::Error::new(
+                            span,
+                            format!("serde_error rename names `{from}` twice"),
+                        ));
+                    }
+                    self.rename.push((from, to));
+                }
+            }
+            syn::Meta::NameValue(nv) if nv.path.is_ident("skip") => {
                 return Err(syn::Error::new_spanned(
-                    &nv.value,
-                    "serde_error tag must not be empty",
+                    nv,
+                    "serde_error skip takes a list of field names: `skip(\"message\")`",
                 ));
             }
-            self.tag = Some(val);
-        } else if nv.path.is_ident("prefix") {
-            let val = parse_lit_str(nv, "prefix")?;
-            if val.is_empty() {
+            syn::Meta::NameValue(nv) if nv.path.is_ident("rename") => {
                 return Err(syn::Error::new_spanned(
-                    &nv.value,
-                    "serde_error prefix must not be empty",
+                    nv,
+                    "serde_error rename takes `from = \"to\"` pairs: `rename(message = \"detail\")`",
                 ));
             }
-            self.prefix = Some(val);
-        } else {
-            return Err(syn::Error::new_spanned(
-                &nv.path,
-                "unknown serde_error option; expected `tag` or `prefix`",
+            other => {
+                return Err(syn::Error::new_spanned(
+                    other.path(),
+                    SERDE_ERROR_OPTIONS_HELP,
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    /// Cross-option validation once every option is in.
+    fn finish(&self) -> syn::Result<()> {
+        if let Some((from, _)) = self
+            .rename
+            .iter()
+            .find(|(from, _)| self.skip.contains(from))
+        {
+            return Err(syn::Error::new(
+                proc_macro2::Span::call_site(),
+                format!(
+                    "serde_error names `{from}` in both skip and rename; a skipped field has no \
+                     name to rename"
+                ),
             ));
         }
         Ok(())
+    }
+}
+
+/// A `tag = "..."` / `prefix = "..."` value: a non-empty string literal.
+fn non_empty_lit_str(nv: &syn::MetaNameValue, key: &str) -> syn::Result<String> {
+    let val = parse_lit_str(nv, key)?;
+    if val.is_empty() {
+        return Err(syn::Error::new_spanned(
+            &nv.value,
+            format!("serde_error {key} must not be empty"),
+        ));
+    }
+    Ok(val)
+}
+
+/// One `from = "to"` entry of `rename(...)`. `from` is an identifier or, for a
+/// serde-renamed field whose name is not one, a string literal.
+struct RenamePair {
+    from: String,
+    to: String,
+    span: proc_macro2::Span,
+}
+
+impl syn::parse::Parse for RenamePair {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        use syn::ext::IdentExt;
+        let lookahead = input.lookahead1();
+        let (from, span) = if lookahead.peek(syn::LitStr) {
+            let lit: syn::LitStr = input.parse()?;
+            (lit.value(), lit.span())
+        } else if lookahead.peek(syn::Ident::peek_any) {
+            let ident = input.call(syn::Ident::parse_any)?;
+            (ident.to_string(), ident.span())
+        } else {
+            return Err(lookahead.error());
+        };
+        let _: syn::Token![=] = input.parse()?;
+        let to: syn::LitStr = input.parse()?;
+        Ok(RenamePair {
+            from,
+            to: to.value(),
+            span,
+        })
     }
 }
 
@@ -1350,21 +1504,19 @@ pub(crate) fn default_serde_error_prefix() -> String {
     format!("{krate}_error")
 }
 
-/// Parse `serde_error(tag = "...", prefix = "...")` given as a `Meta::List`.
+/// Parse `serde_error(tag = "...", prefix = "...", skip(...), rename(...))`
+/// given as a `Meta::List`.
 pub(crate) fn parse_serde_error_list(list: &syn::MetaList) -> syn::Result<SerdeErrorSpec> {
-    let mut spec = SerdeErrorSpec::default();
-    let pairs = list.parse_args_with(
-        syn::punctuated::Punctuated::<syn::MetaNameValue, syn::Token![,]>::parse_terminated,
+    let metas = list.parse_args_with(
+        syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated,
     )?;
-    for nv in &pairs {
-        spec.apply(nv)?;
-    }
-    Ok(spec)
+    SerdeErrorSpec::from_metas(&metas)
 }
 
 /// Parse the tail of a `serde_error` option inside `parse_nested_meta`: a bare
-/// flag, `= true/false`, or `(tag = "...", prefix = "...")`. `Ok(None)` means
-/// the option was explicitly disabled (`serde_error = false`).
+/// flag, `= true/false`, or `(tag = "...", prefix = "...", skip(...),
+/// rename(...))`. `Ok(None)` means the option was explicitly disabled
+/// (`serde_error = false`).
 pub(crate) fn parse_serde_error_nested(
     meta: &syn::meta::ParseNestedMeta,
 ) -> syn::Result<Option<SerdeErrorSpec>> {
@@ -1377,15 +1529,9 @@ pub(crate) fn parse_serde_error_nested(
     if input.peek(syn::token::Paren) {
         let content;
         syn::parenthesized!(content in input);
-        let pairs = content.parse_terminated(
-            <syn::MetaNameValue as syn::parse::Parse>::parse,
-            syn::Token![,],
-        )?;
-        let mut spec = SerdeErrorSpec::default();
-        for nv in &pairs {
-            spec.apply(nv)?;
-        }
-        return Ok(Some(spec));
+        let metas =
+            content.parse_terminated(<syn::Meta as syn::parse::Parse>::parse, syn::Token![,])?;
+        return Ok(Some(SerdeErrorSpec::from_metas(&metas)?));
     }
     Ok(Some(SerdeErrorSpec::default()))
 }

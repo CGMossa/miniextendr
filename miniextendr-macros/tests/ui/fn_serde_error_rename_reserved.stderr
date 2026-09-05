@@ -1,0 +1,5 @@
+error: serde_error rename target `message` is reserved: `message`, `call` and `kind` are the condition's own slots
+  --> tests/ui/fn_serde_error_rename_reserved.rs:13:34
+   |
+13 | #[miniextendr(serde_error(rename(detail = "message")))]
+   |                                  ^^^^^^

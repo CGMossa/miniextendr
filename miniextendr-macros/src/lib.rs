@@ -529,6 +529,8 @@ fn build_match_arg_helpers(
 /// - `#[miniextendr(coerce)]` — coerce R type before conversion (also usable per-parameter)
 /// - `#[miniextendr(strict)]` — reject lossy conversions for i64/u64/isize/usize
 /// - `#[miniextendr(unwrap_in_r)]` — return `Result<T, E>` to R without unwrapping
+/// - `#[miniextendr(serde_error)]` — class the `Err` arm from the error's serde shape;
+///   `serde_error(tag = "..", prefix = "..", skip(..), rename(a = ".."))`
 /// - `#[miniextendr(dots = typed_list!(...))]` — validate dots, create `dots_typed`
 /// - `#[miniextendr(internal)]` — adds `@keywords internal` to R wrapper
 /// - `#[miniextendr(noexport)]` — suppresses `@export` from R wrapper

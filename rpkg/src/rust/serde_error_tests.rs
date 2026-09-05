@@ -8,6 +8,12 @@
 //! tagged enums (serde's default) report the variant name verbatim. The default
 //! prefix is `<crate>_error` (`miniextendr_error` here); `serde_error(prefix =
 //! "engine")` overrides it.
+//!
+//! Payload-field control (#1457): `serde_error(skip("message"))` drops a field,
+//! `serde_error(rename(message = "detail"))` splices it under another name, and
+//! a `message` field whose text equals the `Display` output is dropped with no
+//! option at all. Every other collision with `message` / `call` / `kind` still
+//! raises the reserved-name error.
 
 use crate::serde::Serialize;
 use miniextendr_api::miniextendr;
@@ -123,6 +129,70 @@ pub fn serde_err_external(which: String) -> Result<(), ExtError> {
 
 // endregion
 
+// region: Reserved payload names: skip, rename, Display-equal drop (#1457)
+
+/// Stand-in for a wrapped parser error: the ordinary `Variant { message }`
+/// shape, plus a variant whose reserved field is not `message`.
+#[derive(Debug, Serialize)]
+#[serde(crate = "crate::serde", tag = "kind", rename_all = "snake_case")]
+pub enum ParserError {
+    /// `Display` adds the line number, so `message` is not redundant.
+    Parse { message: String, line: u32 },
+    /// `Display` is the wrapped message verbatim.
+    Wrapped { message: String },
+    /// A reserved name no option here addresses.
+    Bad { call: String },
+}
+
+impl std::fmt::Display for ParserError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParserError::Parse { message, line } => write!(f, "line {line}: {message}"),
+            ParserError::Wrapped { message } => f.write_str(message),
+            ParserError::Bad { .. } => f.write_str("bad call"),
+        }
+    }
+}
+
+impl std::error::Error for ParserError {}
+
+fn parser_error(which: &str, message: String) -> ParserError {
+    match which {
+        "parse" => ParserError::Parse { message, line: 3 },
+        "wrapped" => ParserError::Wrapped { message },
+        _ => ParserError::Bad { call: message },
+    }
+}
+
+/// No field option: `wrapped` (text equal to `Display`) drops the field,
+/// `parse` (text differs) and `call` hit the reserved-name error.
+/// @param which One of `"parse"`, `"wrapped"`, `"call"`.
+/// @param message Payload text.
+#[miniextendr(serde_error)]
+pub fn serde_err_message_default(which: String, message: String) -> Result<(), ParserError> {
+    Err(parser_error(&which, message))
+}
+
+/// `skip("message")`: the field is dropped for every variant that has it;
+/// `call` still hits the reserved-name error.
+/// @param which One of `"parse"`, `"wrapped"`, `"call"`.
+/// @param message Payload text.
+#[miniextendr(serde_error(skip("message")))]
+pub fn serde_err_message_skipped(which: String, message: String) -> Result<(), ParserError> {
+    Err(parser_error(&which, message))
+}
+
+/// `rename(message = "detail")`: the field reaches R as `e$detail`, also when
+/// its text equals `Display`; `call` still hits the reserved-name error.
+/// @param which One of `"parse"`, `"wrapped"`, `"call"`.
+/// @param message Payload text.
+#[miniextendr(serde_error(rename(message = "detail")))]
+pub fn serde_err_message_renamed(which: String, message: String) -> Result<(), ParserError> {
+    Err(parser_error(&which, message))
+}
+
+// endregion
+
 // region: S3 method (impl-block codegen arm)
 
 /// The same error type raised from an S3 method.
@@ -151,6 +221,17 @@ impl SerdeChecker {
             });
         }
         Ok(value)
+    }
+
+    /// Parse `text` as a number; the parser error's `message` field is skipped
+    /// (method-side `serde_error(skip(...))`).
+    /// @param text Text to parse.
+    #[miniextendr(serde_error(skip("message")))]
+    pub fn parse_value(&self, text: String) -> Result<f64, ParserError> {
+        text.trim().parse::<f64>().map_err(|e| ParserError::Parse {
+            message: e.to_string(),
+            line: 1,
+        })
     }
 }
 

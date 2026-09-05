@@ -223,3 +223,13 @@ NULL
 #' @param ... Additional arguments.
 #' @name check_value
 NULL
+
+# SerdeChecker fixture generic (`serde_error(skip(...))` on an S3 method,
+# #1457). Exported by the auto-generated wrappers under @rdname SerdeChecker,
+# aliased here for R CMD check.
+
+#' Parse text as a number, raising a classed error without the parser's `message` field
+#' @param x An object.
+#' @param ... Additional arguments.
+#' @name parse_value
+NULL
