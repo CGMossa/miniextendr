@@ -16,7 +16,7 @@ run_with_logging(
 \arguments{
 \item{command}{Command to execute}
 
-\item{args}{Character vector of arguments}
+\item{args}{Character vector of arguments, without shell quoting.}
 
 \item{log_prefix}{Prefix for log file (e.g., "autoconf", "configure")}
 

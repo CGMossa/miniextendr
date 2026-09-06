@@ -42,9 +42,20 @@ fn which(name: &str) -> Option<PathBuf> {
 /// Forwards stdout/stderr directly for interactive feel.
 /// Returns an error if the process exits non-zero.
 pub fn rscript_eval(expr: &str, cwd: &std::path::Path, quiet: bool) -> Result<ExitStatus> {
+    rscript_eval_args(expr, &[], cwd, quiet)
+}
+
+/// Evaluate fixed R code with data passed through commandArgs(trailingOnly=TRUE).
+/// Rscript's -e handling unescapes backslashes, so user strings belong in argv.
+pub fn rscript_eval_args(
+    expr: &str,
+    args: &[&str],
+    cwd: &std::path::Path,
+    quiet: bool,
+) -> Result<ExitStatus> {
     let rscript = find_rscript()?;
     let mut cmd = Command::new(&rscript);
-    cmd.arg("-e").arg(expr).current_dir(cwd);
+    cmd.arg("-e").arg(expr).args(args).current_dir(cwd);
 
     if quiet {
         cmd.stdout(Stdio::null()).stderr(Stdio::null());

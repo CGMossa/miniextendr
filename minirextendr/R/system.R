@@ -6,7 +6,7 @@
 #' files for later inspection when errors occur.
 #'
 #' @param command Command to execute
-#' @param args Character vector of arguments
+#' @param args Character vector of arguments, without shell quoting.
 #' @param log_prefix Prefix for log file (e.g., "autoconf", "configure")
 #' @param wd Working directory (uses current if NULL)
 #' @param env Environment variables
@@ -59,7 +59,7 @@ run_with_logging <- function(command, args = character(),
     # warning -- redundant noise here, since the failure is a handled, expected
     # outcome. Suppress it so callers' logs (and tests) stay clean. (#798)
     suppressWarnings(
-      system2(command, args = args, stdout = TRUE, stderr = TRUE)
+      system2(command, args = shQuote(args), stdout = TRUE, stderr = TRUE)
     )
   }
 

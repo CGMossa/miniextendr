@@ -71,7 +71,7 @@ miniextendr workflow install                # devtools::install
 miniextendr workflow dev-link               # devtools::load_all
 miniextendr workflow autoconf               # Run autoconf
 miniextendr workflow check-rust             # Validate Rust toolchain
-miniextendr workflow upgrade                # Re-run autoconf + configure
+miniextendr workflow upgrade                # Upgrade build templates and metadata
 ```
 
 ### `status` — Check project status (native, no R needed)
@@ -135,6 +135,26 @@ miniextendr feature rule add myfeature 'requireNamespace("pkg")'
 miniextendr feature rule list               # List detection rules
 miniextendr feature rule remove myfeature   # Remove a rule
 ```
+
+Configure-time feature setup and rule edits require R with `minirextendr`
+installed. They call the same R helpers as `use_configure_feature_detection()`,
+`add_feature_rule()`, and `remove_feature_rule()`, including `--cargo-spec` and
+`--optional-dep`. Setup patches `configure.ac` and reruns autoconf when available.
+An existing script without the rules markers is preserved with a diagnostic.
+
+Rule listing is native and does not execute predicates. `feature rule list
+--json` returns an object mapping feature names to their R expressions.
+`feature detect update` updates **runtime** feature-query wrappers; configure-time
+rules are managed by `feature detect init` and `feature rule`.
+
+`workflow upgrade` also requires `minirextendr`: it calls
+`upgrade_miniextendr_package()` with the R helper's defaults, including its dirty
+file guard and preservation of customized `configure.ac`. To replace that file,
+use `minirextendr::upgrade_miniextendr_package(configure_ac = TRUE)` from R.
+
+Optional Git hooks and editor skills remain R-side setup:
+`minirextendr::use_miniextendr_git_hooks()` and `minirextendr::use_claude_skills()`.
+The CLI does not install those extras during `init`.
 
 ### `render` — Rmarkdown/Quarto integration
 

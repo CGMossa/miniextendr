@@ -302,18 +302,13 @@ fn workflow_doctor(ctx: &ProjectContext, quiet: bool) -> Result<()> {
     Ok(())
 }
 
-/// Upgrade — calls Rscript with devtools/usethis directly.
+/// Upgrade the scaffold files and metadata through the canonical R helper.
 fn workflow_upgrade(ctx: &ProjectContext, quiet: bool) -> Result<()> {
-    // For upgrade, we do need the minirextendr package since the logic is complex.
-    // But per the user's request, let's keep it simple: re-run autoconf + configure.
-    if !quiet {
-        eprintln!("Upgrading: re-running autoconf + configure...");
-    }
-    workflow_autoconf(ctx, true).ok();
-    workflow_configure(ctx, quiet)?;
-    if !quiet {
-        eprintln!("Upgrade complete. Run `miniextendr workflow build` for a full rebuild.");
-    }
+    rscript_eval(
+        "minirextendr::upgrade_miniextendr_package()",
+        &ctx.root,
+        quiet,
+    )?;
     Ok(())
 }
 

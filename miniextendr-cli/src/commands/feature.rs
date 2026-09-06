@@ -1,6 +1,8 @@
+use std::collections::BTreeMap;
+
 use anyhow::{Result, bail};
 
-use crate::bridge::{rscript_eval, run_command};
+use crate::bridge::{rscript_eval, rscript_eval_args, run_command};
 use crate::cli::{FeatureCmd, FeatureDetectCmd, FeatureRuleCmd};
 use crate::output::print_json;
 use crate::project::ProjectContext;
@@ -109,7 +111,8 @@ fn feature_enable(ctx: &ProjectContext, name: &str, quiet: bool) -> Result<()> {
                 println!("Created src/rust/build.rs");
             }
         }
-        "knitr" | "rmarkdown" | "quarto" | "feature-detection" => {
+        "feature-detection" => feature_detect_init(ctx, quiet)?,
+        "knitr" | "rmarkdown" | "quarto" => {
             if !quiet {
                 println!(
                     "Feature '{name}' requires R-side setup.\n\
@@ -194,41 +197,13 @@ fn feature_list(ctx: &ProjectContext, json: bool) -> Result<()> {
     Ok(())
 }
 
-/// Create detect-features.R infrastructure.
+/// Set up the canonical configure-time script and regenerate configure.
 fn feature_detect_init(ctx: &ProjectContext, quiet: bool) -> Result<()> {
-    let tools_dir = ctx.root.join("tools");
-    std::fs::create_dir_all(&tools_dir)?;
-
-    let detect_file = tools_dir.join("detect-features.R");
-    if detect_file.exists() {
-        if !quiet {
-            println!("tools/detect-features.R already exists.");
-        }
-        return Ok(());
-    }
-
-    let content = r#"# Feature detection rules for configure-time feature gating.
-# Each rule maps a Cargo feature to a detection expression.
-# Called by configure to determine which features to enable.
-
-detect_features <- function() {
-  features <- character()
-  # Add rules below with add_rule():
-  # features <- add_rule(features, "feature_name", detect_expr = TRUE)
-  features
-}
-
-add_rule <- function(features, name, detect_expr) {
-  if (isTRUE(detect_expr)) {
-    features <- c(features, name)
-  }
-  features
-}
-"#;
-    std::fs::write(&detect_file, content)?;
-    if !quiet {
-        println!("Created tools/detect-features.R");
-    }
+    rscript_eval(
+        "minirextendr::use_configure_feature_detection()",
+        &ctx.root,
+        quiet,
+    )?;
     Ok(())
 }
 
@@ -241,99 +216,101 @@ fn feature_detect_update(ctx: &ProjectContext, quiet: bool) -> Result<()> {
     Ok(())
 }
 
-/// Add a feature detection rule to tools/detect-features.R.
+/// Add a rule through the R helper, including its Cargo dependency options.
 fn feature_rule_add(
     ctx: &ProjectContext,
     feature: &str,
     detect: &str,
-    _cargo_spec: Option<&str>,
-    _optional_dep: bool,
+    cargo_spec: Option<&str>,
+    optional_dep: bool,
     quiet: bool,
 ) -> Result<()> {
     let detect_file = ctx.root.join("tools/detect-features.R");
     if !detect_file.exists() {
-        feature_detect_init(ctx, true)?;
+        feature_detect_init(ctx, quiet)?;
     }
+    parse_feature_rules(&std::fs::read_to_string(&detect_file)?)?;
 
-    let mut content = std::fs::read_to_string(&detect_file)?;
-
-    // Add rule before the closing of detect_features function
-    let rule_line =
-        format!("  features <- add_rule(features, \"{feature}\", detect_expr = {detect})\n");
-
-    // Insert before "  features\n}" (the return + closing brace)
-    if let Some(pos) = content.rfind("  features\n}") {
-        content.insert_str(pos, &rule_line);
-    } else {
-        // Fallback: append before last }
-        if let Some(pos) = content.rfind('}') {
-            content.insert_str(pos, &rule_line);
-        }
-    }
-
-    std::fs::write(&detect_file, content)?;
-    if !quiet {
-        println!("Added feature rule: {feature}");
-    }
+    let optional_dep = if optional_dep { "TRUE" } else { "FALSE" };
+    rscript_eval_args(
+        "args <- commandArgs(trailingOnly = TRUE); \
+         minirextendr::add_feature_rule(args[[1]], detect = args[[2]], \
+         cargo_spec = if (nzchar(args[[3]])) args[[3]] else NULL, \
+         optional_dep = as.logical(args[[4]]))",
+        &[
+            feature,
+            detect,
+            cargo_spec.unwrap_or_default(),
+            optional_dep,
+        ],
+        &ctx.root,
+        quiet,
+    )?;
     Ok(())
 }
 
-/// Remove a feature detection rule.
+/// Remove a rule through the same marker-aware editor used from R.
 fn feature_rule_remove(ctx: &ProjectContext, feature: &str, quiet: bool) -> Result<()> {
     let detect_file = ctx.root.join("tools/detect-features.R");
     if !detect_file.exists() {
         bail!("tools/detect-features.R not found. Run `miniextendr feature detect init` first.");
     }
-
-    let content = std::fs::read_to_string(&detect_file)?;
-    let pattern = format!("\"{}\"", feature);
-    let filtered: String = content
-        .lines()
-        .filter(|line| !line.contains(&pattern) || !line.contains("add_rule"))
-        .map(|line| format!("{line}\n"))
-        .collect();
-    std::fs::write(&detect_file, filtered)?;
-
-    if !quiet {
-        println!("Removed feature rule: {feature}");
-    }
+    parse_feature_rules(&std::fs::read_to_string(&detect_file)?)?;
+    rscript_eval_args(
+        "minirextendr::remove_feature_rule(commandArgs(trailingOnly = TRUE)[[1]])",
+        &[feature],
+        &ctx.root,
+        quiet,
+    )?;
     Ok(())
 }
 
-/// List feature detection rules.
+/// Read the single-line rules written by minirextendr without evaluating R.
+fn parse_feature_rules(content: &str) -> Result<BTreeMap<String, String>> {
+    let mut lines = content.lines();
+    if !lines.any(|line| line.starts_with("## BEGIN RULES")) {
+        bail!(
+            "tools/detect-features.R has no BEGIN RULES marker; replace the legacy script and run `miniextendr feature detect init`."
+        );
+    }
+    let mut rules = BTreeMap::new();
+    for line in lines {
+        if line.starts_with("## END RULES") {
+            return Ok(rules);
+        }
+        if let Some(rule) = line.strip_prefix("rules[[\"")
+            && let Some((feature, detect)) = rule.split_once("\"]] <- function() ")
+        {
+            rules.insert(feature.to_owned(), detect.to_owned());
+        }
+    }
+    bail!(
+        "tools/detect-features.R has no END RULES marker; restore the rules section before editing it."
+    )
+}
+
+/// List canonical rules; JSON is an object mapping feature names to expressions.
 fn feature_rule_list(ctx: &ProjectContext, json: bool) -> Result<()> {
     let detect_file = ctx.root.join("tools/detect-features.R");
-    if !detect_file.exists() {
-        if json {
-            println!("[]");
-        } else {
-            println!("No feature detection rules (tools/detect-features.R not found).");
-        }
-        return Ok(());
-    }
-
-    let content = std::fs::read_to_string(&detect_file)?;
-    let rules: Vec<String> = content
-        .lines()
-        .filter(|line| line.contains("add_rule"))
-        .filter(|line| !line.trim_start().starts_with('#'))
-        .map(|line| line.trim().to_string())
-        .collect();
-
+    let rules = if detect_file.exists() {
+        parse_feature_rules(&std::fs::read_to_string(&detect_file)?)?
+    } else {
+        BTreeMap::new()
+    };
     if json {
         print_json(&rules)?;
     } else if rules.is_empty() {
         println!("No feature detection rules defined.");
     } else {
         println!("Feature detection rules:");
-        for rule in &rules {
-            println!("  {rule}");
+        for (feature, detect) in rules {
+            println!("  {feature}: {detect}");
         }
     }
     Ok(())
 }
 
-// --- Helpers ---
+// region: Helpers
 
 /// Enable a feature in the `[features]` section by adding it to default or as standalone.
 fn enable_cargo_feature(ctx: &ProjectContext, feature: &str, quiet: bool) -> Result<()> {
@@ -413,4 +390,37 @@ fn add_desc_field(ctx: &ProjectContext, field: &str, pkg: &str, quiet: bool) -> 
         println!("Added {pkg} to {field} in DESCRIPTION");
     }
     Ok(())
+}
+
+// endregion
+
+#[cfg(test)]
+mod tests {
+    use super::parse_feature_rules;
+
+    #[test]
+    fn canonical_rules_are_scoped_and_keep_detection_expressions() {
+        let content = r#"rules[["outside"]] <- function() FALSE
+## BEGIN RULES (do not edit this line)
+rules[["alpha"]] <- function() requireNamespace("pkg", quietly = TRUE)
+rules[["beta"]] <- function() FALSE
+## END RULES (do not edit this line)
+rules[["after"]] <- function() TRUE
+"#;
+        let rules = parse_feature_rules(content).unwrap();
+        assert_eq!(rules.len(), 2);
+        assert_eq!(rules["alpha"], r#"requireNamespace("pkg", quietly = TRUE)"#);
+        assert_eq!(rules["beta"], "FALSE");
+    }
+
+    #[test]
+    fn legacy_or_incomplete_rules_are_rejected() {
+        assert!(parse_feature_rules("detect_features <- function() character()").is_err());
+        assert!(parse_feature_rules("## BEGIN RULES\n").is_err());
+        assert!(
+            parse_feature_rules("## BEGIN RULES\n## END RULES\n")
+                .unwrap()
+                .is_empty()
+        );
+    }
 }
