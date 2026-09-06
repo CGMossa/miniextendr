@@ -351,8 +351,8 @@ The mapping is the table above: homogeneous `Vec<scalar>` coalesces to an
 atomic vector, structs and string-keyed maps become named lists, unit variants
 become strings, data variants become `list(Variant = ...)`. `None` becomes
 `NULL`, not a typed `NA`, because the serializer never sees the absent inner
-type. `#[miniextendr(serde_error)]` uses this to turn a serde-tagged error enum
-into a classed R condition; see
+type. The `Err` arm of a `Result<T, E>` uses this to turn a serde-tagged error
+enum into a classed R condition; see
 [CONDITIONS.md](CONDITIONS.md#deriving-the-classes-from-a-serde-error-type).
 
 ## Columnar `data.frame` Assembly

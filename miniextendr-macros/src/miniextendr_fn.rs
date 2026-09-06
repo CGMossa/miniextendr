@@ -1312,6 +1312,11 @@ impl ROnExit {
 /// serializes; a variant that lacks the field is unaffected. The macro cannot
 /// see the error type's fields, so only the option grammar is checked here;
 /// a `rename` target may not be one of the reserved condition slots.
+///
+/// The serde path itself needs no attribute: under the `serde` feature every
+/// `Result<T, E>` with `E: Serialize + Display` takes it through the runtime
+/// probe. A spec only exists to carry options, so the bare flag and the
+/// boolean forms are rejected with [`SERDE_ERROR_BARE_HELP`].
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct SerdeErrorSpec {
     /// Internally-tagged discriminator field name (`#[serde(tag = "...")]`).
@@ -1332,6 +1337,13 @@ const RESERVED_CONDITION_FIELDS: &[&str] = &["message", "call", "kind"];
 const SERDE_ERROR_OPTIONS_HELP: &str =
     "unknown serde_error option; expected `tag`, `prefix`, `skip(...)` or `rename(...)`";
 
+/// The bare flag / boolean forms: the serde path is not something to switch
+/// on per function.
+pub(crate) const SERDE_ERROR_BARE_HELP: &str = "`serde_error` is not a switch: with the `serde` \
+    feature every `Result<T, E>` whose `E: Serialize + Display` is already classed from its \
+    serde shape. The attribute only carries options; write \
+    `serde_error(tag = \"..\", prefix = \"..\", skip(..), rename(a = \"..\"))` or drop it";
+
 impl SerdeErrorSpec {
     /// The discriminator field consumed as the variant name.
     pub fn tag(&self) -> &str {
@@ -1346,10 +1358,18 @@ impl SerdeErrorSpec {
     }
 
     /// Parse `serde_error(...)` contents: a comma-separated list of options.
-    fn from_metas<'a>(metas: impl IntoIterator<Item = &'a syn::Meta>) -> syn::Result<Self> {
+    fn from_metas<'a>(
+        metas: impl IntoIterator<Item = &'a syn::Meta>,
+        span: proc_macro2::Span,
+    ) -> syn::Result<Self> {
         let mut spec = SerdeErrorSpec::default();
+        let mut any = false;
         for meta in metas {
+            any = true;
             spec.apply(meta)?;
+        }
+        if !any {
+            return Err(syn::Error::new(span, SERDE_ERROR_BARE_HELP));
         }
         spec.finish()?;
         Ok(spec)
@@ -1530,33 +1550,35 @@ pub(crate) fn default_serde_error_prefix() -> String {
 /// Parse `serde_error(tag = "...", prefix = "...", skip(...), rename(...))`
 /// given as a `Meta::List`.
 pub(crate) fn parse_serde_error_list(list: &syn::MetaList) -> syn::Result<SerdeErrorSpec> {
+    use syn::spanned::Spanned;
     let metas = list.parse_args_with(
         syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated,
     )?;
-    SerdeErrorSpec::from_metas(&metas)
+    SerdeErrorSpec::from_metas(&metas, list.span())
 }
 
-/// Parse the tail of a `serde_error` option inside `parse_nested_meta`: a bare
-/// flag, `= true/false`, or `(tag = "...", prefix = "...", skip(...),
-/// rename(...))`. `Ok(None)` means the option was explicitly disabled
-/// (`serde_error = false`).
+/// Parse the tail of a `serde_error` option inside `parse_nested_meta`. Only
+/// the option list `(tag = "...", prefix = "...", skip(...), rename(...))` is
+/// accepted; the bare flag and `= true/false` are rejected with
+/// [`SERDE_ERROR_BARE_HELP`], since the serde path is on for every eligible
+/// error type under the `serde` feature.
 pub(crate) fn parse_serde_error_nested(
     meta: &syn::meta::ParseNestedMeta,
-) -> syn::Result<Option<SerdeErrorSpec>> {
+) -> syn::Result<SerdeErrorSpec> {
+    use syn::spanned::Spanned;
     let input = meta.input;
-    if input.peek(syn::Token![=]) {
-        let _: syn::Token![=] = input.parse()?;
-        let value: syn::LitBool = input.parse()?;
-        return Ok(value.value.then(SerdeErrorSpec::default));
-    }
     if input.peek(syn::token::Paren) {
         let content;
         syn::parenthesized!(content in input);
         let metas =
             content.parse_terminated(<syn::Meta as syn::parse::Parse>::parse, syn::Token![,])?;
-        return Ok(Some(SerdeErrorSpec::from_metas(&metas)?));
+        return SerdeErrorSpec::from_metas(&metas, meta.path.span());
     }
-    Ok(Some(SerdeErrorSpec::default()))
+    if input.peek(syn::Token![=]) {
+        let _: syn::Token![=] = input.parse()?;
+        let _: syn::LitBool = input.parse()?;
+    }
+    Err(meta.error(SERDE_ERROR_BARE_HELP))
 }
 
 #[derive(Clone, Copy, Default)]
@@ -1657,7 +1679,7 @@ impl syn::parse::Parse for MiniextendrFnAttrs {
                         } else if ident == "unwrap_in_r" {
                             unwrap_in_r = true;
                         } else if ident == "serde_error" {
-                            serde_error = Some(SerdeErrorSpec::default());
+                            return Err(syn::Error::new_spanned(&path, SERDE_ERROR_BARE_HELP));
                         } else if ident == "worker" {
                             force_worker = Some(true);
                         } else if ident == "no_worker" {
@@ -1724,7 +1746,7 @@ impl syn::parse::Parse for MiniextendrFnAttrs {
                             } else if ident == "unwrap_in_r" {
                                 unwrap_in_r = val;
                             } else if ident == "serde_error" {
-                                serde_error = val.then(SerdeErrorSpec::default);
+                                return Err(syn::Error::new_spanned(&nv, SERDE_ERROR_BARE_HELP));
                             } else if ident == "strict" {
                                 strict = Some(val);
                             } else if ident == "no_strict" {

@@ -51,7 +51,7 @@
 //! These modules require specific Cargo features to be enabled:
 //!
 //! - `rayon_tests`: Parallel iteration tests (feature: `rayon`)
-//! - `serde_error_tests`: `#[miniextendr(serde_error)]` classed Result errors (feature: `serde`)
+//! - `serde_error_tests`: serde-classed Result errors + `serde_error(..)` options (feature: `serde`)
 //! - `serde_r_tests`: Serde R serialization tests (feature: `serde`)
 //! - `ndarray_tests`: N-dimensional array tests (feature: `ndarray`)
 //! - `vctrs_tests`: vctrs compatibility tests (feature: `vctrs`)

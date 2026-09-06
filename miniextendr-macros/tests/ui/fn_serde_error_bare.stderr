@@ -1,0 +1,11 @@
+error: `serde_error` is not a switch: with the `serde` feature every `Result<T, E>` whose `E: Serialize + Display` is already classed from its serde shape. The attribute only carries options; write `serde_error(tag = "..", prefix = "..", skip(..), rename(a = ".."))` or drop it
+  --> tests/ui/fn_serde_error_bare.rs:15:15
+   |
+15 | #[miniextendr(serde_error)]
+   |               ^^^^^^^^^^^
+
+error: `serde_error` is not a switch: with the `serde` feature every `Result<T, E>` whose `E: Serialize + Display` is already classed from its serde shape. The attribute only carries options; write `serde_error(tag = "..", prefix = "..", skip(..), rename(a = ".."))` or drop it
+  --> tests/ui/fn_serde_error_bare.rs:20:15
+   |
+20 | #[miniextendr(serde_error = false)]
+   |               ^^^^^^^^^^^^^^^^^^^
