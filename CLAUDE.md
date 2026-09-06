@@ -168,29 +168,10 @@ workspace (root, `rpkg/src/rust`, `tests/cross-package/*`) with the correct
 manifest. If a recipe doesn't exist, say so and fall back — don't invent
 shortcuts.
 
-```bash
-# Rust
-just check / test / clippy / fmt / lint
-
-# rpkg (R package)
-just configure           # REQUIRED before any R CMD operation (dev mode)
-just rcmdinstall         # Build + install (compiles Rust, auto-generates R wrappers)
-just devtools-document   # roxygen2 → NAMESPACE + man/ (short-circuits if nothing changed)
-just force-document      # like devtools-document but always runs — use after macro changes
-just devtools-test       # R tests
-just r-cmd-build         # Build tarball
-just r-cmd-check         # Check built tarball (save to log — see "Capturing output")
-just devtools-check      # Check, preserving output in rpkg-check-output/
-
-# CRAN release prep (only step needed; configure auto-detects tarball mode)
-just vendor              # regen Cargo.lock in tarball-shape, vendor deps, compress to inst/vendor.tar.xz
-
-# Cross-package, scaffolder, site
-just cross-install / cross-test / cross-check
-just minirextendr-install / minirextendr-test / minirextendr-check
-just site-build / site-serve   # http://127.0.0.1:1111
-just llm-docs / llm-docs-check
-```
+`just --list` prints every recipe with its description. The three you need
+most: `just configure` (required before any R CMD operation), `just rcmdinstall`
+(build + install, regenerates the R wrappers), `just force-document` (roxygen2
+after macro changes). `just vendor` is the only CRAN release-prep step.
 
 **Interactive iteration**: prefer `cargo-limit` aliases (`cargo lcheck/lclippy/ltest/lbuild`) — they truncate output to the first few errors. Install with `just dev-tools-install`. CI and `just` recipes keep plain `cargo` (CI needs full output + `-D warnings`).
 
@@ -205,41 +186,18 @@ Always `bash ./configure` (not bare `./configure` — `#!/bin/sh` causes spuriou
 ## The install-mode latch (`inst/vendor.tar.xz`)
 
 `rpkg/inst/vendor.tar.xz` is the **single signal** that flips `configure` into
-tarball mode. Everything about vendoring revolves around this one file.
-
-| Mode | Triggered when | What configure does |
-|---|---|---|
-| **Source** | tarball absent (auto-vendor skipped/failed) | No vendoring. In monorepo: `[patch."git+url"]` → workspace siblings. Otherwise: minimal config, cargo follows git URL. |
-| **Tarball** | tarball present | Unpacks tarball, writes `[source]` replacement → `vendored-sources`, offline build. |
-
-The tarball is **gitignored** (since 2026-04-18). Tracked tarballs caused
-binary merge conflicts, 22 MB/commit bloat, and stale-after-rebase drift.
-CI regenerates per-build via `just vendor`; locally, regenerate the same way —
-cheap and deterministic from `Cargo.lock` + workspace sources.
-
-Three layered triggers all converge on this signal:
-1. Maintainer's explicit `just vendor` / `miniextendr_vendor()` (writes the tarball before `R CMD build`).
-2. `bootstrap.R` (run by pkgbuild — `devtools::build()`, `rcmdcheck`, `r-lib/actions/check-r-package`) → `./configure` runs in a build-staging dir → no `.git` ancestor → auto-vendor fires → tarball sealed.
-3. End-user install of a tarball that arrived without vendor → `./configure` runs at install time → no `.git` ancestor → auto-vendor fires → tarball mode → offline build.
-
-CRAN's offline farm has no `cargo-revendor`, so the auto-vendor branch is
-short-circuited — a maintainer who shipped a tarball without vendor inside
-fails CRAN's offline check loudly. Intended canary. No `NOT_CRAN`, no
-`FORCE_VENDOR`, no `PREPARE_CRAN`, no `BUILD_CONTEXT`. See `docs/CRAN_COMPATIBILITY.md`.
-
-### The latch leak (#441)
-
-Recipes that **produce** the tarball (`just r-cmd-build`, `just r-cmd-check`,
-`just devtools-build`) trap-clean on exit. Recipes that **consume** configure
-state (`just rcmdinstall`, `just devtools-test`, `just devtools-load`,
-`just devtools-install`) refuse to run if the tarball is present.
-
-Symptom of a leaked tarball: monorepo workspace-crate edits silently ignored
-(no `[patch."git+url"]`), or `Cargo.lock` mismatch errors during build.
-Fix: `just clean-vendor-leak` (preferred — it's safe and idempotent).
-Regression test: `just test-bootstrap-vendor`.
-
-`minirextendr_doctor()` detects both stale-latch and missing-`.cargo/config.toml`.
+tarball mode (present → unpack + offline `[source]` replacement; absent → source
+mode with `[patch."git+url"]` to the workspace siblings). It is gitignored;
+`just vendor` regenerates it, and CI regenerates it per build. Recipes that
+**produce** it (`r-cmd-build`, `r-cmd-check`, `devtools-build`) trap-clean on
+exit; recipes that **consume** configure state (`rcmdinstall`, `devtools-test`,
+`devtools-load`, `devtools-install`) refuse to run while it is present (#441).
+Symptom of a leaked tarball: workspace-crate edits silently ignored, or
+`Cargo.lock` mismatch errors. Fix: `just clean-vendor-leak` (safe, idempotent);
+regression test `just test-bootstrap-vendor`; `minirextendr_doctor()` detects
+both the stale latch and a missing `.cargo/config.toml`. Mode table, the three
+auto-vendor triggers, and the CRAN canary rationale: the `miniextendr-build`
+skill and `docs/CRAN_COMPATIBILITY.md`.
 
 ## Development workflow
 
@@ -561,25 +519,9 @@ form, search results, anything already in a commit message or memory file.
 
 ### Skill freshness audit (quarterly)
 
-The Claude Code skills under `.claude/skills/<slug>/SKILL.md` cite file paths,
-symbols, and line numbers that drift as the code evolves. Run
-`bash scripts/skill-freshness-audit.sh` **once a quarter** (and repair drift in
-the same pass — source wins, fix the SKILL.md). It flags, per skill: missing
-cited paths (BLOCKING, exits non-zero so it can gate CI), symbols that grep
-finds nowhere in the repo (WARN), and out-of-range `file.rs:NNN` line cites
-(WARN). The script's header documents its known false-positive modes
-(illustrative placeholders, R functions that look like paths, generated/
-gitignored artifacts, scaffolded-package layout paths). CLAUDE.md ↔ skill
-contradictions are not auto-detected — eyeball any skill that restates a
-CLAUDE.md fact when triaging.
-
-The same quarterly pass also rebases two upstream release pins (folded from
-#596): the `r-universe-org/macos-libs` `cranlibs-everything.tar.xz` date
-pinned in `minirextendr/inst/templates/r-release.yml` (Gotcha 6) and
-`docs/RELEASE_WORKFLOW.md`, and the r-windows rtools release number in
-`docs/CRAN_COMPATIBILITY.md`'s Layer 3 table. Also force-rebase both before
-any release tag, and smoke-test a bumped tarball URL via a real CI run
-(download + extract paths drift upstream).
+Once a quarter (and before any release tag) run `bash scripts/skill-freshness-audit.sh`
+and rebase the two upstream release pins. Procedure and false-positive modes:
+the `miniextendr-quarterly-audit` skill.
 
 ### Reviews
 

@@ -1,6 +1,6 @@
 ---
 name: miniextendr-dots
-description: Use when the user asks about handling R's ... (dots/variadic) arguments in Rust, the Dots type, the typed_list! macro, #[miniextendr(dots = typed_list!(...))] attribute sugar, custom dots binding names with name @ ..., optional vs required fields in typed lists, or TypedList accessors.
+description: "Use when the user asks about handling R's ... (dots/variadic) arguments in Rust, the Dots type, the typed_list! macro, #[miniextendr(dots = typed_list!(...))] attribute sugar, custom dots binding names with name @ ..., optional vs required fields in typed lists, or TypedList accessors."
 ---
 
 # miniextendr Dots and `typed_list!`
