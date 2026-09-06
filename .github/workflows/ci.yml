@@ -1465,10 +1465,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: changes
-    if: needs.changes.outputs.r == 'true'
+    if: needs.changes.outputs.r == 'true' || needs.changes.outputs.rust == 'true'
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
+      MINIEXTENDR_CLI: ${{ github.workspace }}/target/debug/miniextendr
 
     steps:
       - uses: actions/checkout@v7
@@ -1499,6 +1500,12 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Build CLI for R interoperability tests
+        run: just cli-build --locked --target-dir target
+
+      - name: Install minirextendr for CLI subprocesses
+        run: just minirextendr-install
 
       - name: Run tests
         working-directory: minirextendr

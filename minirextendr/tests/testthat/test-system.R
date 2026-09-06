@@ -37,10 +37,7 @@ test_that("run_with_logging reports success for a zero-exit command", {
   rscript <- find_rscript()
   skip_if_not(nzchar(rscript), "Rscript not found")
 
-  # Run an *empty* R script: a no-op program that exits 0. The path is
-  # metacharacter-free, mirroring the non-zero sibling above, since system2()
-  # with captured output goes through `sh -c` and does not shell-quote its
-  # arguments.
+  # Run an empty R script: a no-op program that exits 0.
   empty <- file.path(tempdir(), "minirextendr-empty-9f3c.R")
   file.create(empty)
   on.exit(unlink(empty), add = TRUE)
@@ -130,4 +127,17 @@ test_that("run_with_logging restores multiple env vars and unsets previously-uns
   # again (Sys.getenv returns "" for an unset name without `names`/`unset`).
   expect_identical(Sys.getenv(set_var, unset = NA), "sentinel-a")
   expect_identical(Sys.getenv(unset_var, unset = NA), NA_character_)
+})
+
+test_that("run_with_logging preserves argument boundaries and literal characters", {
+  rscript <- find_rscript()
+  skip_if_not(nzchar(rscript), "Rscript not found")
+  tmp <- withr::local_tempdir(pattern = "system arguments ")
+  script <- file.path(tmp, "echo arguments.R")
+  writeLines("writeLines(commandArgs(trailingOnly = TRUE))", script)
+  args <- c("two words", 'double "quoted"', "back\\slash", "$(printf wrong)")
+
+  result <- minirextendr:::run_with_logging(rscript, c(script, args))
+  expect_true(result$success)
+  expect_identical(result$output, args)
 })
