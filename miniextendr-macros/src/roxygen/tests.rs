@@ -912,3 +912,34 @@ fn find_param_tag_returns_the_comma_list_tag_for_any_covered_name() {
     assert_eq!(find_param_tag(&tags, "d"), None);
 }
 // endregion
+
+#[test]
+fn page_documentation_tags_keep_continuation_lines() {
+    for (tag, separator) in [
+        ("describeIn", '\n'),
+        ("title", '\n'),
+        ("family", '\n'),
+        ("inherit", ' '),
+        ("inheritParams", ' '),
+        ("inheritSection", ' '),
+        ("keywords", ' '),
+        ("concept", ' '),
+        ("name", ' '),
+        ("rdname", ' '),
+    ] {
+        let first = format!("@{tag} first line");
+        let attrs =
+            make_r6_method_doc_attrs(&[&first, "second line", "@export", "not part of export"]);
+        let tags = roxygen_tags_from_attrs(&attrs);
+        assert_eq!(
+            tags,
+            vec![
+                format!("{first}{separator}second line"),
+                "@export".to_string()
+            ]
+        );
+        assert_eq!(roxygen_tags_from_attrs_for_r6_method(&attrs), tags);
+    }
+    let attrs = make_r6_method_doc_attrs(&["@rdname", "shared_topic"]);
+    assert_eq!(roxygen_tags_from_attrs(&attrs), ["@rdname shared_topic"]);
+}

@@ -22,13 +22,13 @@ impl Person {
     }
 
     /// Implements format.Person - returns a formatted string.
-    #[miniextendr(generic = "format")]
+    #[miniextendr(s3(generic = "format"))]
     pub fn fmt(&self) -> String {
         format!("{} (age {})", self.name, self.age)
     }
 
     /// Implements print.Person - prints and returns self invisibly.
-    #[miniextendr(generic = "print")]
+    #[miniextendr(s3(generic = "print"))]
     pub fn show(&mut self) {
         println!("Person: {}, age {}", self.name, self.age);
     }
@@ -71,18 +71,18 @@ greet.Person <- function(x, ...) {
 
 ## Key Concepts
 
-### Generic Override with `#[miniextendr(generic = "...")]`
+### Generic Override with `#[miniextendr(s3(generic = "..."))]`
 
 By default, the Rust method name becomes the S3 generic name. Use `generic = "..."` to
 override this, mapping to a different R generic:
 
 ```rust
 // Rust method is `fmt`, but R generic is `format`
-#[miniextendr(generic = "format")]
+#[miniextendr(s3(generic = "format"))]
 pub fn fmt(&self) -> String { ... }
 
 // Rust method is `show`, but R generic is `print`
-#[miniextendr(generic = "print")]
+#[miniextendr(s3(generic = "print"))]
 pub fn show(&mut self) { ... }
 ```
 
@@ -221,7 +221,7 @@ can be used in pipelines without double-printing.
 **Recommended pattern: use `&mut self` returning `()`:**
 
 ```rust
-#[miniextendr(generic = "print")]
+#[miniextendr(s3(generic = "print"))]
 pub fn show(&mut self) {
     println!("Person: {}, age {}", self.name, self.age);
 }
@@ -248,7 +248,7 @@ choice to get correct R behavior.
 **Alternative: `&self` returning `()`:**
 
 ```rust
-#[miniextendr(generic = "print")]
+#[miniextendr(s3(generic = "print"))]
 pub fn show(&self) {
     println!("Person: {}, age {}", self.name, self.age);
 }
@@ -274,7 +274,7 @@ use `format()` internally (e.g., `paste()`, `cat(format(x))`).
 **Recommended pattern: `&self` returning `String`:**
 
 ```rust
-#[miniextendr(generic = "format")]
+#[miniextendr(s3(generic = "format"))]
 pub fn fmt(&self) -> String {
     format!("{} (age {})", self.name, self.age)
 }
@@ -310,12 +310,12 @@ impl Temperature {
         Temperature { celsius }
     }
 
-    #[miniextendr(generic = "format")]
+    #[miniextendr(s3(generic = "format"))]
     pub fn fmt(&self) -> String {
         format!("{:.1}°C", self.celsius)
     }
 
-    #[miniextendr(generic = "print")]
+    #[miniextendr(s3(generic = "print"))]
     pub fn show(&mut self) {
         println!("{:.1}°C", self.celsius);
     }
@@ -402,6 +402,32 @@ What the macro does:
 3. Registers the underlying C entry point via `distributed_slice`, same as every other `#[miniextendr]` function.
 
 Your Rust function receives exactly the arguments R dispatches with. For most S3 generics that is `(x, ...)`, so the first param is typed (`SEXP`, or a concrete type with `TryFromSexp`) and the last is `_dots: ...` to absorb the R-level `...`. If the generic takes more positional arguments (`vec_cast(x, to, ...)`), list them in order.
+
+### Shared help pages
+
+Standalone functions from one Rust source file share an Rd page by default,
+with their usage and prose emitted in source order. Use `@rdname topic` to
+choose another shared page, or define a topic with `@name topic` and add
+functions or S3 methods with `@describeIn topic Description of this function.`.
+Do not combine `@describeIn` and `@rdname` on the same function; roxygen2 rejects
+that combination. These explicit page tags suppress the default file-stem tag.
+
+Descriptions can wrap across Rust doc-comment lines:
+
+```rust
+/// @describeIn person_methods Formats the person's name
+/// and age for display.
+/// @param x A person object.
+/// @param ... Additional arguments (unused).
+#[miniextendr(s3(generic = "format", class = "person"))]
+pub fn format_person(x: SEXP, _dots: ...) -> String { /* format x */ }
+```
+
+Document each function's parameters using their exact names, even on a shared
+page. Otherwise the macro adds `(no documentation available)` for an
+undocumented parameter. A page-level `@param x,object ...` does not replace a
+function's generated `@param x ...` in roxygen2's merge; repeat the relevant
+`@param x ...` or `@param object ...` on the Rust function itself.
 
 ### Double dispatch (vctrs)
 

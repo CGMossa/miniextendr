@@ -27,8 +27,12 @@
 use std::collections::HashSet;
 
 /// Tags that allow multi-line content (continuation lines appended).
-/// All other tags are treated as single-line.
+/// Their emitted values retain line breaks. Other wrapped values are folded
+/// below; tags without continuation support (such as `@export`) stay single-line.
 const MULTILINE_TAGS: &[&str] = &[
+    "describeIn",
+    "title",
+    "family",
     "examples",
     "description",
     "details",
@@ -46,20 +50,38 @@ const MULTILINE_TAGS: &[&str] = &[
     "prop",  // S7 property documentation (roxygen2 8.0.0+)
 ];
 
-/// Check if a tag name supports multi-line content.
-fn is_multiline_tag(tag: &str) -> bool {
+/// Wrapped values whose roxygen grammar requires one logical line (or words).
+const FOLDED_TAGS: &[&str] = &[
+    "name",
+    "rdname",
+    "inherit",
+    "inheritParams",
+    "inheritSection",
+    "keywords",
+    "concept",
+];
+
+/// How to join a continuation line while respecting roxygen's tag grammar.
+fn continuation_separator(tag: &str) -> Option<char> {
     // Extract the tag name from "@tagname ..." or "@tagname"
     let tag_name = tag
         .strip_prefix('@')
         .and_then(|rest| rest.split_whitespace().next())
         .unwrap_or("");
-    MULTILINE_TAGS.contains(&tag_name)
+    if MULTILINE_TAGS.contains(&tag_name) {
+        Some('\n')
+    } else if FOLDED_TAGS.contains(&tag_name) {
+        Some(' ')
+    } else {
+        None
+    }
 }
 
 /// Extract roxygen tag lines (starting with '@') from Rust doc attributes.
 ///
-/// Most tags capture only a single line. Multi-line tags like `@examples`,
-/// `@description`, `@param`, and `@return` append continuation lines.
+/// Prose tags such as `@describeIn`, `@description`, and `@param` retain
+/// continuation line breaks. Wrapped names and inheritance/keyword values fold
+/// with spaces to satisfy roxygen's single-line grammar.
 ///
 /// For R6 methods, if no explicit tags are found, the first doc comment paragraph
 /// is auto-converted to `@description`.
@@ -79,7 +101,8 @@ pub(crate) fn roxygen_tags_from_attrs_for_r6_method(attrs: &[syn::Attribute]) ->
 /// Core implementation of roxygen tag extraction from `#[doc = "..."]` attributes.
 ///
 /// Walks through doc attributes line by line. Lines starting with `@` begin a new tag.
-/// Continuation lines are appended only if the current tag is multiline-capable.
+/// Supported continuation lines are appended with a newline or space, according
+/// to the current tag's grammar.
 ///
 /// Before processing, the attribute slice is partitioned into doc and non-doc groups
 /// (stable order within each group). All doc attributes are processed first, so that
@@ -150,10 +173,10 @@ fn explicit_roxygen_tags_from_attrs(attrs: &[syn::Attribute]) -> Vec<String> {
                 tags.push(trimmed.to_string());
             } else if !trimmed.is_empty()
                 && let Some(last) = tags.last_mut()
-                && is_multiline_tag(last)
+                && let Some(separator) = continuation_separator(last)
             {
-                // Continuation line for the current multi-line tag.
-                last.push('\n');
+                // Preserve prose line breaks; fold single-line tag values.
+                last.push(separator);
                 last.push_str(trimmed);
             }
             // Leading prose (before any @tag) is captured separately by
