@@ -144,7 +144,7 @@ Enable once per clone: `git config core.hooksPath .githooks`.
 2. Module must be reachable via `mod` from `lib.rs` (`#[cfg(feature = "foo")]` on `mod` declaration is sufficient for feature-gated modules)
 3. `just configure && just rcmdinstall && just force-document`
 
-Build sequence: `Makevars` → `cargo rustc --crate-type cdylib` → `dyn.load` + `miniextendr_write_wrappers` → `R/miniextendr-wrappers.R` → `cargo rustc --crate-type staticlib` → final `.so`.
+Build sequence: `Makevars` → `cargo build --lib` (staticlib, the only cargo invocation) → C-link `$(OBJECTS)` + staticlib → final `.so` (`$(SHLIB)`, via `stub.c`'s force-link) → `dyn.load($(SHLIB))` + registered `miniextendr_write_wrappers`/`miniextendr_write_wasm_registry` routines → `R/miniextendr-wrappers.R` + `src/rust/wasm_registry.rs`. No separate cdylib build — wrapper-gen loads the installed `.so` itself; tarball/wasm32 installs skip it and use the pre-shipped files.
 
 ### Reproducing CI clippy before PR
 
