@@ -59,14 +59,14 @@ Traits with impls: 9
 | `std::collections::HashSet<bool>` | `` | concrete | 3 | miniextendr-api/src/from_r.rs:1481 |
 | `std::collections::BTreeSet<bool>` | `` | concrete | 3 | miniextendr-api/src/from_r.rs:1482 |
 | `crate::externalptr::ExternalPtr<T>` | `<T>` | concrete | 3 | miniextendr-api/src/from_r.rs:1533 |
-| `Option<crate::externalptr::ExternalPtr<T>>` | `<T>` | concrete | 3 | miniextendr-api/src/from_r.rs:1578 |
-| `Vec<crate::externalptr::ExternalPtr<T>>` | `<T>` | concrete | 3 | miniextendr-api/src/from_r.rs:1607 |
-| `Vec<Option<crate::externalptr::ExternalPtr<T>>>` | `<T>` | concrete | 3 | miniextendr-api/src/from_r.rs:1628 |
-| `crate::connection::RStdin` | `` | concrete | 3 | miniextendr-api/src/from_r.rs:1725 |
-| `crate::connection::RStdout` | `` | concrete | 3 | miniextendr-api/src/from_r.rs:1738 |
-| `crate::connection::RStderr` | `` | concrete | 3 | miniextendr-api/src/from_r.rs:1751 |
-| `crate::connection::RNullConnection` | `` | concrete | 3 | miniextendr-api/src/from_r.rs:1770 |
-| `crate::txt_progress_bar::RTxtProgressBar` | `` | concrete | 3 | miniextendr-api/src/from_r.rs:1806 |
+| `Option<crate::externalptr::ExternalPtr<T>>` | `<T>` | concrete | 3 | miniextendr-api/src/from_r.rs:1579 |
+| `Vec<crate::externalptr::ExternalPtr<T>>` | `<T>` | concrete | 3 | miniextendr-api/src/from_r.rs:1608 |
+| `Vec<Option<crate::externalptr::ExternalPtr<T>>>` | `<T>` | concrete | 3 | miniextendr-api/src/from_r.rs:1629 |
+| `crate::connection::RStdin` | `` | concrete | 3 | miniextendr-api/src/from_r.rs:1726 |
+| `crate::connection::RStdout` | `` | concrete | 3 | miniextendr-api/src/from_r.rs:1739 |
+| `crate::connection::RStderr` | `` | concrete | 3 | miniextendr-api/src/from_r.rs:1752 |
+| `crate::connection::RNullConnection` | `` | concrete | 3 | miniextendr-api/src/from_r.rs:1771 |
+| `crate::txt_progress_bar::RTxtProgressBar` | `` | concrete | 3 | miniextendr-api/src/from_r.rs:1807 |
 | `Box<[T]>` | `<T> +1wc` | concrete | 3 | miniextendr-api/src/from_r.rs:368 |
 | `i32` | `` | concrete | 3 | miniextendr-api/src/from_r.rs:457 |
 | `f64` | `` | concrete | 3 | miniextendr-api/src/from_r.rs:533 |

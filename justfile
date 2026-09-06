@@ -205,8 +205,9 @@ update *cargo_flags:
 # which causes cargo to drop the `source = "git+…#<sha>"` line for each
 # workspace sibling. The committed lockfile must keep those lines (CRAN/
 # tarball builds resolve `vendor/` against them). The drifting recipes
-# auto-chain this restore as their last line; run it manually to clean up
-# if a recipe aborted mid-way.
+# auto-chain this restore as their last line (`just test` runs it from an EXIT
+# trap so a failing leg cannot skip it); run it manually to clean up if a
+# recipe aborted mid-way.
 cargo-lock-restore:
     git restore --worktree -- rpkg/src/rust/Cargo.lock
 
@@ -309,23 +310,82 @@ fmt *cargo_flags:
     root="$(pwd)" && tmp="$(mktemp -d)" && (cd "$tmp" && cargo fmt --all --manifest-path="$root/rpkg/src/rust/Cargo.toml" {{cargo_flags}})
     cargo fmt --all --manifest-path cargo-revendor/Cargo.toml {{cargo_flags}}
 
-# Run tests
+# Run tests: every cargo leg plus the trybuild UI suites; failures are summarized at the end
+#
+# Legs: root workspace (UI suites skipped there, see `test-ui`), ndarray
+# integration tests, consumer.pkg, producer.pkg, rpkg/src/rust (under the
+# path overrides), then `just test-ui`. Every leg runs even when an earlier one
+# fails (like CI's `--no-fail-fast` across suites), so one red run shows the
+# full failure surface instead of the first casualty; the recipe exits non-zero
+# if any leg failed. The rpkg leg rewrites rpkg/src/rust/Cargo.lock under the
+# path overrides, so the restore runs in an EXIT trap. (Both used to be trailing
+# `&&`-chained lines that a failing leg skipped: the lock stayed dirty and the
+# UI snapshots went unchecked locally while CI ran them.)
 alias cargo-test := test
+[script("bash")]
 test *args:
-    cargo_flags="" \
-    && test_args="" \
-    && sep=0 \
-    && for arg in {{args}}; do \
-      if [ "$arg" = "--" ]; then sep=1; continue; fi; \
-      if [ "$sep" = "0" ]; then cargo_flags="$cargo_flags $arg"; else test_args="$test_args $arg"; fi; \
-    done \
-    && MINIEXTENDR_SKIP_UI=1 cargo test --workspace --no-fail-fast $cargo_flags -- --no-capture $test_args \
-    && cargo test -p miniextendr-api --features ndarray --no-fail-fast --test ndarray_generic --test ndarray_all_types --test ndarray_string $cargo_flags -- --no-capture $test_args \
-    && root="$(pwd)" && tmp="$(mktemp -d)" && (cd "$tmp" && CARGO_TARGET_DIR="$root/tests/cross-package/consumer.pkg/rust-target" cargo test --manifest-path="$root/tests/cross-package/consumer.pkg/src/rust/Cargo.toml" --workspace --no-fail-fast $cargo_flags -- --no-capture $test_args) \
-    && root="$(pwd)" && tmp="$(mktemp -d)" && (cd "$tmp" && CARGO_TARGET_DIR="$root/tests/cross-package/producer.pkg/rust-target" cargo test --manifest-path="$root/tests/cross-package/producer.pkg/src/rust/Cargo.toml" --workspace --no-fail-fast $cargo_flags -- --no-capture $test_args) \
-    && root="$(pwd)" && (cd "$root/rpkg/src/rust" && CARGO_TARGET_DIR="$root/rpkg/src/rust/target" cargo test --workspace --no-fail-fast $cargo_flags --config "patch.'https://github.com/A2-ai/miniextendr'.miniextendr-api.path=\"$root/miniextendr-api\"" --config "patch.'https://github.com/A2-ai/miniextendr'.miniextendr-macros.path=\"$root/miniextendr-macros\"" --config "patch.'https://github.com/A2-ai/miniextendr'.miniextendr-lint.path=\"$root/miniextendr-lint\"" -- --no-capture $test_args)
-    @just cargo-lock-restore
-    @just test-ui
+    set -uo pipefail
+    cargo_flags=""
+    test_args=""
+    sep=0
+    for arg in {{args}}; do
+        if [ "$arg" = "--" ]; then sep=1; continue; fi
+        if [ "$sep" = "0" ]; then cargo_flags="$cargo_flags $arg"; else test_args="$test_args $arg"; fi
+    done
+    root="$(pwd)"
+    trap 'just cargo-lock-restore' EXIT
+
+    nfail=0
+    failed=""
+    leg() {
+        local name="$1"; shift
+        local status=0
+        echo "==> just test: $name"
+        "$@" || status=$?
+        if [ "$status" -eq 0 ]; then
+            echo "<== just test: $name ok"
+        else
+            echo "<== just test: $name FAILED (exit $status)"
+            nfail=$((nfail + 1))
+            failed="$failed $name"
+        fi
+    }
+    leg_root() {
+        MINIEXTENDR_SKIP_UI=1 cargo test --workspace --no-fail-fast $cargo_flags -- --no-capture $test_args
+    }
+    leg_ndarray() {
+        cargo test -p miniextendr-api --features ndarray --no-fail-fast --test ndarray_generic --test ndarray_all_types --test ndarray_string $cargo_flags -- --no-capture $test_args
+    }
+    leg_cross() {
+        local pkg="$1" tmp
+        tmp="$(mktemp -d)"
+        (cd "$tmp" && CARGO_TARGET_DIR="$root/tests/cross-package/$pkg/rust-target" cargo test --manifest-path="$root/tests/cross-package/$pkg/src/rust/Cargo.toml" --workspace --no-fail-fast $cargo_flags -- --no-capture $test_args)
+    }
+    leg_rpkg() {
+        (cd "$root/rpkg/src/rust" && CARGO_TARGET_DIR="$root/rpkg/src/rust/target" cargo test --workspace --no-fail-fast $cargo_flags \
+            --config "patch.'https://github.com/A2-ai/miniextendr'.miniextendr-api.path=\"$root/miniextendr-api\"" \
+            --config "patch.'https://github.com/A2-ai/miniextendr'.miniextendr-macros.path=\"$root/miniextendr-macros\"" \
+            --config "patch.'https://github.com/A2-ai/miniextendr'.miniextendr-lint.path=\"$root/miniextendr-lint\"" \
+            -- --no-capture $test_args)
+    }
+    leg_ui() {
+        just test-ui
+    }
+
+    leg "root workspace" leg_root
+    leg "ndarray" leg_ndarray
+    leg "consumer.pkg" leg_cross consumer.pkg
+    leg "producer.pkg" leg_cross producer.pkg
+    leg "rpkg/src/rust" leg_rpkg
+    leg "test-ui" leg_ui
+
+    echo
+    if [ "$nfail" -eq 0 ]; then
+        echo "just test: all legs passed"
+    else
+        echo "just test: $nfail leg(s) FAILED:$failed"
+        exit 1
+    fi
 
 # Run the trybuild UI snapshot tests deterministically across contributor toolchains.
 #

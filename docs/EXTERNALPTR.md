@@ -85,6 +85,22 @@ handle transparently, per class system:
 | R6 | `private$.ptr` | `.__enclos_env__` -> `private` -> `.ptr` |
 | S4 | the `ptr` slot | `methods::slot(x, "ptr")` |
 | S7 | the `.ptr` property | stored as a plain attribute (`attr(x, ".ptr")`) |
+| hand-built list | the `.ptr` element | `structure(list(.ptr = ptr, log = ...), class = "Foo")` |
+| hand-built environment | a `.ptr` binding | any environment binding `.ptr` directly |
+
+The same resolution applies to the receiver of every class-system instance
+method (`&self`, `&mut self`, `self`, and the `ExternalPtr<Self>` receiver
+forms): the generated prelude calls `resolve_receiver` on the object R
+dispatched with, so an S3 class whose object is a list with R-side state next
+to the handle dispatches into `#[miniextendr(s3)] impl` methods unchanged
+(#1469; `S3_METHODS.md`, "Handles with R-visible state"). That shape is for
+interop with R-defined objects: state the package owns belongs in sidecar
+fields (`#[r_data]`, "RSidecar" below), which travel with the handle in every
+class system. A bare pointer is recognised with one
+`TYPEOF` compare; a receiver that yields no pointer raises
+`expected a `Foo` object (an external pointer, or an R6/S4/S7 handle,
+environment, or list carrying one in `.ptr`), got VECSXP`. Type safety is
+unchanged: the pointer that comes out still has to `downcast` to `Foo`.
 
 ```rust
 #[derive(ExternalPtr)]

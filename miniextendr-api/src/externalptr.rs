@@ -389,10 +389,20 @@ unsafe fn env_binding(env: SEXP, name: &std::ffi::CStr) -> Option<SEXP> {
 ///   excludes S7 objects even though both share the `S4SXP`/`OBJSXP`
 ///   `SEXPTYPE` — S7's `new_object(S7_object(), ...)` base never sets the S4
 ///   bit.
+/// - **List**: a generic vector with a `.ptr` element (`x[[".ptr"]]`), the
+///   shape of a hand-built S3 object that keeps R-side state next to the
+///   handle: `structure(list(.ptr = <ptr>, log = ...), class = "Foo")`
+///   (#1469). The `.ptr` spelling matches the env / R6 / S7 convention.
 /// - **Anything else carrying a `.ptr` attribute**: S7 stores properties as
 ///   plain attributes on its base object (see `s7_class.rs`), so
 ///   `Rf_getAttrib(x, ".ptr")` recovers the pointer without going through
-///   S7's `@`/`prop()` dispatch machinery.
+///   S7's `@`/`prop()` dispatch machinery. A list without a `.ptr` element
+///   falls through to this check too (an S7 class over `class_list` is a
+///   `VECSXP` with its properties as attributes).
+///
+/// Both the `ExternalPtr<T>` argument conversion and, via
+/// `resolve_receiver`, every generated instance-method prelude go through
+/// this function.
 ///
 /// Returns `Some(inner)` only when the unwrapped value is itself an
 /// `EXTPTRSXP` — anything else (e.g. a `.ptr`-named field that isn't a
@@ -429,9 +439,80 @@ pub(crate) unsafe fn unwrap_class_handle(sexp: SEXP) -> Option<SEXP> {
             return (slot.type_of() == SEXPTYPE::EXTPTRSXP).then_some(slot);
         }
 
+        if sexp.type_of() == SEXPTYPE::VECSXP {
+            if let Some(elt) = list_element(sexp, ".ptr") {
+                if elt.type_of() == SEXPTYPE::EXTPTRSXP {
+                    return Some(elt);
+                }
+            }
+        }
+
         let attr = sexp.get_attr(Rf_install(c".ptr".as_ptr()));
         (attr.type_of() == SEXPTYPE::EXTPTRSXP).then_some(attr)
     }
+}
+
+/// The element of a generic vector bound to `name`: the first match in
+/// `names(x)`, like `x[[name]]`. `None` when `x` has no character names or
+/// no element by that name.
+///
+/// # Safety
+///
+/// Must be called from R's main thread; `sexp` must be a `VECSXP`.
+unsafe fn list_element(sexp: SEXP, name: &str) -> Option<SEXP> {
+    let names = sexp.get_names();
+    if names.type_of() != SEXPTYPE::STRSXP {
+        return None;
+    }
+    let n = names.len().min(sexp.len());
+    for i in 0..n {
+        let i = isize::try_from(i).ok()?;
+        if names.string_elt_str(i) == Some(name) {
+            return Some(sexp.vector_elt(i));
+        }
+    }
+    None
+}
+
+/// Resolve an instance-method receiver to the bare `EXTPTRSXP` it carries.
+///
+/// Generated method preludes call this on `self_sexp` before
+/// `ErasedExternalPtr::from_sexp` / `ExternalPtr::<T>::wrap_sexp`. A bare
+/// pointer, the shape every generated constructor returns (classed or not),
+/// passes through after one `TYPEOF` compare. Anything else goes through the
+/// same class-handle unwrap as `ExternalPtr<T>` arguments: an R6 / S4 / S7
+/// handle, an environment or a list carrying the pointer in `.ptr`, or any
+/// object with a `.ptr` attribute. An S3 class whose object is a list with
+/// R-side state next to the handle, `structure(list(.ptr = <ptr>, log = ...),
+/// class = "Foo")`, therefore dispatches into `#[miniextendr(s3)] impl Foo`
+/// methods unchanged (#1469).
+///
+/// Panics (the framework converts it to an R error) when no pointer can be
+/// recovered, naming `T` and the receiver's `SEXPTYPE`. Type safety is still
+/// decided by the `Any::downcast` that follows; this only widens the accepted
+/// R-side shape.
+///
+/// Runs on R's main thread: generated preludes execute before any worker
+/// hand-off.
+#[inline]
+pub fn resolve_receiver<T: TypedExternal>(sexp: SEXP) -> SEXP {
+    if sexp.type_of() == SEXPTYPE::EXTPTRSXP {
+        return sexp;
+    }
+    match unsafe { unwrap_class_handle(sexp) } {
+        Some(inner) => inner,
+        None => receiver_not_a_handle::<T>(sexp),
+    }
+}
+
+#[cold]
+fn receiver_not_a_handle<T: TypedExternal>(sexp: SEXP) -> ! {
+    panic!(
+        "expected a `{}` object (an external pointer, or an R6/S4/S7 handle, \
+         environment, or list carrying one in `.ptr`), got {:?}",
+        ExternalPtr::<T>::type_name(),
+        sexp.type_of()
+    )
 }
 // endregion
 

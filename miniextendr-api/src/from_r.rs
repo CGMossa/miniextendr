@@ -1537,8 +1537,9 @@ impl<T: TypedExternal + Send> TryFromSexp for ExternalPtr<T> {
         let actual = sexp.type_of();
         if actual != SEXPTYPE::EXTPTRSXP {
             // Not a bare pointer — try unwrapping a class-wrapped handle
-            // (R6 `private$.ptr`, S4 `ptr` slot, S7 `.ptr` attribute; Env/S3
-            // handles are already bare EXTPTRSXPs and never reach here).
+            // (R6 `private$.ptr`, S4 `ptr` slot, S7 `.ptr` attribute, a list
+            // or environment with `.ptr`; generated Env/S3 handles are
+            // already bare EXTPTRSXPs and never reach here).
             return match unsafe { crate::externalptr::unwrap_class_handle(sexp) } {
                 Some(inner) => unsafe { ExternalPtr::wrap_sexp_with_error(inner) }
                     .map_err(type_mismatch_to_sexp_error),

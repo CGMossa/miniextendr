@@ -416,7 +416,9 @@ plan file — see the Reviews rule above). To execute one in isolation, the rule
    minimal stable does not — issue #1239, **not** a rustc-version difference).
    `just test`/`just test-ui` now isolate the UI suite under a version-named
    minimal-profile toolchain automatically (the workspace leg sets
-   `MINIEXTENDR_SKIP_UI=1`). Never `TRYBUILD=overwrite` under a rust-src
+   `MINIEXTENDR_SKIP_UI=1`; `test-ui` is the final leg of `just test`, and every
+   leg runs even when an earlier one fails, with the failures listed at the
+   end). Never `TRYBUILD=overwrite` under a rust-src
    toolchain; CI stable is authoritative. See CLAUDE.md "UI test snapshots".
 6. **Commit early** — right after the code change compiles — so a mid-run
    disconnect loses nothing; amend/extend as verification completes.

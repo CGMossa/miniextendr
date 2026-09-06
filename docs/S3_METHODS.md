@@ -331,6 +331,49 @@ format(t)   # "36.6°C" (returns the string)
 cat(format(t), "\n")  # 36.6°C
 ```
 
+## Handles with R-visible state
+
+When the R object needs fields that R code reads and writes next to the Rust
+value, declare them as sidecar fields: an `#[r_data]` struct,
+`r_data_accessors!(Type, TypeData)`, and a constructor that returns
+`(Self, TypeData)`. For an S3 class the generator emits a getter generic and a
+replacement generic per field (`name(x)`, `name(x) <- value`); the fields live
+with the handle, so every method sees them and nothing has to be re-wrapped.
+The walkthrough and the per-class-system accessor table are in
+`CLASS_SYSTEMS.md`, "Direct Field Access via Sidecar". The sidecar is the
+supported answer for state the package owns; the shape below is for interop.
+
+### Interop: an existing list shape carrying the handle
+
+Some R code already keeps its state in a list, or the class is defined in R (or
+in a package you do not control) as a list. Such an object can carry the handle
+in a `.ptr` element and still dispatch into `#[miniextendr(s3)] impl` methods:
+
+```r
+p <- structure(list(.ptr = new_person("Alice", 30), notes = character()), class = "Person")
+greet(p)      # greet.Person -> Rust; the receiver prelude resolves the pointer from p$.ptr
+show(p)       # `&mut self`: mutates the Rust value behind the shared pointer
+p$notes       # list fields are R's business and are untouched
+```
+
+Every instance-method wrapper passes the object R dispatched with to `.Call()`,
+and the generated prelude resolves the receiver through the same class-handle
+unwrap that `ExternalPtr<T>` arguments use (`EXTERNALPTR.md`, "Passing Class
+Objects to Standalone Functions"): a bare pointer, an R6 / S4 / S7 handle, an
+environment or a list with `.ptr`, or an object with a `.ptr` attribute. The
+`.ptr` element is found by name, so its position does not matter, and a `.ptr`
+value that is not an external pointer counts as no handle. A receiver that
+yields no pointer raises `expected a `Person` object (an external pointer, or an
+R6/S4/S7 handle, environment, or list carrying one in `.ptr`), got VECSXP`; a
+pointer to a different Rust type still fails the downcast with
+`expected ExternalPtr<Person>, found `Other``.
+
+This is a compatibility path, not a way to add state. A method returning `Self`
+(or `Result<Self, E>` / `Option<Self>`) re-wraps its result as a fresh classed
+pointer, `structure(<ptr>, class = "Person")`, so the list fields are gone on
+the returned value, and a `self`-by-value method consumes the shared handle.
+State the package owns belongs in sidecar fields.
+
 ## Standalone S3 methods (class defined elsewhere)
 
 The `#[miniextendr(s3)]`-on-impl pattern above owns both the constructor and the methods: the Rust type `Person` *is* the S3 class. That is the right tool when Rust holds the canonical data. It is the wrong tool when:

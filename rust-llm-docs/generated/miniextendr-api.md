@@ -32065,6 +32065,33 @@ Panic with the right message when a handle's stored value is not a `T`:
 "consumed" if a previous `self`-by-value step failed, type mismatch
 otherwise. Used by generated method preludes instead of a bare `expect`.
 
+### `externalptr::resolve_receiver`
+
+```rust
+fn resolve_receiver<T: TypedExternal>(sexp: crate::SEXP) -> crate::SEXP
+```
+
+Resolve an instance-method receiver to the bare `EXTPTRSXP` it carries.
+
+Generated method preludes call this on `self_sexp` before
+`ErasedExternalPtr::from_sexp` / `ExternalPtr::<T>::wrap_sexp`. A bare
+pointer, the shape every generated constructor returns (classed or not),
+passes through after one `TYPEOF` compare. Anything else goes through the
+same class-handle unwrap as `ExternalPtr<T>` arguments: an R6 / S4 / S7
+handle, an environment or a list carrying the pointer in `.ptr`, or any
+object with a `.ptr` attribute. An S3 class whose object is a list with
+R-side state next to the handle, `structure(list(.ptr = <ptr>, log = ...),
+class = "Foo")`, therefore dispatches into `#[miniextendr(s3)] impl Foo`
+methods unchanged (#1469).
+
+Panics (the framework converts it to an R error) when no pointer can be
+recovered, naming `T` and the receiver's `SEXPTYPE`. Type safety is still
+decided by the `Any::downcast` that follows; this only widens the accepted
+R-side shape.
+
+Runs on R's main thread: generated preludes execute before any worker
+hand-off.
+
 ### `factor::build_factor`
 
 ```rust

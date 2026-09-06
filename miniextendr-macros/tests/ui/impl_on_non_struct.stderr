@@ -1,8 +1,6 @@
 error[E0277]: the trait bound `NotAStruct: TypedExternal` is not satisfied
   --> tests/ui/impl_on_non_struct.rs:11:6
    |
-10 | #[miniextendr]
-   | -------------- required by a bound introduced by this call
 11 | impl NotAStruct {
    |      ^^^^^^^^^^ unsatisfied trait bound
    |
@@ -21,12 +19,8 @@ help: the trait `TypedExternal` is not implemented for `NotAStruct`
              (A, B, C, D, E)
              (A, B, C, D, E, F)
            and $N others
-note: required by a bound in `ExternalPtr::<()>::downcast_ref`
+note: required by a bound in `resolve_receiver`
   --> $WORKSPACE/miniextendr-api/src/externalptr.rs
    |
-   |     pub fn downcast_ref<T: TypedExternal>(&self) -> Option<&T> {
-   |                            ^^^^^^^^^^^^^ required by this bound in `ExternalPtr::<()>::downcast_ref`
-help: use a unary tuple instead
-   |
-10 | (#[miniextendr],)
-   | +              ++
+   | pub fn resolve_receiver<T: TypedExternal>(sexp: SEXP) -> SEXP {
+   |                            ^^^^^^^^^^^^^ required by this bound in `resolve_receiver`
