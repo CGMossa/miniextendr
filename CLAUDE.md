@@ -312,11 +312,16 @@ trybuild `.stderr`; CI's `dtolnay/rust-toolchain@stable` minimal profile has no
 CI (no-`rust-src`) flavor, so overwriting under `rust-src` bakes local-only spans
 into the snapshot and breaks CI (issue #1239). **CI is authoritative.**
 
-`just test` runs the trybuild snapshots only via `just test-ui`; its
-root-workspace leg sets `MINIEXTENDR_SKIP_UI=1` so they don't also run on the
-active — possibly `rust-src` — toolchain. `just test-ui` auto-detects `rust-src`
-and, when present, reruns the UI suite under a **version-named minimal-profile
-toolchain** (a separate rustup toolchain from `stable` even at the same version,
+`just test` runs the trybuild snapshots only via `just test-ui`, its final
+leg; its root-workspace leg sets `MINIEXTENDR_SKIP_UI=1` so they don't also run
+on the active — possibly `rust-src` — toolchain. Every leg of `just test` runs
+even when an earlier one fails (CI's `--no-fail-fast`, across suites), the
+failed legs are listed at the end, and the recipe exits non-zero; the rpkg leg
+rewrites `rpkg/src/rust/Cargo.lock` under the path overrides, which an exit trap
+restores (`just cargo-lock-restore` by hand after a killed run). `just test-ui`
+auto-detects `rust-src` and, when present, reruns the UI suite under a
+**version-named minimal-profile toolchain** (a separate rustup toolchain from
+`stable` even at the same version,
 so it carries no `rust-src`). To reproduce CI's rendering by hand:
 
 ```bash
