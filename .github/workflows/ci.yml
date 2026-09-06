@@ -424,6 +424,16 @@ jobs:
           -- -D warnings 2>&1 | tee "$RUNNER_TEMP/clippy_all_s7.log"
         shell: bash
 
+      # rpkg/src/rust is a standalone workspace, so none of the root
+      # `--workspace` invocations above reach its fixture crate. The dedicated
+      # recipe supplies local framework patches without requiring configure or
+      # a real R installation, and restores the tarball-shaped lockfile.
+      - name: Clippy (rpkg, full features)
+        id: clippy_rpkg
+        continue-on-error: true
+        run: just clippy-rpkg --features full -- -D warnings 2>&1 | tee "$RUNNER_TEMP/clippy_rpkg.log"
+        shell: bash
+
       # cargo-revendor is a standalone workspace excluded from the root
       # workspace, so the `--workspace` clippy steps above never reach it
       # (#778). It has no R linkage, so it lints without configure/R setup.
@@ -453,6 +463,7 @@ jobs:
           clippy_default="${{ steps.clippy_default.outcome }}"
           clippy_all="${{ steps.clippy_all.outcome }}"
           clippy_all_s7="${{ steps.clippy_all_s7.outcome }}"
+          clippy_rpkg="${{ steps.clippy_rpkg.outcome }}"
           clippy_revendor="${{ steps.clippy_revendor.outcome }}"
           doc_revendor="${{ steps.doc_revendor.outcome }}"
 
@@ -461,6 +472,7 @@ jobs:
           echo "clippy_default:   $clippy_default"
           echo "clippy_all:       $clippy_all"
           echo "clippy_all_s7:    $clippy_all_s7"
+          echo "clippy_rpkg:      $clippy_rpkg"
           echo "clippy_revendor:  $clippy_revendor"
           echo "doc_revendor:     $doc_revendor"
           echo
@@ -484,6 +496,7 @@ jobs:
           dump_failed clippy_default   "$clippy_default"
           dump_failed clippy_all       "$clippy_all"
           dump_failed clippy_all_s7    "$clippy_all_s7"
+          dump_failed clippy_rpkg      "$clippy_rpkg"
           dump_failed clippy_revendor  "$clippy_revendor"
           dump_failed doc_revendor     "$doc_revendor"
 
@@ -522,6 +535,12 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      # `just test-rpkg` (the rpkg leg below) supplies the local framework
+      # patches and restores the tarball-shaped lockfile, so the leg cannot
+      # drift from `just test`.
+      - name: Install just
+        uses: taiki-e/install-action@just
+
       - uses: mozilla-actions/sccache-action@v0.0.10
 
       - name: Cache Cargo
@@ -529,6 +548,11 @@ jobs:
         with:
           shared-key: rust-tests
           cache-on-failure: true
+          # rpkg/src/rust is its own workspace with its own target dir
+          # (`test-rpkg` sets CARGO_TARGET_DIR there).
+          workspaces: |
+            . -> target
+            rpkg/src/rust -> target
 
       - name: Put libR on LD_LIBRARY_PATH
         run: |
@@ -560,6 +584,17 @@ jobs:
       # workspace, so the `--workspace` step above never reaches it (#778).
       - name: Tests (cargo-revendor)
         run: cargo test --manifest-path cargo-revendor/Cargo.toml --locked --no-fail-fast
+
+      # rpkg/src/rust is a standalone workspace too, so the `--workspace` step
+      # never reaches its `#[cfg(test)]` modules (#1474). The rust-lint rpkg
+      # clippy gate compiles them; only this leg runs them. The recipe supplies
+      # the local framework patches (no configure / .cargo/config.toml needed)
+      # and restores the lockfile the overrides rewrite; the test binaries link
+      # libR through miniextendr-api's build.rs, which is why the leg lives in
+      # this job and not in rust-lint. No --locked: the path overrides change
+      # the lock on purpose, and `--no-fail-fast` matches the legs above.
+      - name: Tests (rpkg/src/rust)
+        run: just test-rpkg
 
   # ===========================================================================
   # Feature-combination compile check (scheduled only)
