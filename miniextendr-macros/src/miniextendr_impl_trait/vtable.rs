@@ -1020,7 +1020,7 @@ pub(super) fn generate_trait_method_c_wrapper(
         let self_extraction = if method.is_mut {
             quote::quote! {
                 let mut self_ptr = unsafe {
-                    ::miniextendr_api::externalptr::ErasedExternalPtr::from_sexp(self_sexp)
+                    ::miniextendr_api::externalptr::ErasedExternalPtr::from_sexp(::miniextendr_api::externalptr::resolve_receiver::<#type_ident>(self_sexp))
                 };
                 let self_ref = self_ptr.downcast_mut::<#type_ident>()
                     .unwrap_or_else(|| panic!(
@@ -1033,7 +1033,7 @@ pub(super) fn generate_trait_method_c_wrapper(
         } else {
             quote::quote! {
                 let self_ptr = unsafe {
-                    ::miniextendr_api::externalptr::ErasedExternalPtr::from_sexp(self_sexp)
+                    ::miniextendr_api::externalptr::ErasedExternalPtr::from_sexp(::miniextendr_api::externalptr::resolve_receiver::<#type_ident>(self_sexp))
                 };
                 let self_ref = self_ptr.downcast_ref::<#type_ident>()
                     .unwrap_or_else(|| panic!(

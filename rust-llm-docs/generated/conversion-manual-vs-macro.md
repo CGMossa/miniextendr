@@ -42,7 +42,7 @@ Source: `target/doc/miniextendr_api.json`
     - `Option<crate::Rboolean>` (3 items) — miniextendr-api/src/from_r/logical.rs:62
     - `Option<crate::Rcomplex>` (3 items) — miniextendr-api/src/from_r/logical.rs:250
     - `Option<crate::SEXP>` (3 items) — miniextendr-api/src/from_r.rs:582
-    - `Option<crate::externalptr::ExternalPtr<T>>` (3 items) — miniextendr-api/src/from_r.rs:1578
+    - `Option<crate::externalptr::ExternalPtr<T>>` (3 items) — miniextendr-api/src/from_r.rs:1579
     - `Option<f32>` (3 items) — miniextendr-api/src/from_r/coerced_scalars.rs:395
     - `Option<f64>` (3 items) — miniextendr-api/src/from_r/logical.rs:196
     - `Option<i16>` (3 items) — miniextendr-api/src/from_r/coerced_scalars.rs:353
@@ -79,7 +79,7 @@ Source: `target/doc/miniextendr_api.json`
     - `Vec<crate::Rboolean>` (2 items) — miniextendr-api/src/from_r/na_vectors.rs:101
     - `Vec<crate::Rcomplex>` (2 items) — miniextendr-api/src/from_r/collections.rs:199
     - `Vec<crate::altrep_data::Logical>` (2 items) — miniextendr-api/src/from_r/na_vectors.rs:162
-    - `Vec<crate::externalptr::ExternalPtr<T>>` (3 items) — miniextendr-api/src/from_r.rs:1607
+    - `Vec<crate::externalptr::ExternalPtr<T>>` (3 items) — miniextendr-api/src/from_r.rs:1608
     - `Vec<f32>` (3 items) — miniextendr-api/src/from_r.rs:1378
     - `Vec<f64>` (2 items) — miniextendr-api/src/from_r/collections.rs:196
     - `Vec<i16>` (3 items) — miniextendr-api/src/from_r.rs:1371
@@ -112,7 +112,7 @@ Source: `target/doc/miniextendr_api.json`
     - `Vec<Option<bool>>` (3 items) — miniextendr-api/src/from_r/na_vectors.rs:66
     - `Vec<Option<crate::RLogical>>` (2 items) — miniextendr-api/src/from_r/na_vectors.rs:185
     - `Vec<Option<crate::Rboolean>>` (2 items) — miniextendr-api/src/from_r/na_vectors.rs:131
-    - `Vec<Option<crate::externalptr::ExternalPtr<T>>>` (3 items) — miniextendr-api/src/from_r.rs:1628
+    - `Vec<Option<crate::externalptr::ExternalPtr<T>>>` (3 items) — miniextendr-api/src/from_r.rs:1629
     - `Vec<Option<f32>>` (3 items) — miniextendr-api/src/from_r/na_vectors.rs:310
     - `Vec<Option<f64>>` (2 items) — miniextendr-api/src/from_r/na_vectors.rs:62
     - `Vec<Option<i16>>` (3 items) — miniextendr-api/src/from_r/na_vectors.rs:303

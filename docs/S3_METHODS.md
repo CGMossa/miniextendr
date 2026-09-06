@@ -331,6 +331,51 @@ format(t)   # "36.6°C" (returns the string)
 cat(format(t), "\n")  # 36.6°C
 ```
 
+## List wrappers with R-side state
+
+The generated constructor returns the external pointer itself with the class
+attribute set. When the R object needs state that lives on the R side (a log,
+a cache, options that R code reads without a `.Call()`), build the object as a
+list that carries the handle in `.ptr` and keep the generated methods:
+
+```r
+# R/person.R — hand-written constructor around the generated one
+person <- function(name, age) {
+  structure(
+    list(.ptr = new_person(name, age), notes = character()),
+    class = "Person"
+  )
+}
+```
+
+```r
+p <- person("Alice", 30)
+greet(p)                 # dispatches to greet.Person -> Rust, receiver resolved from p$.ptr
+p$notes <- c(p$notes, "met at the conference")
+show(p)                  # `&mut self`: mutates the Rust value behind the shared pointer
+p$notes                  # R-side state is untouched
+```
+
+Every instance-method wrapper passes the object R dispatched with to `.Call()`,
+and the generated prelude resolves the receiver through the same class-handle
+unwrap that `ExternalPtr<T>` arguments use (`EXTERNALPTR.md`, "Passing Class
+Objects to Standalone Functions"): a bare pointer, an R6 / S4 / S7 handle, an
+environment or a list with `.ptr`, or an object with a `.ptr` attribute. The
+`.ptr` element is found by name, so its position in the list does not matter,
+and a `.ptr` value that is not an external pointer counts as no handle. A
+receiver that yields no pointer raises `expected a `Person` object (an external
+pointer, or an R6/S4/S7 handle, environment, or list carrying one in `.ptr`),
+got VECSXP`; a pointer to a different Rust type still fails the downcast with
+`expected ExternalPtr<Person>, found `Other``.
+
+Two things do not carry the list along. A method returning `Self` (or
+`Result<Self, E>` / `Option<Self>`) re-wraps its result as a fresh classed
+pointer, `structure(<ptr>, class = "Person")`, so the R-side fields are gone on
+the returned value; mutate through `&mut self` methods instead (the wrapper
+already returns `invisible(x)`). And a `self`-by-value method consumes the
+handle in place, which leaves the list holding a consumed pointer, as it would a
+bare one.
+
 ## Standalone S3 methods (class defined elsewhere)
 
 The `#[miniextendr(s3)]`-on-impl pattern above owns both the constructor and the methods: the Rust type `Person` *is* the S3 class. That is the right tool when Rust holds the canonical data. It is the wrong tool when:

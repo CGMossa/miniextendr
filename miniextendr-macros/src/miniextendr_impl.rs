@@ -2649,8 +2649,9 @@ impl ParsedImpl {
         //
         // Instance-method receivers (&self, &mut self, etc.) are equally broken: the vctrs
         // S3 dispatch passes the R object (an S3-classed base vector — REALSXP, INTSXP, etc.)
-        // as `self_sexp`. The C wrapper then calls `ErasedExternalPtr::from_sexp(self_sexp)`,
-        // which panics because the base vector is not an ExternalPtr.  There is no Rust `Self`
+        // as `self_sexp`. The C wrapper's receiver prelude (`resolve_receiver`, then
+        // `ErasedExternalPtr::from_sexp`) panics because the base vector is not an ExternalPtr
+        // and carries no `.ptr`.  There is no Rust `Self`
         // stored anywhere — the vector payload IS the R object.  Instance methods must be
         // expressed as static methods receiving the vector data by parameter.
         if attrs.class_system == ClassSystem::Vctrs {
@@ -3016,7 +3017,7 @@ pub fn generate_method_c_wrapper(
             ReceiverKind::RefMut => {
                 quote! {
                     let mut self_ptr = unsafe {
-                        ::miniextendr_api::externalptr::ErasedExternalPtr::from_sexp(self_sexp)
+                        ::miniextendr_api::externalptr::ErasedExternalPtr::from_sexp(::miniextendr_api::externalptr::resolve_receiver::<#type_ident>(self_sexp))
                     };
                     let self_ref = match self_ptr.downcast_mut::<#type_ident>() {
                         Some(r) => r,
@@ -3027,7 +3028,7 @@ pub fn generate_method_c_wrapper(
             ReceiverKind::Ref => {
                 quote! {
                     let self_ptr = unsafe {
-                        ::miniextendr_api::externalptr::ErasedExternalPtr::from_sexp(self_sexp)
+                        ::miniextendr_api::externalptr::ErasedExternalPtr::from_sexp(::miniextendr_api::externalptr::resolve_receiver::<#type_ident>(self_sexp))
                     };
                     let self_ref = match self_ptr.downcast_ref::<#type_ident>() {
                         Some(r) => r,
@@ -3041,7 +3042,7 @@ pub fn generate_method_c_wrapper(
                 // only on success (`T: Clone`, see `ConsumingFallible`).
                 ValueMode::Fallible => quote! {
                     let mut self_ptr = unsafe {
-                        ::miniextendr_api::externalptr::ErasedExternalPtr::from_sexp(self_sexp)
+                        ::miniextendr_api::externalptr::ErasedExternalPtr::from_sexp(::miniextendr_api::externalptr::resolve_receiver::<#type_ident>(self_sexp))
                     };
                     let self_slot = match self_ptr.downcast_mut::<#type_ident>() {
                         Some(r) => r,
@@ -3053,7 +3054,7 @@ pub fn generate_method_c_wrapper(
                 // result is written back.
                 ValueMode::WriteBack | ValueMode::Terminal => quote! {
                     let mut self_ptr = unsafe {
-                        ::miniextendr_api::externalptr::ErasedExternalPtr::from_sexp(self_sexp)
+                        ::miniextendr_api::externalptr::ErasedExternalPtr::from_sexp(::miniextendr_api::externalptr::resolve_receiver::<#type_ident>(self_sexp))
                     };
                     let __mx_taken = match self_ptr.take_for_consuming::<#type_ident>() {
                         Some(v) => v,
@@ -3064,7 +3065,7 @@ pub fn generate_method_c_wrapper(
             ReceiverKind::ExternalPtrRef => {
                 quote! {
                     let __self_ptr = unsafe {
-                        ::miniextendr_api::externalptr::ExternalPtr::<#type_ident>::wrap_sexp(self_sexp)
+                        ::miniextendr_api::externalptr::ExternalPtr::<#type_ident>::wrap_sexp(::miniextendr_api::externalptr::resolve_receiver::<#type_ident>(self_sexp))
                             .expect(concat!("expected ExternalPtr<", stringify!(#type_ident), ">"))
                     };
                 }
@@ -3072,7 +3073,7 @@ pub fn generate_method_c_wrapper(
             ReceiverKind::ExternalPtrRefMut => {
                 quote! {
                     let mut __self_ptr = unsafe {
-                        ::miniextendr_api::externalptr::ExternalPtr::<#type_ident>::wrap_sexp(self_sexp)
+                        ::miniextendr_api::externalptr::ExternalPtr::<#type_ident>::wrap_sexp(::miniextendr_api::externalptr::resolve_receiver::<#type_ident>(self_sexp))
                             .expect(concat!("expected ExternalPtr<", stringify!(#type_ident), ">"))
                     };
                 }
@@ -3080,7 +3081,7 @@ pub fn generate_method_c_wrapper(
             ReceiverKind::ExternalPtrValue => {
                 quote! {
                     let __self_ptr = unsafe {
-                        ::miniextendr_api::externalptr::ExternalPtr::<#type_ident>::wrap_sexp(self_sexp)
+                        ::miniextendr_api::externalptr::ExternalPtr::<#type_ident>::wrap_sexp(::miniextendr_api::externalptr::resolve_receiver::<#type_ident>(self_sexp))
                             .expect(concat!("expected ExternalPtr<", stringify!(#type_ident), ">"))
                     };
                 }
