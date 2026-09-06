@@ -15,5 +15,4 @@ ra-target/
 src/rust/ra_target/
 src/rust/target/
 inst/.vendor.tar.xz.cksum
-.vendor-tarball-staging/
 vendor/
