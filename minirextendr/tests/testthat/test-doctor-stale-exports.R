@@ -144,25 +144,117 @@ test_that("re-exports (importFrom + export) are NOT flagged", {
   expect_false(any(grepl("stale NAMESPACE export", result$warn, fixed = TRUE)))
 })
 
-test_that("a whole-package import() skips the check with a note instead of false-positives", {
+test_that("whole-package imports attribute installed exports and still flag stale names", {
   pkg <- make_stale_export_pkg(
-    ns_lines = c(ns_header, "import(stats)", "export(gone_fn)"),
-    r_files = list(
-      "testpkg-wrappers.R" = 'wrapper_fn <- function() .Call("C_wrapper_fn")'
-    )
+    ns_lines = c(ns_header, "import(stats)", "export(median)", "export(gone_fn)"),
+    r_files = list("testpkg-wrappers.R" = "wrapper_fn <- function() 1")
   )
   on.exit(unlink(pkg, recursive = TRUE), add = TRUE)
+  msgs <- testthat::capture_messages(result <- miniextendr_doctor(pkg))
+  expect_identical(grep("^stale NAMESPACE export: ", result$warn, value = TRUE),
+                   "stale NAMESPACE export: gone_fn")
+  expect_false(any(grepl("Stale-export check skipped", msgs, fixed = TRUE)))
+})
 
-  msgs <- testthat::capture_messages(
-    result <- miniextendr_doctor(pkg)
+# Installed metadata can be inspected without loading any dependency code.
+# Deliberately omit installation machinery and make the R code fail if sourced.
+make_doctor_import <- function(package, namespace, metadata = NULL) {
+  lib <- withr::local_tempdir(.local_envir = parent.frame())
+  root <- file.path(lib, package)
+  dir.create(root)
+  writeLines(c(paste("Package:", package), "Version: 0.1.0", "Title: Test"),
+             file.path(root, "DESCRIPTION"))
+  writeLines(namespace, file.path(root, "NAMESPACE"))
+  dir.create(file.path(root, "R"))
+  writeLines('stop("doctor must not execute dependency code")', file.path(root, "R", "code.R"))
+  if (!is.null(metadata)) {
+    dir.create(file.path(root, "Meta"))
+    saveRDS(metadata, file.path(root, "Meta", "nsInfo.rds"))
+  }
+  withr::local_libpaths(lib, action = "prefix", .local_envir = parent.frame())
+  root
+}
+
+test_that("whole imports prefer installed metadata without loading namespaces", {
+  make_doctor_import("mxdoctormeta", "this is invalid namespace syntax (((",
+                     list(exports = c("available", "shared"), exportPatterns = character()))
+  make_doctor_import("mxdoctorsecond", "export(second)",
+                     list(exports = "second", exportPatterns = character()))
+  pkg <- make_stale_export_pkg(
+    c(ns_header, "import(mxdoctormeta, mxdoctorsecond)",
+      "export(available, shared, second, gone_fn)"),
+    list("testpkg-wrappers.R" = "wrapper_fn <- function() 1")
   )
+  on.exit(unlink(pkg, recursive = TRUE), add = TRUE)
+  expect_false(any(c("mxdoctormeta", "mxdoctorsecond") %in% loadedNamespaces()))
+  res <- stale_namespace_exports(pkg)
+  expect_identical(res$status, "ok")
+  expect_identical(res$stale, "gone_fn")
+  expect_false(any(c("mxdoctormeta", "mxdoctorsecond") %in% loadedNamespaces()))
+})
 
-  # Neither flagged nor passed: skipped, with a note naming the import.
-  expect_false(any(grepl("stale NAMESPACE export", result$warn, fixed = TRUE)))
-  expect_false(any(grepl("no stale NAMESPACE exports", result$pass, fixed = TRUE)))
-  flat <- gsub("\\s+", " ", paste(msgs, collapse = " "))
-  expect_match(flat, "Stale-export check skipped", fixed = TRUE)
-  expect_match(flat, "import(stats)", fixed = TRUE)
+test_that("import except removes only that dependency's contribution", {
+  make_doctor_import("mxdoctorexcept", "export(kept, omitted, local_name)",
+                     list(exports = c("kept", "omitted", "local_name"), exportPatterns = character()))
+  pkg <- make_stale_export_pkg(
+    c(ns_header, 'import(mxdoctorexcept, except = c("omitted", "local_name"))',
+      "importFrom(utils, head)", "export(kept, omitted, local_name, head)"),
+    list("testpkg-wrappers.R" = "local_name <- function() 1")
+  )
+  on.exit(unlink(pkg, recursive = TRUE), add = TRUE)
+  res <- stale_namespace_exports(pkg)
+  expect_identical(res$status, "ok")
+  expect_identical(res$stale, "omitted")
+})
+
+test_that("whole imports fall back to shipped NAMESPACE when metadata is absent or unreadable", {
+  for (cache_case in c("absent", "unreadable", "invalid-shape")) {
+    root <- make_doctor_import("mxdoctorfallback", "export(fallback_fn)")
+    if (cache_case != "absent") {
+      dir.create(file.path(root, "Meta"))
+      cache <- file.path(root, "Meta", "nsInfo.rds")
+      if (cache_case == "unreadable") {
+        writeLines("not an RDS file", cache)
+      } else {
+        saveRDS(42L, cache)
+      }
+    }
+    pkg <- make_stale_export_pkg(
+      c(ns_header, "import(mxdoctorfallback)", "export(fallback_fn, gone_fn)"),
+      list("testpkg-wrappers.R" = "wrapper_fn <- function() 1")
+    )
+    on.exit(unlink(pkg, recursive = TRUE), add = TRUE)
+    res <- stale_namespace_exports(pkg)
+    expect_identical(res$status, "ok")
+    expect_identical(res$stale, "gone_fn")
+    expect_false("mxdoctorfallback" %in% loadedNamespaces())
+  }
+})
+
+test_that("unavailable whole imports explain why static attribution skips", {
+  make_doctor_import("mxdoctorpattern", 'exportPattern("^dynamic_")',
+                     list(exports = "known", exportPatterns = "^dynamic_"))
+  make_doctor_import("mxdoctorbroken", "export(unbalanced")
+  reasons <- c(mxdoctormissing = "import-not-installed",
+               mxdoctorpattern = "import-export-patterns",
+               mxdoctorbroken = "import-parse-error")
+  for (package in names(reasons)) {
+    pkg <- make_stale_export_pkg(
+      c(ns_header, sprintf("import(%s)", package), "export(gone_fn)"),
+      list("testpkg-wrappers.R" = "wrapper_fn <- function() 1")
+    )
+    on.exit(unlink(pkg, recursive = TRUE), add = TRUE)
+    res <- stale_namespace_exports(pkg)
+    expect_identical(res$status, "skip")
+    expect_identical(res$reason, unname(reasons[[package]]))
+    expect_identical(res$detail, package)
+    msgs <- testthat::capture_messages(result <- miniextendr_doctor(pkg))
+    expect_false(any(grepl("stale NAMESPACE export", result$warn, fixed = TRUE)))
+    flat <- gsub("\\s+", " ", paste(msgs, collapse = " "))
+    expect_match(flat, "Stale-export check skipped", fixed = TRUE)
+    expect_match(flat, sprintf("import(%s)", package), fixed = TRUE)
+    expect_false(grepl("{.code", flat, fixed = TRUE))
+  }
 })
 
 test_that("exportPattern() does not rescue a stale explicit export, and its presence is noted", {

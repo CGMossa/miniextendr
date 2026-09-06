@@ -24,7 +24,9 @@
 #' The NAMESPACE section also flags stale-export drift: explicit `export()`
 #' directives with no backing definition in the union of top-level objects
 #' defined in `R/` sources (including the generated `R/<pkg>-wrappers.R`)
-#' and `importFrom()` names (re-exports). After a `#[miniextendr]` function
+#' and imported names (re-exports). Whole-package `import()` directives are
+#' attributed from installed namespace metadata or the shipped NAMESPACE,
+#' without loading the dependency. After a `#[miniextendr]` function
 #' is removed or renamed, `pkgload::load_all()` and `testthat` merely warn
 #' on the superset NAMESPACE and proceed, so the drift stays invisible in
 #' the dev loop until `R CMD check` or `library()` fails far from the cause;
@@ -32,8 +34,8 @@
 #' package code is loaded or executed). `exportPattern()` name-sets are not
 #' expanded, `S3method()` / `exportMethods()` / `exportClasses()` directives
 #' are out of scope, and the check skips when the wrappers file has not been
-#' generated yet or when a whole-package `import()` directive makes exports
-#' statically unattributable.
+#' generated yet or when a whole-package import is unavailable, has unreadable
+#' namespace metadata, or uses `exportPattern()` (whose names depend on loading).
 #'
 #' For more targeted checks, see [miniextendr_status()] (file presence)
 #' and [miniextendr_validate()] (configuration correctness).
@@ -338,10 +340,19 @@ tarball-mode cleanup in Makevars. Fix: \\
 on disk yet (fresh clone or scaffold). Run {.code miniextendr_build()} to \\
 generate the wrappers."
         )
-      } else if (identical(drift$reason, "whole-package-import")) {
+      } else if (drift$reason %in% c(
+        "import-not-installed", "import-export-patterns", "import-parse-error"
+      )) {
+        explanation <- switch(drift$reason,
+          "import-not-installed" = "the imported package is not installed locally.",
+          "import-export-patterns" = paste0(
+            "the imported package uses exportPattern(), whose exports ",
+            "cannot be enumerated without loading it."
+          ),
+          "import-parse-error" = "the imported package's namespace metadata could not be read."
+        )
         cli::cli_alert_info(
-          "Stale-export check skipped: {.code import({drift$detail})} imports a \\
-whole namespace, so exports cannot be attributed statically."
+          "Stale-export check skipped for {.code import({drift$detail})}: {explanation}"
         )
       } else if (identical(drift$reason, "parse-error")) {
         cli::cli_alert_info(
@@ -688,10 +699,11 @@ tracked_generated_files <- function(proj_dir = usethis::proj_get()) {
 #' Compares the package's explicit `export()` directives against the union of
 #' (a) top-level objects defined in `R/` sources -- which includes the
 #' generated `R/<pkg>-wrappers.R`, since it lives in `R/` -- and (b) names
-#' brought in by `importFrom()` directives (roxygen re-exports are
-#' `importFrom()` + `export()` pairs, so imported names are legitimate
-#' backing). Everything is derived statically (`parse()` +
-#' `parseNamespaceFile()`); the package is never loaded or executed, so the
+#' brought in by `importFrom()` and whole-package `import()` directives.
+#' Installed dependencies contribute explicit exports from `Meta/nsInfo.rds`,
+#' falling back to their shipped NAMESPACE if the metadata is unavailable.
+#' Everything is derived statically (`parse()` + `parseNamespaceFile()` and
+#' installed metadata); no namespace is loaded or executed, so the
 #' check is side-effect-free and safe to run on a broken tree.
 #'
 #' Directive semantics (deliberate):
@@ -707,10 +719,10 @@ tracked_generated_files <- function(proj_dir = usethis::proj_get()) {
 #'   `exportMethods()` / `exportClasses()` (S4) are backed by `setMethod()` /
 #'   `setClass()` side effects, not top-level assignments -- a static
 #'   assignment scan would false-positive them, so they are out of scope.
-#' - A whole-package `import(pkg)` makes every export statically
-#'   unattributable (any name might come from `pkg`), so the check skips
-#'   rather than enumerate a dependency's exports (which would require
-#'   loading its namespace).
+#' - Whole-package imports contribute their installed explicit export sets,
+#'   minus any `except` names. Missing/unreadable imports and dependencies
+#'   using `exportPattern()` still require a skip rather than guessing their
+#'   runtime exports.
 #'
 #' The generated wrappers file is gitignored in the scaffold: a fresh clone
 #' legitimately has NAMESPACE exports for every Rust wrapper but no
@@ -723,7 +735,8 @@ tracked_generated_files <- function(proj_dir = usethis::proj_get()) {
 #'   when the check ran (`stale` empty = clean). `list(status = "skip",
 #'   reason = <chr>, detail = <chr or NULL>)` when it cannot run without
 #'   guessing; `reason` is one of `"no-namespace"`, `"no-wrappers-file"`,
-#'   `"whole-package-import"` (`detail` = the imported package), or
+#'   `"import-not-installed"`, `"import-export-patterns"`, or
+#'   `"import-parse-error"` (`detail` = the imported package), or
 #'   `"parse-error"` (`detail` = the unparseable file, relative to
 #'   `pkg_dir`).
 #' @noRd
@@ -755,9 +768,15 @@ stale_namespace_exports <- function(pkg_dir = usethis::proj_get()) {
     # bare character = import(pkg); list with an `except` element =
     # import(pkg, except = ...); otherwise list(pkg, names) = importFrom().
     if (is.character(entry) || "except" %in% names(entry)) {
-      return(skip("whole-package-import", detail = entry[[1L]]))
+      info <- installed_namespace_exports(entry[[1L]])
+      if (identical(info$status, "skip")) {
+        return(info)
+      }
+      except <- if (is.list(entry)) entry$except else character()
+      imported <- c(imported, setdiff(info$exports, except))
+    } else {
+      imported <- c(imported, as.character(entry[[2L]]))
     }
-    imported <- c(imported, as.character(entry[[2L]]))
   }
 
   r_dir <- file.path(pkg_dir, "R")
@@ -780,6 +799,44 @@ stale_namespace_exports <- function(pkg_dir = usethis::proj_get()) {
     stale = setdiff(unique(as.character(ns$exports)), c(scan$names, imported)),
     has_export_patterns = has_export_patterns
   )
+}
+
+#' Explicit exports from an installed dependency without loading its namespace
+#'
+#' R's installed namespace metadata records explicit exports and patterns.
+#' Prefer it over reparsing the shipped NAMESPACE, matching R's loader. A
+#' missing or unreadable cache falls back to the NAMESPACE; unavailable or
+#' pattern-derived export sets cannot safely contribute to static attribution.
+#' @param package Name of the imported package.
+#' @return An `ok` result with `exports`, or a `skip` result with reason/detail.
+#' @noRd
+installed_namespace_exports <- function(package) {
+  skip <- function(reason) {
+    list(status = "skip", reason = reason, detail = package)
+  }
+  pkg_dir <- find.package(package, quiet = TRUE)
+  if (!length(pkg_dir)) {
+    return(skip("import-not-installed"))
+  }
+
+  info <- NULL
+  cache <- file.path(pkg_dir, "Meta", "nsInfo.rds")
+  if (file.exists(cache)) {
+    info <- tryCatch(readRDS(cache), error = function(e) NULL, warning = function(w) NULL)
+  }
+  if (!is.list(info) || !is.character(info$exports) || !is.character(info$exportPatterns)) {
+    info <- tryCatch(
+      parseNamespaceFile(basename(pkg_dir), dirname(pkg_dir)),
+      error = function(e) NULL, warning = function(w) NULL
+    )
+  }
+  if (is.null(info)) {
+    return(skip("import-parse-error"))
+  }
+  if (length(info$exportPatterns)) {
+    return(skip("import-export-patterns"))
+  }
+  list(status = "ok", exports = unique(info$exports))
 }
 
 #' Top-level object definitions in R source files

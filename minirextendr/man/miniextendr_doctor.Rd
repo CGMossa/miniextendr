@@ -40,7 +40,9 @@ build farm).
 The NAMESPACE section also flags stale-export drift: explicit \code{export()}
 directives with no backing definition in the union of top-level objects
 defined in \verb{R/} sources (including the generated \verb{R/<pkg>-wrappers.R})
-and \code{importFrom()} names (re-exports). After a \verb{#[miniextendr]} function
+and imported names (re-exports). Whole-package \code{import()} directives are
+attributed from installed namespace metadata or the shipped NAMESPACE,
+without loading the dependency. After a \verb{#[miniextendr]} function
 is removed or renamed, \code{pkgload::load_all()} and \code{testthat} merely warn
 on the superset NAMESPACE and proceed, so the drift stays invisible in
 the dev loop until \verb{R CMD check} or \code{library()} fails far from the cause;
@@ -48,8 +50,8 @@ the dev loop until \verb{R CMD check} or \code{library()} fails far from the cau
 package code is loaded or executed). \code{exportPattern()} name-sets are not
 expanded, \code{S3method()} / \code{exportMethods()} / \code{exportClasses()} directives
 are out of scope, and the check skips when the wrappers file has not been
-generated yet or when a whole-package \code{import()} directive makes exports
-statically unattributable.
+generated yet or when a whole-package import is unavailable, has unreadable
+namespace metadata, or uses \code{exportPattern()} (whose names depend on loading).
 
 For more targeted checks, see \code{\link[=miniextendr_status]{miniextendr_status()}} (file presence)
 and \code{\link[=miniextendr_validate]{miniextendr_validate()}} (configuration correctness).
