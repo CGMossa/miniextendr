@@ -369,7 +369,6 @@ pub fn expand_miniextendr_impl_trait(
         let (doc_tags, param_warnings) = crate::roxygen::strip_method_tags(
             &raw_tags,
             &concrete_type.to_token_stream().to_string(),
-            crate::roxygen::next_impl_tag_block_id(),
             impl_item.impl_token.span,
         );
         let no_rd = crate::roxygen::has_roxygen_tag(&doc_tags, "noRd");

@@ -6,8 +6,10 @@
 //! Each block strips its tag and emits a `#[deprecated]` nudge const; before
 //! the fix both consts were named `_MINIEXTENDR_IMPL_METHOD_TAG_WARN_<Type>_0`
 //! and collided with `error[E0428]: the name ... is defined multiple times`.
-//! The per-block disambiguator (`next_impl_tag_block_id`) makes the names
-//! unique, so this compiles.
+//! Each nudge is now wrapped in its own anonymous `const _: () = { .. };`
+//! scope, so the inner const names can stay fixed — an anonymous const block
+//! is a fresh item namespace every expansion — and this compiles without any
+//! per-block disambiguator.
 //!
 //! (Two *unlabeled* inherent impl blocks on one type is not a valid
 //! reproduction: they also collide on `R_WRAPPERS_IMPL_<TYPE>`, which is

@@ -149,7 +149,6 @@ pub(super) fn generate_vtable_static(
     let (impl_doc_tags, param_warnings) = crate::roxygen::strip_method_tags(
         &raw_impl_tags,
         &type_ident.to_string(),
-        crate::roxygen::next_impl_tag_block_id(),
         impl_item.impl_token.span,
     );
     let class_has_no_rd = crate::roxygen::has_roxygen_tag(&impl_doc_tags, "noRd");
