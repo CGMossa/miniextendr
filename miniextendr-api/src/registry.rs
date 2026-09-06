@@ -1897,13 +1897,30 @@ fn detect_duplicate_wrapper_defs(
 ///
 /// Recognises only **top-level** definitions: the line must start at column 0
 /// (no leading whitespace -- indented forms are R6/S7 closures, not standalone
-/// wrappers) and the left-hand side must be a single bare R identifier. Lines
-/// where the LHS is a call (e.g. `S7::method(...) <- function`) or contains `$`
-/// / `[[` / `::` are not bare definitions and are skipped.
+/// wrappers) and the left-hand side must be a single R symbol, bare or
+/// backtick-quoted. Calls and member assignments are skipped. Quoted names use
+/// the canonical escaping emitted by the macro name renderer.
 #[cfg(not(target_arch = "wasm32"))]
 fn parse_top_level_fn_def_name(line: &str) -> Option<&str> {
     // Top-level only: reject any leading whitespace.
     if line.starts_with([' ', '\t']) {
+        return None;
+    }
+    // Find the closing backtick before looking for the assignment: replacement
+    // methods such as `[<-.Foo` contain `<-` inside the symbol itself.
+    if let Some(quoted) = line.strip_prefix('`') {
+        let mut escaped = false;
+        for (index, ch) in quoted.char_indices() {
+            if escaped {
+                escaped = false;
+            } else if ch == '\\' {
+                escaped = true;
+            } else if ch == '`' {
+                let rhs = quoted[index + 1..].trim_start().strip_prefix("<-")?;
+                return (!quoted[..index].is_empty() && rhs.trim_start().starts_with("function"))
+                    .then_some(&quoted[..index]);
+            }
+        }
         return None;
     }
     let (lhs, rhs) = line.split_once("<-")?;
@@ -1917,8 +1934,8 @@ fn parse_top_level_fn_def_name(line: &str) -> Option<&str> {
     }
     // Bare identifier only: R names may contain letters, digits, `.` and `_`,
     // and must not start with a digit. Anything else (a call on the LHS, a `$`
-    // assignment, a `::`-qualified target, backtick-quoted names with spaces)
-    // is not a standalone wrapper definition we own.
+    // assignment or a `::`-qualified target) is not a standalone wrapper
+    // definition we own. Backtick-quoted names were handled above.
     let mut chars = name.chars();
     let first = chars.next()?;
     if !(first.is_ascii_alphabetic() || first == '.') {
@@ -2687,6 +2704,36 @@ mod tests {
             parse_top_level_fn_def_name(".miniextendr_raise_condition <- function(.val) {"),
             Some(".miniextendr_raise_condition")
         );
+    }
+
+    #[test]
+    fn parse_top_level_fn_def_name_accepts_quoted_operators() {
+        for name in [
+            "[.Foo", "[[.Foo", "$.Foo", "==.Foo", "+.Foo", "[<-.Foo", r"a\`b\\c",
+        ] {
+            let line = format!("`{name}` <- function(x, ...) {{}}");
+            assert_eq!(parse_top_level_fn_def_name(&line), Some(name));
+        }
+        for line in [
+            "`obj`$method <- function() {}",
+            "`obj`[[1]] <- function() {}",
+            "`unclosed <- function() {}",
+            "`value` <- 1L",
+        ] {
+            assert_eq!(parse_top_level_fn_def_name(line), None);
+        }
+    }
+
+    #[test]
+    fn detect_duplicate_quoted_operator_defs() {
+        let map = std::collections::HashMap::new();
+        let content = "`[.Foo` <- function(x, ...) {}\n`[.Foo` <- function(x, ...) {}\n";
+        let err = detect_duplicate_wrapper_defs(content, &map).unwrap_err();
+        assert!(err.contains("`[.Foo` is defined more than once"), "{err}");
+        let mixed = "foo <- function() {}\n`foo` <- function() {}\n";
+        assert!(detect_duplicate_wrapper_defs(mixed, &map).is_err());
+        let distinct = "`[.Foo` <- function(x, ...) {}\n`[[.Foo` <- function(x, ...) {}\n";
+        assert!(detect_duplicate_wrapper_defs(distinct, &map).is_ok());
     }
 
     #[test]

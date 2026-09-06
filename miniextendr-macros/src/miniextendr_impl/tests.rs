@@ -4287,3 +4287,42 @@ fn s7_convert_methods_honour_method_rdname() {
 }
 
 // endregion
+
+#[test]
+fn s3_operator_names_are_quoted_in_methods_and_generic_guards() {
+    for generic in ["[", "[[", "$", "==", "+", "%custom%"] {
+        for override_generic in [true, false] {
+            let attr = if override_generic {
+                quote::quote!(#[miniextendr(s3(generic = #generic))])
+            } else {
+                quote::quote!(#[miniextendr(r_name = #generic)])
+            };
+            let parsed = parse_impl(
+                ClassSystem::S3,
+                syn::parse_quote! {
+                    impl Foo {
+                        #attr
+                        pub fn operator(&self) -> i32 { 42 }
+                    }
+                },
+            );
+            let wrapper = generate_s3_r_wrapper(&parsed);
+            assert!(
+                wrapper.contains(&format!("`{generic}.Foo` <- function(x, ...)")),
+                "{wrapper}"
+            );
+            assert!(
+                wrapper.contains(&format!("#' @method {generic} Foo")),
+                "{wrapper}"
+            );
+            if !override_generic {
+                assert!(
+                    wrapper.contains(&format!(
+                        "`{generic}` <- function(x, ...) UseMethod(\"{generic}\")"
+                    )),
+                    "{wrapper}"
+                );
+            }
+        }
+    }
+}

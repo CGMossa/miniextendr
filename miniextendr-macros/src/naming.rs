@@ -40,6 +40,54 @@ pub(crate) fn name_ident(name: &str) -> syn::Ident {
 }
 // endregion
 
+/// Render a name as an R symbol, quoting names outside the ASCII syntactic subset.
+///
+/// R's definition of a letter depends on the locale. Backticks keep Unicode and
+/// operator names portable without changing the spelling of ordinary wrappers.
+/// See R's `make.names` documentation and `gram.y` keyword table.
+pub(crate) fn r_symbol(name: &str) -> String {
+    let mut chars = name.chars();
+    let valid_start = match chars.next() {
+        Some('.') => !chars.clone().next().is_some_and(|c| c.is_ascii_digit()),
+        Some(c) => c.is_ascii_alphabetic(),
+        None => false,
+    };
+    let reserved = matches!(
+        name,
+        "NULL"
+            | "NA"
+            | "TRUE"
+            | "FALSE"
+            | "Inf"
+            | "NaN"
+            | "NA_integer_"
+            | "NA_real_"
+            | "NA_character_"
+            | "NA_complex_"
+            | "function"
+            | "while"
+            | "repeat"
+            | "for"
+            | "if"
+            | "in"
+            | "else"
+            | "next"
+            | "break"
+    );
+    if valid_start && !reserved && chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '.')
+    {
+        name.to_string()
+    } else {
+        let escaped = name
+            .replace('\\', "\\\\")
+            .replace('`', "\\`")
+            .replace('\n', "\\n")
+            .replace('\r', "\\r")
+            .replace('\t', "\\t");
+        format!("`{escaped}`")
+    }
+}
+
 /// Identifier for the generated `const &str` holding the R wrapper source.
 ///
 /// Returns `R_WRAPPER_{RUST_IDENT}` (uppercased).
@@ -221,6 +269,30 @@ pub(crate) fn apply_rename_all(name: &str, rename_all: Option<&str>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn r_symbols_preserve_names_and_quote_operators() {
+        for name in ["print.foo", "foo_bar2", ".foo", ".", "...", "..1"] {
+            assert_eq!(r_symbol(name), name);
+        }
+        for name in [
+            "[.foo",
+            "[[.foo",
+            "$.foo",
+            "==.foo",
+            "+.foo",
+            "%in%.foo",
+            ".2foo",
+            "_foo",
+            "two words",
+            "føø",
+            "if",
+            "NA_integer_",
+        ] {
+            assert_eq!(r_symbol(name), format!("`{name}`"));
+        }
+        assert_eq!(r_symbol("a`b\\c\nd\re\tf"), "`a\\`b\\\\c\\nd\\re\\tf`");
+    }
 
     // At unit-test runtime cargo does not forward CARGO_CRATE_NAME to the
     // test binary's process env, so crate_prefix() takes the CARGO_PKG_NAME
