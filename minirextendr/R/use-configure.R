@@ -124,10 +124,11 @@ use_miniextendr_config_scripts <- function(path = ".", subdir = NULL) {
   invisible(TRUE)
 }
 
-#' Add Makevars.in template
+#' Add package makefiles
 #'
 #' Creates src/Makevars.in which is processed by configure to generate
-#' the actual Makevars used during package build.
+#' the actual Makevars used during package build. Also writes the static
+#' src/Makevars.win with the Windows system libraries needed by Rust.
 #'
 #' @param path Path to the R package root, or `"."` to use the current directory.
 #' @param subdir Optional template subdirectory (passed through to
@@ -139,6 +140,7 @@ use_miniextendr_makevars <- function(path = ".", subdir = NULL) {
   with_project(path)
   ensure_dir(usethis::proj_path("src"))
   use_template("Makevars.in", save_as = "src/Makevars.in", subdir = subdir)
+  use_template("Makevars.win", save_as = "src/Makevars.win", subdir = subdir)
   use_template("win.def.in", save_as = "src/win.def.in", subdir = subdir)
 
   invisible(TRUE)

@@ -2,7 +2,7 @@
 % Please edit documentation in R/use-configure.R
 \name{use_miniextendr_makevars}
 \alias{use_miniextendr_makevars}
-\title{Add Makevars.in template}
+\title{Add package makefiles}
 \usage{
 use_miniextendr_makevars(path = ".", subdir = NULL)
 }
@@ -18,6 +18,7 @@ Invisibly returns TRUE if file was created
 }
 \description{
 Creates src/Makevars.in which is processed by configure to generate
-the actual Makevars used during package build.
+the actual Makevars used during package build. Also writes the static
+src/Makevars.win with the Windows system libraries needed by Rust.
 }
 \keyword{internal}
