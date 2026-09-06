@@ -1202,8 +1202,8 @@ pub use raw_conversions::{
 /// Use `#[derive(MatchArg)]` on C-style enums to auto-generate the implementation.
 pub mod match_arg;
 pub use match_arg::{
-    MatchArg, MatchArgError, choices_sexp, match_arg_from_sexp, match_arg_vec_from_sexp,
-    match_arg_vec_into_sexp,
+    MatchArg, MatchArgError, choices_sexp, match_arg_from_sexp, match_arg_option_from_sexp,
+    match_arg_vec_from_sexp, match_arg_vec_into_sexp,
 };
 
 /// Factor support for enum ↔ R factor conversions.

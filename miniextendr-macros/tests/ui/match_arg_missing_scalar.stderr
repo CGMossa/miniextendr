@@ -1,0 +1,5 @@
+error: `Missing<T>` parameter `x` cannot be a scalar match_arg/choices parameter; the choice list lives in the R formal default, which `Missing<T>` forbids. Use `Option<T>` (NULL means no choice) or a plain `T` (the first choice is the default)
+ --> tests/ui/match_arg_missing_scalar.rs:8:60
+  |
+8 | fn bad_missing_scalar(#[miniextendr(choices("a", "b"))] x: Missing<String>) {}
+  |                                                            ^^^^^^^

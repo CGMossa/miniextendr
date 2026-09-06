@@ -144,6 +144,43 @@ mod tests {
     }
 }
 
+/// `true` when the last path segment of `ty` is `Option<...>`.
+pub(crate) fn is_option_type(ty: &syn::Type) -> bool {
+    option_inner_type(ty).is_some()
+}
+
+/// Return `T` for an `Option<T>` type, `None` for anything else.
+pub(crate) fn option_inner_type(ty: &syn::Type) -> Option<&syn::Type> {
+    let syn::Type::Path(tp) = ty else {
+        return None;
+    };
+    let seg = tp.path.segments.last()?;
+    if seg.ident != "Option" {
+        return None;
+    }
+    first_type_argument(seg)
+}
+
+/// Resolve the `MatchArg`-bound type behind a `match_arg` parameter.
+///
+/// A `several_ok` parameter is a container (`Vec<T>`, `Box<[T]>`, `[T; N]`,
+/// `&[T]`), so the element type is the one carrying `CHOICES`. A scalar
+/// parameter may be `Option<T>` (the optional form, #1473), in which case `T`
+/// is. Anything else is returned unchanged, and the `MatchArg` bound on the
+/// generated code reports the mistake.
+///
+/// Shared by the standalone-fn path (`lib.rs`) and the impl-method path
+/// (`miniextendr_impl.rs`) so the two cannot resolve the type differently.
+pub(crate) fn match_arg_choices_ty(param_ty: &syn::Type, several_ok: bool) -> &syn::Type {
+    if several_ok {
+        classify_several_ok_container(param_ty)
+            .map(|(_, inner)| inner)
+            .unwrap_or(param_ty)
+    } else {
+        option_inner_type(param_ty).unwrap_or(param_ty)
+    }
+}
+
 /// Container family for a `several_ok` parameter, returned by
 /// [`classify_several_ok_container`].
 #[derive(Debug, Clone)]

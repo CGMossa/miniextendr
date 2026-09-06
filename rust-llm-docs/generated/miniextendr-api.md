@@ -2299,6 +2299,19 @@ The generated R wrapper uses `base::match.arg()` for validation before
 the main `.Call()`, giving users familiar R error messages and partial
 matching.
 
+An `Option<T>` parameter (`#[miniextendr(match_arg)] mode: Option<Mode>`)
+is the optional form: the R formal defaults to `NULL`, `NULL` converts to
+`None`, and any other value is matched as usual. The generated C wrapper
+decodes it with [`match_arg_option_from_sexp`] (there is no
+`TryFromSexp for Option<T>` blanket: that slot belongs to the newtype
+forwarding impls in [`crate::newtype`], and a downstream crate cannot add
+one for its own enum under the orphan rule), so a hand-written `MatchArg`
+impl needs nothing extra.
+
+`several_ok` parameters are validated strictly on the R side: every element
+has to match a choice, and `NULL` selects every choice (the same fallback
+[`match_arg_vec_from_sexp`] applies).
+
 ### `missing`
 
 `pub mod missing;`
@@ -7731,6 +7744,8 @@ and `#[serde(crate = "miniextendr_api::serde_crate")]` to avoid a direct `serde`
 ### `pub use match_arg::choices_sexp;`
 
 ### `pub use match_arg::match_arg_from_sexp;`
+
+### `pub use match_arg::match_arg_option_from_sexp;`
 
 ### `pub use match_arg::match_arg_vec_from_sexp;`
 
@@ -20375,6 +20390,8 @@ choice descriptions.
   - Placeholder string in the `@param` roxygen tag, e.g.
 - `several_ok`: `bool`
   - `true` for `several_ok` params (emits "One or more of …");
+- `optional`: `bool`
+  - `true` for an `Option<T>`-typed scalar param (#1473): the R formal
 - `choices_str`: `fn() -> String`
   - Function that returns the choices as a comma-separated quoted string,
 
@@ -32402,6 +32419,23 @@ Extract a single string from an R SEXP and match it against a `MatchArg` type.
 
 Used by the generated `TryFromSexp for T` implementation (single-value `match.arg`).
 
+### `match_arg::match_arg_option_from_sexp`
+
+```rust
+fn match_arg_option_from_sexp<T: MatchArg>(sexp: crate::SEXP) -> Result<Option<T>, MatchArgError>
+```
+
+Optional form of [`match_arg_from_sexp`] for `Option<T>` parameters (#1473).
+
+`NULL` is `None` (the R formal of an `Option<T>` choice parameter defaults
+to `NULL`, meaning no choice was made); anything else goes through the same
+exact-or-partial matching as the plain type and becomes `Some`.
+
+Used by the generated C wrapper for `#[miniextendr(match_arg)] x: Option<T>`
+parameters instead of `TryFromSexp`, because `Option<T>` cannot carry a
+`TryFromSexp` impl for a downstream enum (orphan rule) and a `T: MatchArg`
+blanket would collide with the newtype blanket in [`crate::newtype`].
+
 ### `match_arg::match_arg_vec_from_sexp`
 
 ```rust
@@ -32414,7 +32448,10 @@ the choices of a `MatchArg` type.
 Used by the generated C wrapper for `match_arg + several_ok` parameters
 (`match.arg` with `several.ok = TRUE`).
 
-NULL input returns all variants (matching R's `match.arg` default with `several.ok = TRUE`).
+NULL input returns all variants. The R prelude's strict `several_ok`
+helper maps `NULL` the same way and rejects any element that matches no
+choice before the value reaches this function, so the per-element check
+here is the second line of defence, not the only one (#1472).
 
 Note: factors (INTSXP) are not handled here — the R wrapper coerces factors
 to character before the `.Call()` boundary.

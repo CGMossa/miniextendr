@@ -58,6 +58,12 @@ NULL
 #' @name relabel
 NULL
 
+#' Optionally relabel an object
+#' @param x An object.
+#' @param ... Additional arguments.
+#' @name maybe_relabel
+NULL
+
 #' Add via S3 dispatch
 #' @param x An object.
 #' @param ... Additional arguments.

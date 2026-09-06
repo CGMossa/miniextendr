@@ -121,11 +121,15 @@ pub(crate) fn choices_entry_tokens(
 }
 
 /// Emit the `MX_MATCH_ARG_PARAM_DOCS` static + its linkme registration.
+///
+/// `optional` marks an `Option<T>`-typed scalar param (#1473); the write pass
+/// appends ", or NULL for no choice" to the rendered `@param` line.
 pub(crate) fn param_doc_entry_tokens(
     cfg_attrs: &[syn::Attribute],
     entry_ident: &syn::Ident,
     placeholder: &str,
     several_ok: bool,
+    optional: bool,
     choices_ty: &syn::Type,
 ) -> proc_macro2::TokenStream {
     quote::quote! {
@@ -137,6 +141,7 @@ pub(crate) fn param_doc_entry_tokens(
             ::miniextendr_api::registry::MatchArgParamDocEntry {
                 placeholder: #placeholder,
                 several_ok: #several_ok,
+                optional: #optional,
                 choices_str: || {
                     <#choices_ty as ::miniextendr_api::match_arg::MatchArg>::CHOICES
                         .iter()

@@ -283,6 +283,41 @@ pub fn match_arg_multi_mode_array(
 }
 // endregion
 
+// region: Optional scalar choice — Option<T> (#1473)
+
+/// Optional mode: the R formal defaults to `NULL`, which means no choice.
+///
+/// @param mode A Mode enum value, or NULL.
+/// @export
+#[miniextendr_api::miniextendr]
+pub fn match_arg_optional_mode(#[miniextendr(match_arg)] mode: Option<Mode>) -> String {
+    match mode {
+        Some(m) => format!("{m:?}"),
+        None => "none".to_string(),
+    }
+}
+
+/// Optional inline choice on an `Option<String>` parameter.
+///
+/// @export
+#[miniextendr_api::miniextendr]
+pub fn choices_optional_color(
+    #[miniextendr(choices("red", "green", "blue"))] color: Option<String>,
+) -> String {
+    color.unwrap_or_else(|| "none".to_string())
+}
+
+/// Optional mode next to a regular parameter; `mode` is auto-documented.
+///
+/// @param n Count.
+/// @export
+#[miniextendr_api::miniextendr]
+pub fn match_arg_optional_mixed(n: i32, #[miniextendr(match_arg)] mode: Option<Mode>) -> String {
+    let mode = mode.map_or_else(|| "none".to_string(), |m| format!("{m:?}"));
+    format!("n={n}, mode={mode}")
+}
+// endregion
+
 // region: Foreign-type MatchArg — log::LevelFilter
 
 /// Smoke test: a `#[miniextendr]` fn taking a `log::LevelFilter` via match_arg.

@@ -1,0 +1,5 @@
+error: `Option<T>` parameter `x` with match_arg/choices cannot have a default; its R formal defaults to NULL, which means no choice. Drop the `Option` to make a choice the default, or drop the default
+ --> tests/ui/match_arg_option_with_default.rs:8:73
+  |
+8 | fn bad_optional_default(#[miniextendr(match_arg, default = "\"a\"")] x: Option<String>) {}
+  |                                                                         ^^^^^^
