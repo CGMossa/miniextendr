@@ -535,6 +535,12 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      # `just test-rpkg` (the rpkg leg below) supplies the local framework
+      # patches and restores the tarball-shaped lockfile, so the leg cannot
+      # drift from `just test`.
+      - name: Install just
+        uses: taiki-e/install-action@just
+
       - uses: mozilla-actions/sccache-action@v0.0.10
 
       - name: Cache Cargo
@@ -542,6 +548,11 @@ jobs:
         with:
           shared-key: rust-tests
           cache-on-failure: true
+          # rpkg/src/rust is its own workspace with its own target dir
+          # (`test-rpkg` sets CARGO_TARGET_DIR there).
+          workspaces: |
+            . -> target
+            rpkg/src/rust -> target
 
       - name: Put libR on LD_LIBRARY_PATH
         run: |
@@ -573,6 +584,17 @@ jobs:
       # workspace, so the `--workspace` step above never reaches it (#778).
       - name: Tests (cargo-revendor)
         run: cargo test --manifest-path cargo-revendor/Cargo.toml --locked --no-fail-fast
+
+      # rpkg/src/rust is a standalone workspace too, so the `--workspace` step
+      # never reaches its `#[cfg(test)]` modules (#1474). The rust-lint rpkg
+      # clippy gate compiles them; only this leg runs them. The recipe supplies
+      # the local framework patches (no configure / .cargo/config.toml needed)
+      # and restores the lockfile the overrides rewrite; the test binaries link
+      # libR through miniextendr-api's build.rs, which is why the leg lives in
+      # this job and not in rust-lint. No --locked: the path overrides change
+      # the lock on purpose, and `--no-fail-fast` matches the legs above.
+      - name: Tests (rpkg/src/rust)
+        run: just test-rpkg
 
   # ===========================================================================
   # Feature-combination compile check (scheduled only)
