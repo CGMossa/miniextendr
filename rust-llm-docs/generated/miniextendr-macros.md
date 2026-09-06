@@ -1920,6 +1920,25 @@ of parameters with unknown types that were not statically prechecked.
 pub struct DotCallBuilder
 ```
 
+Builder for formatting `.Call()` invocations in R wrapper code.
+
+Handles the common pattern of `.Call(C_ident, .call = match.call(), args...)`.
+
+#### Example
+
+```ignore
+let call = DotCallBuilder::new("C_Counter__increment")
+    .with_self("self")
+    .build();
+// => ".Call(C_Counter__increment, .call = match.call(), self)"
+
+let call = DotCallBuilder::new("C_Counter__add")
+    .with_self("x")
+    .with_args(&["n"])
+    .build();
+// => ".Call(C_Counter__add, .call = match.call(), x, n)"
+```
+
 **Inherent associated items:**
 
 #### `build`
@@ -2743,24 +2762,6 @@ Kind of vctrs class being created.
 pub enum CallAttribution
 ```
 
-Builder for formatting `.Call()` invocations in R wrapper code.
-
-Handles the common pattern of `.Call(C_ident, .call = match.call(), args...)`.
-
-#### Example
-
-```ignore
-let call = DotCallBuilder::new("C_Counter__increment")
-    .with_self("self")
-    .build();
-// => ".Call(C_Counter__increment, .call = match.call(), self)"
-
-let call = DotCallBuilder::new("C_Counter__add")
-    .with_self("x")
-    .with_args(&["n"])
-    .build();
-// => ".Call(C_Counter__add, .call = match.call(), x, n)"
-```
 Which frame a generated wrapper hands to `.Call(.., .call = ..)` and uses as
 the raise fallback (`.miniextendr_raise_condition(.val, <default>)`).
 

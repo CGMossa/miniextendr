@@ -86,6 +86,33 @@ test_that("call = caller attributes the condition to the hand-written caller", {
   expect_equal(miniextendr:::call_attr_caller(3L), 3L)
 })
 
+test_that("call = caller expands a literal `...` in the caller's call (#1462)", {
+  # The caller's call is `miniextendr:::call_attr_caller(...)`; the dots are
+  # bound in the helper's frame, one above the caller. The wrapper hands that
+  # frame to `match.call(envir = )`, so the matched call carries the forwarded
+  # arguments. Before the fix this failed on the success path too.
+  via_dots <- function(...) miniextendr:::call_attr_caller(...)
+  expect_equal(via_dots(3L), 3L)
+  e <- tryCatch(via_dots(0L), error = function(e) e)
+  expect_s3_class(e, "rust_error")
+  expect_match(conditionMessage(e), "x must be positive, got 0", fixed = TRUE)
+  expect_equal(conditionCall(e), quote(miniextendr:::call_attr_caller(value = 0L)))
+  # A named argument travelling through `...` matches the caller's formal too.
+  e <- tryCatch(via_dots(value = 0L), error = function(e) e)
+  expect_equal(conditionCall(e), quote(miniextendr:::call_attr_caller(value = 0L)))
+  # R's `match.call()` inlines constants forwarded through `...` (above) but
+  # renders symbols and calls as `..1`, `..2`: `-1L` is a call to unary minus.
+  e <- tryCatch(via_dots(-1L), error = function(e) e)
+  expect_equal(conditionCall(e), quote(miniextendr:::call_attr_caller(value = ..1)))
+})
+
+test_that("call = caller expands lapply()'s `FUN(X[[i]], ...)` call (#1462)", {
+  expect_equal(lapply(list(3L, 4L), miniextendr:::call_attr_caller), list(3L, 4L))
+  e <- tryCatch(lapply(list(-1L), miniextendr:::call_attr_caller), error = function(e) e)
+  expect_s3_class(e, "rust_error")
+  expect_equal(conditionCall(e), quote(FUN(value = X[[i]])))
+})
+
 test_that("default noexport attribution still names the wrapper", {
   e <- tryCatch(miniextendr:::call_attr_self(-1L), error = function(e) e)
   expect_equal(conditionCall(e), quote(call_attr_self_impl(x = value)))

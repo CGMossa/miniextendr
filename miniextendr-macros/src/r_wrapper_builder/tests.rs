@@ -424,6 +424,6 @@ fn call_attribution_strings() {
         ".mx_parent <- sys.parent()\n  \
          .mx_def <- if (.mx_parent > 0L) sys.function(.mx_parent)\n  \
          .mx_pc <- if (.mx_parent > 0L) sys.call(.mx_parent)\n  \
-         .mx_call <- if (typeof(.mx_def) == \"closure\") match.call(.mx_def, .mx_pc) else match.call()\n  "
+         .mx_call <- if (typeof(.mx_def) == \"closure\") match.call(.mx_def, .mx_pc, envir = parent.frame(2L)) else match.call()\n  "
     );
 }

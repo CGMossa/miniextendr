@@ -318,24 +318,6 @@ pub(crate) fn is_missing_type(ty: &syn::Type) -> bool {
 
 // region: DotCallBuilder - .Call() invocation formatting
 
-/// Builder for formatting `.Call()` invocations in R wrapper code.
-///
-/// Handles the common pattern of `.Call(C_ident, .call = match.call(), args...)`.
-///
-/// # Example
-///
-/// ```ignore
-/// let call = DotCallBuilder::new("C_Counter__increment")
-///     .with_self("self")
-///     .build();
-/// // => ".Call(C_Counter__increment, .call = match.call(), self)"
-///
-/// let call = DotCallBuilder::new("C_Counter__add")
-///     .with_self("x")
-///     .with_args(&["n"])
-///     .build();
-/// // => ".Call(C_Counter__add, .call = match.call(), x, n)"
-/// ```
 /// Which frame a generated wrapper hands to `.Call(.., .call = ..)` and uses as
 /// the raise fallback (`.miniextendr_raise_condition(.val, <default>)`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -345,8 +327,16 @@ pub enum CallAttribution {
     Wrapper,
     /// `.call = .mx_call`, where the wrapper body first binds
     /// `.mx_parent <- sys.parent()`, the parent frame's function (`.mx_def`)
-    /// and call (`.mx_pc`), then `.mx_call <- match.call(.mx_def, .mx_pc)`:
-    /// the caller's call with the caller's formals matched. It falls back to
+    /// and call (`.mx_pc`), then
+    /// `.mx_call <- match.call(.mx_def, .mx_pc, envir = parent.frame(2L))`:
+    /// the caller's call with the caller's formals matched. `envir` is the
+    /// frame the caller's call was evaluated in (the caller's caller, two
+    /// frames up from the wrapper), which is where a literal `...` in that
+    /// call is bound: a `function(...)` helper forwarding into the caller, or
+    /// `lapply()`'s `FUN(X[[i]], ...)`. `match.call`'s own default,
+    /// `parent.frame(2L)` evaluated inside `match.call`, is the caller's frame,
+    /// which has no `...`, so every call through such a helper failed with
+    /// `... used in a situation where it does not exist` (#1462). It falls back to
     /// the wrapper's own `match.call()` when there is no parent frame (top
     /// level) or the parent frame is not a closure: `eval()`'d code such as a
     /// testthat block or `source()` has the `eval` primitive as its frame
@@ -389,13 +379,31 @@ impl CallAttribution {
                 ".mx_parent <- sys.parent()\n{indent}\
                  .mx_def <- if (.mx_parent > 0L) sys.function(.mx_parent)\n{indent}\
                  .mx_pc <- if (.mx_parent > 0L) sys.call(.mx_parent)\n{indent}\
-                 .mx_call <- if (typeof(.mx_def) == \"closure\") match.call(.mx_def, .mx_pc) else match.call()\n{indent}"
+                 .mx_call <- if (typeof(.mx_def) == \"closure\") match.call(.mx_def, .mx_pc, envir = parent.frame(2L)) else match.call()\n{indent}"
             ),
             CallAttribution::Wrapper | CallAttribution::None => String::new(),
         }
     }
 }
 
+/// Builder for formatting `.Call()` invocations in R wrapper code.
+///
+/// Handles the common pattern of `.Call(C_ident, .call = match.call(), args...)`.
+///
+/// # Example
+///
+/// ```ignore
+/// let call = DotCallBuilder::new("C_Counter__increment")
+///     .with_self("self")
+///     .build();
+/// // => ".Call(C_Counter__increment, .call = match.call(), self)"
+///
+/// let call = DotCallBuilder::new("C_Counter__add")
+///     .with_self("x")
+///     .with_args(&["n"])
+///     .build();
+/// // => ".Call(C_Counter__add, .call = match.call(), x, n)"
+/// ```
 pub struct DotCallBuilder {
     /// The C entry point symbol name (e.g., `"C_Counter__increment"`).
     /// This is the first argument to `.Call()`.

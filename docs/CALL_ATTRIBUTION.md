@@ -145,7 +145,7 @@ call_attr_caller_impl <- function(x) {
   .mx_parent <- sys.parent()
   .mx_def <- if (.mx_parent > 0L) sys.function(.mx_parent)
   .mx_pc <- if (.mx_parent > 0L) sys.call(.mx_parent)
-  .mx_call <- if (typeof(.mx_def) == "closure") match.call(.mx_def, .mx_pc) else match.call()
+  .mx_call <- if (typeof(.mx_def) == "closure") match.call(.mx_def, .mx_pc, envir = parent.frame(2L)) else match.call()
   .val <- .Call(C_mypkg_call_attr_caller_impl, .call = .mx_call, x)
   if (inherits(.val, "rust_condition_value") && ...) return(.miniextendr_raise_condition(.val, .mx_call))
   .val
@@ -166,12 +166,28 @@ testthat block, `source()`, `local()`): R gives such a frame the `eval`
 primitive as its function, and `match.call()` rejects a non-closure
 `definition`. Every `sys.*` lookup is a plain statement in the wrapper's own
 frame on purpose: inside a promise forced by `match.call()`, `sys.call(0)`
-resolves to `match.call`'s own frame, not the wrapper's. The option requires
-`noexport` or `internal` (an exported function's caller is arbitrary user
-code), cannot combine with `no_call_attribution` / `fast` (no call slot to
-redirect), and applies to standalone functions only; class methods keep their
-own attribution. The frame is the *calling* frame, so an entry point reached
-through `lapply()` / `do.call()` reports that frame's call, the same way
+resolves to `match.call`'s own frame, not the wrapper's.
+
+`envir = parent.frame(2L)` is the frame the caller's call was evaluated in:
+written in the wrapper, `parent.frame(2L)` is the caller's caller. `match.call()`
+only consults `envir` to expand a literal `...` in the call, and that is where
+the dots are bound when a helper forwards them (`function(...)
+call_attr_caller(...)`) or when `lapply()` evaluates `FUN(X[[i]], ...)` in its
+own frame. `match.call()`'s default is also spelled `parent.frame(2L)`, but it
+is evaluated inside `match.call()` and lands on the caller's frame, which has no
+`...`; before #1462 every call through such a helper failed with
+`... used in a situation where it does not exist`, on the success path too, since
+the call is matched before `.Call()`. The expansion follows R's `match.call()`
+convention: constants forwarded through `...` are inlined
+(`call_attr_caller(value = 0L)`), symbols and calls become `..1`, `..2`.
+
+The option requires `noexport` or `internal` (an exported function's caller is
+arbitrary user code), cannot combine with `no_call_attribution` / `fast` (no
+call slot to redirect), and applies to standalone functions only; class methods
+keep their own attribution. The frame is the *calling* frame, so an entry point reached
+through `lapply()` reports `FUN(value = X[[i]])`, and one reached through
+`do.call()` reports the call `do.call()` built (`call_attr_caller(value = -1L)`
+for a function name, the deparsed function for a function object), the same way
 `sys.call(-1)` would. Fixture pair:
 `call_attr_caller_impl` / `call_attr_self_impl` in
 `rpkg/src/rust/call_attribution_demo.rs` with the delegates in
