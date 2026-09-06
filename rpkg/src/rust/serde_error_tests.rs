@@ -13,7 +13,8 @@
 //! `serde_error(rename(message = "detail"))` splices it under another name, and
 //! a `message` field whose text equals the `Display` output is dropped with no
 //! option at all. Every other collision with `message` / `call` / `kind` still
-//! raises the reserved-name error.
+//! raises the reserved-name error, and a rename onto a name the variant already
+//! carries raises the duplicate-name error (#1459).
 
 use crate::serde::Serialize;
 use miniextendr_api::miniextendr;
@@ -188,6 +189,21 @@ pub fn serde_err_message_skipped(which: String, message: String) -> Result<(), P
 /// @param message Payload text.
 #[miniextendr(serde_error(rename(message = "detail")))]
 pub fn serde_err_message_renamed(which: String, message: String) -> Result<(), ParserError> {
+    Err(parser_error(&which, message))
+}
+
+/// `rename(message = "line")`: `parse` already carries `line`, so the
+/// condition would hold two `line` fields and `e$line` would read only the
+/// first; that is the duplicate-name error (#1459). `wrapped` has no `line`
+/// and reaches R with `e$line` holding the text; `call` still hits the
+/// reserved-name error.
+/// @param which One of `"parse"`, `"wrapped"`, `"call"`.
+/// @param message Payload text.
+#[miniextendr(serde_error(rename(message = "line")))]
+pub fn serde_err_message_renamed_onto_line(
+    which: String,
+    message: String,
+) -> Result<(), ParserError> {
     Err(parser_error(&which, message))
 }
 

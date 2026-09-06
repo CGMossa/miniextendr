@@ -1423,6 +1423,15 @@ impl SerdeErrorSpec {
                             format!("serde_error rename names `{from}` twice"),
                         ));
                     }
+                    if self.rename.iter().any(|(_, t)| *t == to) {
+                        return Err(syn::Error::new(
+                            span,
+                            format!(
+                                "serde_error rename targets `{to}` twice; the condition would \
+                                 carry two `{to}` fields and R would read only the first"
+                            ),
+                        ));
+                    }
                     self.rename.push((from, to));
                 }
             }

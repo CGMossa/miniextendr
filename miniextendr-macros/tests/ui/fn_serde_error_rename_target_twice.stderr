@@ -1,0 +1,5 @@
+error: serde_error rename targets `detail` twice; the condition would carry two `detail` fields and R would read only the first
+  --> tests/ui/fn_serde_error_rename_target_twice.rs:12:54
+   |
+12 | #[miniextendr(serde_error(rename(message = "detail", note = "detail")))]
+   |                                                      ^^^^

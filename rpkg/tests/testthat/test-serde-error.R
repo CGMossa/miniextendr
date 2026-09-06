@@ -131,6 +131,24 @@ test_that("serde_error(rename(...)) exposes the field under the new name", {
   expect_match(conditionMessage(e), "`call` is reserved")
 })
 
+test_that("serde_error(rename(...)) onto a name the variant carries is an error, not a duplicate (#1459)", {
+  e <- tryCatch(serde_err_message_renamed_onto_line("parse", "unexpected token"), error = function(e) e)
+  expect_false(inherits(e, "miniextendr_error"))
+  expect_equal(e$kind, "panic")
+  expect_match(conditionMessage(e), "field `line` appears twice")
+  expect_match(conditionMessage(e), 'rename(message = "line")', fixed = TRUE)
+
+  # The variant without `line` takes the rename; exactly one `line` entry.
+  e <- tryCatch(serde_err_message_renamed_onto_line("wrapped", "boom"), error = function(e) e)
+  expect_equal(class(e)[1:2], c("miniextendr_error_wrapped", "miniextendr_error"))
+  expect_equal(e$line, "boom")
+  expect_equal(sum(names(e) == "line"), 1L)
+
+  e <- tryCatch(serde_err_message_renamed_onto_line("call", "f()"), error = function(e) e)
+  expect_equal(e$kind, "panic")
+  expect_match(conditionMessage(e), "`call` is reserved")
+})
+
 test_that("skip works on an S3 method too", {
   chk <- new_serdechecker(10)
   expect_equal(parse_value(chk, " 2.5 "), 2.5)
