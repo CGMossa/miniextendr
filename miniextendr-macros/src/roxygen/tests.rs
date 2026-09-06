@@ -557,6 +557,77 @@ fn test_push_multiline_tag() {
 }
 
 #[test]
+fn test_describein_keeps_continuation_lines() {
+    // `@describeIn topic description` may wrap; the wrapped part is the rest
+    // of the description and must not be dropped (#1476).
+    let attrs: Vec<syn::Attribute> = vec![
+        syn::parse_quote!(#[doc = "@describeIn new_bag Number of values in the bag,"]),
+        syn::parse_quote!(#[doc = "  as an integer scalar."]),
+        syn::parse_quote!(#[doc = "@export"]),
+    ];
+    let tags = roxygen_tags_from_attrs(&attrs);
+    assert_eq!(
+        tags,
+        vec![
+            "@describeIn new_bag Number of values in the bag,\nas an integer scalar.",
+            "@export"
+        ]
+    );
+}
+
+#[test]
+fn test_wrapped_single_word_tags_keep_continuation() {
+    for tag in [
+        "@family",
+        "@inherit",
+        "@inheritParams",
+        "@inheritSection",
+        "@keywords",
+        "@concept",
+    ] {
+        let first = format!("{tag} alpha");
+        let attrs: Vec<syn::Attribute> = vec![
+            syn::parse_quote!(#[doc = #first]),
+            syn::parse_quote!(#[doc = "  beta"]),
+        ];
+        let tags = roxygen_tags_from_attrs(&attrs);
+        assert_eq!(tags, vec![format!("{tag} alpha\nbeta")], "tag {tag}");
+    }
+}
+
+#[test]
+fn test_title_continuation_joined_onto_one_line() {
+    // A wrapped @title stays a single roxygen line (roxygen2 wants one line),
+    // instead of losing the wrapped words.
+    let attrs: Vec<syn::Attribute> = vec![
+        syn::parse_quote!(#[doc = "@title A rather long title that the author"]),
+        syn::parse_quote!(#[doc = "  wrapped onto a second line"]),
+        syn::parse_quote!(#[doc = "@param x A value."]),
+    ];
+    let tags = roxygen_tags_from_attrs(&attrs);
+    assert_eq!(
+        tags,
+        vec![
+            "@title A rather long title that the author wrapped onto a second line",
+            "@param x A value."
+        ]
+    );
+    // Rendering keeps it on one `#'` line.
+    assert!(!format_roxygen_tags(&tags[..1]).trim_end().contains('\n'));
+}
+
+#[test]
+fn test_rdname_stays_single_line() {
+    // `@rdname` takes a bare topic name; a following prose line is not part of it.
+    let attrs: Vec<syn::Attribute> = vec![
+        syn::parse_quote!(#[doc = "@rdname topic"]),
+        syn::parse_quote!(#[doc = "stray prose"]),
+    ];
+    let tags = roxygen_tags_from_attrs(&attrs);
+    assert_eq!(tags, vec!["@rdname topic"]);
+}
+
+#[test]
 fn test_has_roxygen_tag_multiline() {
     // Tag name detection should work even with multiline content
     let tags = vec!["@description First\nSecond".to_string()];

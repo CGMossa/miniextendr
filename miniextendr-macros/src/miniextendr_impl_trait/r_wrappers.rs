@@ -396,7 +396,8 @@ fn generate_trait_s3_r_wrapper(
         // Always define the S3 method (roxygen expects it for NAMESPACE export)
         lines.push(format!(
             "{} <- function({}) {{",
-            s3_method_name, full_params
+            crate::naming::r_def_name(&s3_method_name),
+            full_params
         ));
         ctx.emit_method_prelude(&mut lines, "  ", &generic_name);
         lines.extend(ctx.method_body_lines(&call, ClassSystem::S3));

@@ -3889,6 +3889,7 @@ pub fn expand_impl(
             ::miniextendr_api::registry::RWrapperEntry {
                 priority: ::miniextendr_api::registry::RWrapperPriority::Class,
                 source_file: file!(),
+                source_line: #source_line_lit,
                 content: concat!(
                     "# Generated from Rust impl `",
                     stringify!(#type_ident),

@@ -1268,6 +1268,7 @@ pub fn derive_vctrs(input: DeriveInput) -> syn::Result<TokenStream> {
             ::miniextendr_api::registry::RWrapperEntry {
                 priority: ::miniextendr_api::registry::RWrapperPriority::Vctrs,
                 source_file: file!(),
+                source_line: #source_line_lit,
                 content: concat!(
                     "# Generated from Rust derive(Vctrs) on `",
                     stringify!(#name),

@@ -319,13 +319,13 @@ impl Person {
     }
 
     /// Implements print.Person - &mut self triggers invisible(x) return
-    #[miniextendr(generic = "print")]
+    #[miniextendr(s3(generic = "print"))]
     pub fn show(&mut self) {
         println!("Person: {}, age {}", self.name, self.age);
     }
 
     /// Implements format.Person
-    #[miniextendr(generic = "format")]
+    #[miniextendr(s3(generic = "format"))]
     pub fn fmt(&self) -> String {
         format!("{} ({})", self.name, self.age)
     }
@@ -432,7 +432,7 @@ impl Gene {
         self.chromosome
     }
 
-    #[miniextendr(generic = "show")]
+    #[miniextendr(s4(generic = "show"))]
     pub fn display(&self) {
         println!("Gene {} on chr{}", self.symbol, self.chromosome);
     }
@@ -514,7 +514,7 @@ impl Point {
         ((self.x - other.x).powi(2) + (self.y - other.y).powi(2)).sqrt()
     }
 
-    #[miniextendr(generic = "base::print")]
+    #[miniextendr(s7(generic = "base::print"))]
     pub fn show(&self) {
         println!("Point({}, {})", self.x, self.y);
     }

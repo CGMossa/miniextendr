@@ -20394,6 +20394,8 @@ R wrapper code with priority for ordering.
   - R source code fragment.
 - `source_file`: `&'static str`
   - Source file path (from `file!()`). Used to derive a default `@rdname`
+- `source_line`: `u32`
+  - Line the generating item starts on in `source_file`. Together with the
 
 ### `registry::SidecarPropEntry`
 
@@ -34233,10 +34235,12 @@ Encode a POD value to raw bytes.
 fn collect_r_wrappers() -> Vec<std::borrow::Cow<'static, str>>
 ```
 
-Collect all R wrapper entries, sorted by priority and deduplicated.
+Collect all R wrapper entries, sorted and deduplicated.
 
-Within each priority group, S7 class definitions are topologically sorted
-so parents are defined before children (S7 `parent = X` requires X to exist).
+Entries are ordered by `sort_wrapper_entries`: priority first, then source
+file, then source line. Within each priority group, S7 class definitions are
+additionally topologically sorted so parents are defined before children
+(S7 `parent = X` requires X to exist).
 
 Host-only — wasm32 doesn't run wrapper-gen.
 
