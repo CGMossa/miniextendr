@@ -93,7 +93,10 @@ method (`&self`, `&mut self`, `self`, and the `ExternalPtr<Self>` receiver
 forms): the generated prelude calls `resolve_receiver` on the object R
 dispatched with, so an S3 class whose object is a list with R-side state next
 to the handle dispatches into `#[miniextendr(s3)] impl` methods unchanged
-(#1469, recipe in `S3_METHODS.md`). A bare pointer is recognised with one
+(#1469; `S3_METHODS.md`, "Handles with R-visible state"). That shape is for
+interop with R-defined objects: state the package owns belongs in sidecar
+fields (`#[r_data]`, "RSidecar" below), which travel with the handle in every
+class system. A bare pointer is recognised with one
 `TYPEOF` compare; a receiver that yields no pointer raises
 `expected a `Foo` object (an external pointer, or an R6/S4/S7 handle,
 environment, or list carrying one in `.ptr`), got VECSXP`. Type safety is
