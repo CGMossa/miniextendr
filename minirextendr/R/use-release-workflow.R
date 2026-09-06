@@ -14,9 +14,8 @@
 #' 4. `CARGO_NET_GIT_FETCH_WITH_CLI=true` workflow-wide so cargo uses the
 #'    system git binary and can authenticate private git dependencies.
 #'
-#' See `docs/RELEASE_WORKFLOW.md` in the miniextendr repository for the full
-#' rationale, and \code{\link[miniextendr]{assert_utf8_locale_now}} for why the
-#' UTF-8 check exists.
+#' See the [release workflow guide](https://a2-ai.github.io/miniextendr/manual/release-workflow/)
+#' for the full platform rationale and the explanation of the UTF-8 check.
 #'
 #' For **monorepo layouts** (where the R package lives in a subdirectory such as
 #' `rpkg/`), the `bash ./configure` and `R CMD build` steps must run from inside

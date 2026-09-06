@@ -46,9 +46,8 @@ to the \code{C} locale, which fails miniextendr's UTF-8 assertion.
 system git binary and can authenticate private git dependencies.
 }
 
-See \code{docs/RELEASE_WORKFLOW.md} in the miniextendr repository for the full
-rationale, and \code{\link[miniextendr]{assert_utf8_locale_now}} for why the
-UTF-8 check exists.
+See the \href{https://a2-ai.github.io/miniextendr/manual/release-workflow/}{release workflow guide}
+for the full platform rationale and the explanation of the UTF-8 check.
 
 For \strong{monorepo layouts} (where the R package lives in a subdirectory such as
 \verb{rpkg/}), the \verb{bash ./configure} and \verb{R CMD build} steps must run from inside
