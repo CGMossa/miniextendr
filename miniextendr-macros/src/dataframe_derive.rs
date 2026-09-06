@@ -821,8 +821,8 @@ fn resolve_struct_field(
     let col_name_str = field_attrs
         .rename
         .clone()
-        .unwrap_or_else(|| rust_name.to_string());
-    let col_name = format_ident!("{}", col_name_str);
+        .unwrap_or_else(|| crate::naming::ident_name(&rust_name));
+    let col_name = crate::naming::name_ident(&col_name_str);
 
     let tuple_index = if is_tuple {
         Some(syn::Index::from(index))
@@ -1343,7 +1343,7 @@ fn derive_struct_dataframe(
         .filter_map(|rf| {
             if let ResolvedField::AutoExpandVec(data) = rf {
                 Some(AutoExpandCol {
-                    df_field: format_ident!("{}", data.col_name_str),
+                    df_field: crate::naming::name_ident(&data.col_name_str),
                     container_ty: data.container_ty.clone(),
                 })
             } else {
@@ -1729,7 +1729,7 @@ fn derive_struct_dataframe(
                     let rust_name = &data.rust_name;
                     quote! { row.#rust_name }
                 };
-                let bind = format_ident!("__arr_{}", data.rust_name);
+                let bind = format_ident!("__arr_{}", crate::naming::unraw(&data.rust_name));
                 let pushes: Vec<TokenStream> = (0..data.len)
                     .map(|i| {
                         let col_ident = format_ident!("{}_{}", data.base_name, i + 1);
@@ -1749,7 +1749,7 @@ fn derive_struct_dataframe(
                     let rust_name = &data.rust_name;
                     quote! { row.#rust_name }
                 };
-                let bind = format_ident!("__vec_{}", data.rust_name);
+                let bind = format_ident!("__vec_{}", crate::naming::unraw(&data.rust_name));
                 let pushes: Vec<TokenStream> = (0..data.width)
                     .map(|i| {
                         let col_ident = format_ident!("{}_{}", data.base_name, i + 1);
@@ -1965,7 +1965,7 @@ fn derive_struct_dataframe(
                 continue;
             }
             let name = &fc.df_field;
-            let w_name = format_ident!("__w_{}", name);
+            let w_name = format_ident!("__w_{}", crate::naming::unraw(name));
             writer_decls.push(quote! {
                 let #w_name = unsafe {
                     ::miniextendr_api::rayon_bridge::ColumnWriter::new(&mut #name)
@@ -1974,7 +1974,7 @@ fn derive_struct_dataframe(
         }
         for ac in &auto_expand_cols {
             let name = &ac.df_field;
-            let w_name = format_ident!("__w_{}", name);
+            let w_name = format_ident!("__w_{}", crate::naming::unraw(name));
             writer_decls.push(quote! {
                 let #w_name = unsafe {
                     ::miniextendr_api::rayon_bridge::ColumnWriter::new(&mut #name)
@@ -2003,7 +2003,7 @@ fn derive_struct_dataframe(
                         let rust_name = &data.rust_name;
                         quote! { __row.#rust_name }
                     };
-                    let w_name = format_ident!("__w_{}", data.col_name);
+                    let w_name = format_ident!("__w_{}", crate::naming::unraw(&data.col_name));
                     quote! { #w_name.write(__i, #access); }
                 }
                 ResolvedField::ExpandedFixed(data) => {
@@ -2013,7 +2013,7 @@ fn derive_struct_dataframe(
                         let rust_name = &data.rust_name;
                         quote! { __row.#rust_name }
                     };
-                    let bind = format_ident!("__arr_{}", data.rust_name);
+                    let bind = format_ident!("__arr_{}", crate::naming::unraw(&data.rust_name));
                     let writes: Vec<TokenStream> = (0..data.len)
                         .map(|i| {
                             let w_name = format_ident!("__w_{}_{}", data.base_name, i + 1);
@@ -2033,7 +2033,7 @@ fn derive_struct_dataframe(
                         let rust_name = &data.rust_name;
                         quote! { __row.#rust_name }
                     };
-                    let bind = format_ident!("__vec_{}", data.rust_name);
+                    let bind = format_ident!("__vec_{}", crate::naming::unraw(&data.rust_name));
                     let writes: Vec<TokenStream> = (0..data.width)
                         .map(|i| {
                             let w_name = format_ident!("__w_{}_{}", data.base_name, i + 1);
@@ -2052,7 +2052,7 @@ fn derive_struct_dataframe(
                         let rust_name = &data.rust_name;
                         quote! { __row.#rust_name }
                     };
-                    let w_name = format_ident!("__w_{}", data.col_name);
+                    let w_name = format_ident!("__w_{}", crate::naming::unraw(&data.col_name));
                     quote! { #w_name.write(__i, #access); }
                 }
                 // Struct fields (#485) are collected in the sequential pre-pass
@@ -2356,8 +2356,8 @@ fn derive_struct_dataframe(
             match rf {
                 ResolvedField::Single(data) => {
                     let rust_name = &data.rust_name;
-                    let col_var = format_ident!("__col_{}", rust_name);
-                    let it_var = format_ident!("__it_{}", rust_name);
+                    let col_var = format_ident!("__col_{}", crate::naming::unraw(rust_name));
+                    let it_var = format_ident!("__it_{}", crate::naming::unraw(rust_name));
                     match &data.list_elem_ty {
                         // Un-annotated owned collection: opaque list-column (VECSXP). Read
                         // each row's element back via `Vec<elem>: TryFromSexp`, then
@@ -2430,8 +2430,10 @@ fn derive_struct_dataframe(
                     let mut it_nexts: Vec<TokenStream> = Vec::new();
                     let mut idx_clones: Vec<TokenStream> = Vec::new();
                     for k in 1..=data.len {
-                        let col_var = format_ident!("__ef_{}_{}", rust_name, k);
-                        let it_var = format_ident!("__efit_{}_{}", rust_name, k);
+                        let col_var =
+                            format_ident!("__ef_{}_{}", crate::naming::unraw(rust_name), k);
+                        let it_var =
+                            format_ident!("__efit_{}_{}", crate::naming::unraw(rust_name), k);
                         let col_name_str = format!("{}_{}", data.base_name, k);
                         extracts.push(pull_col(&col_var, &col_name_str, elem_ty));
                         seq_decls.push(quote! { let mut #it_var = #col_var.into_iter(); });
@@ -2451,8 +2453,10 @@ fn derive_struct_dataframe(
                     let mut it_nexts: Vec<TokenStream> = Vec::new();
                     let mut idx_clones: Vec<TokenStream> = Vec::new();
                     for k in 1..=data.width {
-                        let col_var = format_ident!("__ev_{}_{}", rust_name, k);
-                        let it_var = format_ident!("__evit_{}_{}", rust_name, k);
+                        let col_var =
+                            format_ident!("__ev_{}_{}", crate::naming::unraw(rust_name), k);
+                        let it_var =
+                            format_ident!("__evit_{}_{}", crate::naming::unraw(rust_name), k);
                         let col_name_str = format!("{}_{}", data.base_name, k);
                         extracts.push(pull_col(&col_var, &col_name_str, &opt_ty));
                         seq_decls.push(quote! { let mut #it_var = #col_var.into_iter(); });
@@ -2476,7 +2480,7 @@ fn derive_struct_dataframe(
                 ResolvedField::AutoExpandVec(data) => {
                     let rust_name = &data.rust_name;
                     let elem_ty = &data.elem_ty;
-                    let cols_var = format_ident!("__aev_{}", rust_name);
+                    let cols_var = format_ident!("__aev_{}", crate::naming::unraw(rust_name));
                     let col_name_str = &data.col_name_str;
                     extracts.push(quote! {
                         let #cols_var: Vec<Vec<::core::option::Option<#elem_ty>>> = {
@@ -2530,8 +2534,8 @@ fn derive_struct_dataframe(
                 ResolvedField::Struct(data) => {
                     let rust_name = &data.rust_name;
                     let inner_ty = &data.inner_ty;
-                    let vec_var = format_ident!("__sf_{}", rust_name);
-                    let it_var = format_ident!("__sfit_{}", rust_name);
+                    let vec_var = format_ident!("__sf_{}", crate::naming::unraw(rust_name));
+                    let it_var = format_ident!("__sfit_{}", crate::naming::unraw(rust_name));
                     let base = &data.col_name_str;
                     let prefix_lit = format!("{}_", data.col_name_str);
                     extracts.push(quote! {
@@ -3072,7 +3076,7 @@ impl<'a> ColumnRegistry<'a> {
         } else {
             let idx = self.columns.len();
             self.columns.push(ResolvedColumn {
-                col_name: format_ident!("{}", col_name),
+                col_name: crate::naming::name_ident(col_name),
                 ty: col_ty.clone(),
                 present_in: vec![variant_idx],
                 string_coerced: false,

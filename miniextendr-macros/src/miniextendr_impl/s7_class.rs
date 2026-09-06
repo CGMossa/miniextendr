@@ -292,7 +292,7 @@ pub fn generate_s7_r_wrapper(parsed_impl: &ParsedImpl) -> String {
         let attrs = &method.method_attrs;
 
         if attrs.s7.getter || attrs.s7.setter || attrs.s7.validate {
-            let method_ident = method.ident.to_string();
+            let method_ident = crate::naming::ident_name(&method.ident);
             let prop_name = attrs
                 .s7
                 .prop
@@ -686,7 +686,7 @@ pub fn generate_s7_r_wrapper(parsed_impl: &ParsedImpl) -> String {
     // Instance methods as S7 generics + methods
     // Skip methods that are property getters/setters (they're handled as S7 properties)
     for ctx in parsed_impl.instance_method_contexts() {
-        let method_ident = ctx.method.ident.to_string();
+        let method_ident = crate::naming::ident_name(&ctx.method.ident);
         if property_method_idents.contains(&method_ident) {
             continue;
         }

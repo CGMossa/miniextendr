@@ -201,6 +201,8 @@ impl RustConversionBuilder {
             return (vec![], vec![]);
         };
         let ident = &pat_ident.ident;
+        // `r#`-free spelling for synthesized bindings (`__storage_where`).
+        let plain = crate::naming::unraw(ident);
         let ty = pat_type.ty.as_ref();
 
         match ty {
@@ -214,7 +216,7 @@ impl RustConversionBuilder {
 
             // Reference types: &T, &mut T
             syn::Type::Reference(r) => {
-                let param_name = ident.to_string();
+                let param_name = crate::naming::ident_name(ident);
                 let is_dots = matches!(
                     r.elem.as_ref(),
                     syn::Type::Path(tp)
@@ -238,7 +240,7 @@ impl RustConversionBuilder {
                         crate::classify_several_ok_container(ty)
                 {
                     let is_mut = r.mutability.is_some();
-                    let storage_ident = quote::format_ident!("__storage_{}", ident);
+                    let storage_ident = quote::format_ident!("__storage_{}", plain);
                     let error_msg = format!(
                         "failed to convert parameter '{}' to &{}[{}]: invalid choice",
                         param_name,
@@ -284,7 +286,7 @@ impl RustConversionBuilder {
 
                 if is_dots {
                     // &Dots: create wrapper with storage (main thread only - requires SEXP)
-                    let storage_ident = quote::format_ident!("{}_storage", ident);
+                    let storage_ident = quote::format_ident!("{}_storage", plain);
                     let stmt = quote! {
                         let #storage_ident = ::miniextendr_api::dots::Dots { inner: #sexp_ident };
                         let #ident = &#storage_ident;
@@ -323,7 +325,7 @@ impl RustConversionBuilder {
                         // Worker path: convert to owned String, then borrow using the
                         // Borrow trait. The String moves into the worker closure (it is
                         // Send); a borrowed view over R's CHARSXP pool is not.
-                        let owned_ident = quote::format_ident!("__owned_{}", ident);
+                        let owned_ident = quote::format_ident!("__owned_{}", plain);
                         // Owned conversion: SEXP -> String
                         let string_ty: syn::Type = syn::parse_quote!(String);
                         let try_expr = quote_spanned! {span=>
@@ -360,7 +362,7 @@ impl RustConversionBuilder {
 
             // All other types
             _ => {
-                let param_name = ident.to_string();
+                let param_name = crate::naming::ident_name(ident);
 
                 // Strict mode: use checked input helpers for lossy types
                 if self.strict
@@ -422,7 +424,7 @@ impl RustConversionBuilder {
                             // match_arg validation + error reporting), then convert length-check
                             // separately via a direct panic (caught by the framework).
                             let vec_ty: syn::Type = syn::parse_quote!(::std::vec::Vec<#inner_ty>);
-                            let vec_ident = quote::format_ident!("__vec_{}", ident);
+                            let vec_ident = quote::format_ident!("__vec_{}", plain);
                             let try_expr = quote_spanned! {span=>
                                 ::miniextendr_api::match_arg_vec_from_sexp::<#inner_ty>(#sexp_ident)
                             };
@@ -444,7 +446,7 @@ impl RustConversionBuilder {
                             return (vec![vec_stmt, arr_stmt], vec![]);
                         }
                         crate::SeveralOkContainer::BorrowedSlice => {
-                            let storage_ident = quote::format_ident!("__storage_{}", ident);
+                            let storage_ident = quote::format_ident!("__storage_{}", plain);
                             let error_msg = format!(
                                 "failed to convert parameter '{}' to &[{}]: invalid choice",
                                 param_name,

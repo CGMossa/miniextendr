@@ -310,6 +310,9 @@ pub(crate) fn validate_param_type(ty: &syn::Type, span: proc_macro2::Span) -> sy
 /// - `coerce` + `match_arg` on the same parameter
 /// - `coerce` + `choices(...)` on the same parameter
 /// - `choices(...)` + explicit `default` on the same parameter
+/// - `match_arg` + `choices(...)` on the same parameter (two sources for one
+///   choice list; the `match_arg` placeholder would shadow the literal list
+///   and, with no `MatchArg` entry to resolve it, dangle in the R formals)
 /// - `default` on a `&Dots` parameter
 pub(crate) fn validate_per_param_attr_conflicts(
     attr: &PerParamMiniextendrAttr,
@@ -344,6 +347,17 @@ pub(crate) fn validate_per_param_attr_conflicts(
             format!(
                 "cannot combine choices() and default on parameter `{}`; \
                  choices auto-generates its default from the first choice value",
+                param_name
+            ),
+        ));
+    }
+    if attr.has_match_arg && attr.choices.is_some() {
+        return Err(syn::Error::new(
+            span,
+            format!(
+                "cannot combine match_arg and choices() on parameter `{}`; \
+                 match_arg takes the choice list from the parameter type's `MatchArg` impl, \
+                 choices() supplies a literal list for a string parameter; use one of them",
                 param_name
             ),
         ));
@@ -680,7 +694,7 @@ impl syn::parse::Parse for MiniextendrFunctionParsed {
             // Resolve the Rust parameter name — either the user's identifier,
             // or a synthesized one for wildcard / destructuring patterns.
             let param_name: String = match pat_type.pat.as_ref() {
-                syn::Pat::Ident(pat_ident) => pat_ident.ident.to_string(),
+                syn::Pat::Ident(pat_ident) => crate::naming::ident_name(&pat_ident.ident),
                 syn::Pat::Wild(_) => {
                     let synthetic_name = format!("__unused{}", unused_counter);
                     unused_counter += 1;
@@ -780,7 +794,7 @@ impl syn::parse::Parse for MiniextendrFunctionParsed {
                 if let syn::FnArg::Typed(pat_type) = input
                     && let syn::Pat::Ident(pat_ident) = pat_type.pat.as_ref()
                 {
-                    Some(pat_ident.ident.to_string())
+                    Some(crate::naming::ident_name(&pat_ident.ident))
                 } else {
                     None
                 }

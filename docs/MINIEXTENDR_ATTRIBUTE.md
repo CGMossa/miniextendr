@@ -136,6 +136,32 @@ pub fn long_simulation(n: i32) -> Vec<f64> { /* ... */ }
 pub fn old_api() -> i32 { 0 }
 ```
 
+#### Rust keywords as R names
+
+Rust keywords are ordinary R names (`type`, `where`, `match`, `mod`, `ref`, ...).
+Spell them as raw identifiers on the Rust side; the `r#` prefix is Rust syntax
+only and is dropped from every generated name — R function and method names,
+R formals, `@param` names, list element and data-frame column names, C symbols:
+
+```rust
+/// @param where Filter expression.
+/// @param type Output type.
+#[miniextendr]
+pub fn r#match(r#where: &str, r#type: i32) -> String { /* ... */ }
+// R: match(where, type)
+
+#[derive(DataFrameRow)]
+pub struct Row { pub r#type: String, pub r#where: i32 }
+// R: data.frame(type = ..., where = ...)
+```
+
+This works in every name position: `#[miniextendr]` fn and method names,
+parameters, named dots (`r#dyn: ...`), trait methods, struct fields in the
+`IntoList` / `TryFromList` / `DataFrameRow` / `ExternalPtr` derives, and the
+`typed_list!` / `typed_dataframe!` DSLs. Names that R itself reserves (`if`,
+`for`, `in`, `while`, `break`) are still not valid R formals — use `r_name` or
+a different name for those.
+
 #### R Wrapper Customization
 
 These attributes inject custom R code into the generated wrapper function, giving

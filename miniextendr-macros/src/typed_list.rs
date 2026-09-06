@@ -204,7 +204,7 @@ pub fn expand_typed_list(input: TypedListInput) -> TokenStream {
         .entries
         .into_iter()
         .map(|entry| {
-            let name = entry.name.to_string();
+            let name = crate::naming::ident_name(&entry.name);
             let optional = entry.optional;
             let spec_tokens = match entry.spec {
                 None => quote! { ::miniextendr_api::typed_list::TypeSpec::Any },

@@ -983,7 +983,7 @@ pub fn miniextendr(
         if let syn::FnArg::Typed(pt) = input
             && let syn::Pat::Ident(pat_ident) = pt.pat.as_ref()
         {
-            let param_name = pat_ident.ident.to_string();
+            let param_name = crate::naming::ident_name(&pat_ident.ident);
             if parsed.has_coerce_attr(&param_name) {
                 coerce_params_list.push(param_name.clone());
             }
@@ -1084,7 +1084,8 @@ pub fn miniextendr(
     // Build R formal parameters and call arguments using shared builder
     let mut arg_builder = RArgumentBuilder::new(inputs);
     if has_dots {
-        arg_builder = arg_builder.with_dots(named_dots.clone().map(|id| id.to_string()));
+        arg_builder =
+            arg_builder.with_dots(named_dots.clone().map(|id| crate::naming::ident_name(&id)));
     }
     // Add user-specified parameter defaults (Missing<T> defaults handled via body prelude)
     let mut merged_defaults = parsed.param_defaults();
@@ -1180,7 +1181,9 @@ pub fn miniextendr(
     if is_s3_method {
         // For S3 methods, function name is generic.class
         // generic defaults to Rust function name if not specified
-        let generic = s3_generic.clone().unwrap_or_else(|| rust_ident.to_string());
+        let generic = s3_generic
+            .clone()
+            .unwrap_or_else(|| crate::naming::ident_name(rust_ident));
         // s3_class is guaranteed to be Some here because MiniextendrFnAttrs::parse
         // validates that s3(...) always has class specified
         let class = s3_class.as_ref().expect("s3_class validated at parse time");
@@ -1198,13 +1201,13 @@ pub fn miniextendr(
     } else if let Some(ref postfix) = fn_postfix {
         // `postfix = "_impl"`: the R wrapper is `<rust_name><postfix>`; the C
         // symbol keeps the Rust name.
-        r_wrapper_ident_str = format!("{rust_ident}{postfix}");
+        r_wrapper_ident_str = format!("{}{postfix}", crate::naming::ident_name(rust_ident));
         s3_method_comment = String::new();
     } else if abi.is_some() {
-        r_wrapper_ident_str = format!("unsafe_{}", rust_ident);
+        r_wrapper_ident_str = format!("unsafe_{}", crate::naming::ident_name(rust_ident));
         s3_method_comment = String::new();
     } else {
-        r_wrapper_ident_str = rust_ident.to_string();
+        r_wrapper_ident_str = crate::naming::ident_name(rust_ident);
         s3_method_comment = String::new();
     };
 
@@ -1249,7 +1252,7 @@ pub fn miniextendr(
         if parsed.is_dots_param(&pat_ident.ident) {
             continue;
         }
-        let rust_name = pat_ident.ident.to_string();
+        let rust_name = crate::naming::ident_name(&pat_ident.ident);
         let r_name = r_wrapper_builder::normalize_r_arg_ident(&pat_ident.ident).to_string();
         let already_documented = crate::roxygen::param_documented(&roxygen_tags, &r_name);
         if already_documented {
@@ -1330,7 +1333,7 @@ pub fn miniextendr(
             if let syn::FnArg::Typed(pt) = arg
                 && let syn::Pat::Ident(pat_ident) = pt.pat.as_ref()
             {
-                let rust_name = pat_ident.ident.to_string();
+                let rust_name = crate::naming::ident_name(&pat_ident.ident);
                 if parsed.has_match_arg_attr(&rust_name) {
                     let r_name =
                         r_wrapper_builder::normalize_r_arg_ident(&pat_ident.ident).to_string();
@@ -1378,7 +1381,7 @@ pub fn miniextendr(
             if let syn::FnArg::Typed(pt) = arg
                 && let syn::Pat::Ident(pat_ident) = pt.pat.as_ref()
             {
-                let rust_name = pat_ident.ident.to_string();
+                let rust_name = crate::naming::ident_name(&pat_ident.ident);
                 if parsed.choices_for_param(&rust_name).is_some() {
                     let r_name =
                         r_wrapper_builder::normalize_r_arg_ident(&pat_ident.ident).to_string();

@@ -53,7 +53,7 @@ impl ListName {
     /// or the string literal value.
     fn to_string_value(&self) -> String {
         match self {
-            ListName::Ident(ident) => ident.to_string(),
+            ListName::Ident(ident) => crate::naming::ident_name(ident),
             ListName::Str(lit) => lit.value(),
         }
     }

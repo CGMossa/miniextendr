@@ -1086,8 +1086,10 @@ pub fn derive_vctrs(input: DeriveInput) -> syn::Result<TokenStream> {
             "record" => {
                 // For records, we need to build a List from all non-skipped fields
                 let record_fields: Vec<_> = fields.iter().filter(|f| !f.attrs.skip).collect();
-                let field_names: Vec<String> =
-                    record_fields.iter().map(|f| f.ident.to_string()).collect();
+                let field_names: Vec<String> = record_fields
+                    .iter()
+                    .map(|f| crate::naming::ident_name(&f.ident))
+                    .collect();
                 let field_idents: Vec<_> = record_fields.iter().map(|f| &f.ident).collect();
 
                 quote! {
@@ -1182,7 +1184,7 @@ pub fn derive_vctrs(input: DeriveInput) -> syn::Result<TokenStream> {
         let field_names: Vec<String> = fields
             .iter()
             .filter(|f| !f.attrs.skip)
-            .map(|f| f.ident.to_string())
+            .map(|f| crate::naming::ident_name(&f.ident))
             .collect();
         let field_name_strs: Vec<&str> = field_names.iter().map(|s| s.as_str()).collect();
 
@@ -1219,7 +1221,7 @@ pub fn derive_vctrs(input: DeriveInput) -> syn::Result<TokenStream> {
         fields
             .iter()
             .filter(|f| !f.attrs.skip)
-            .map(|f| f.ident.to_string())
+            .map(|f| crate::naming::ident_name(&f.ident))
             .collect()
     } else {
         Vec::new()

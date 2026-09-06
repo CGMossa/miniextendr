@@ -98,7 +98,7 @@ pub fn derive_into_list(input: DeriveInput) -> syn::Result<TokenStream> {
                 }
                 let ty = &f.ty;
                 bounds.push(parse_quote!(#ty: ::miniextendr_api::into_r::IntoR));
-                names.push(ident.to_string());
+                names.push(crate::naming::ident_name(&ident));
                 idents.push(ident);
             }
 
@@ -232,7 +232,7 @@ pub fn derive_try_from_list(input: DeriveInput) -> syn::Result<TokenStream> {
                 bounds.push(parse_quote!(#ty: ::miniextendr_api::from_r::TryFromSexp));
                 bounds.push(parse_quote!(::miniextendr_api::from_r::SexpError: ::core::convert::From<<#ty as ::miniextendr_api::from_r::TryFromSexp>::Error>));
 
-                let name_str = ident.to_string();
+                let name_str = crate::naming::ident_name(&ident);
                 // Fetch the raw element, then convert — so a present-but-wrong-type
                 // field reports the real conversion error instead of being
                 // misreported as a missing field.
