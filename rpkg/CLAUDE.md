@@ -43,6 +43,9 @@ Any compiling command (`devtools-document`, `rcmdinstall`, `cargo build`, `R CMD
 ## Gctorture fixtures
 Any new path storing SEXPs across allocations (typical: `Vec<SEXP>` / sidecar fields / generic-list buffers / `from_raw_pairs`/`from_raw_values` inputs) needs a no-arg `gc_stress_<feature>()` exported wrapper in `src/rust/gc_stress_fixtures.rs`. The fast gctorture sweep only exercises no-arg exports. See `docs/GCTORTURE_TESTING.md` and #430.
 
+## S3 generics from impl blocks need a hand-written Rd alias
+A method in a `#[miniextendr(s3)]` impl block makes the generated wrappers `export()` a bare S3 generic (`parse_value`) next to the `S3method()` registration. The class Rd page aliases only the method (`parse_value.SerdeChecker`), so `R CMD check` reports the generic under "Undocumented code objects". Convention: add a roxygen block with `@name <generic>`, `@param x`, `@param ...` and a one-line title to `R/generics.R` (see the `check_value` / `parse_value` blocks there). Neither `rcmdinstall` nor `force-document` warns about the omission; verify with `Rscript -e 'tools::undoc(dir = "rpkg")'` from the repo root (empty output = clean) or the built-tarball check.
+
 ## Capturing R output
 ```bash
 just <recipe> 2>&1 > /tmp/<name>.log
