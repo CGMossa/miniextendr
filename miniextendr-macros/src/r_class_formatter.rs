@@ -173,13 +173,18 @@ pub(crate) fn match_arg_doc_placeholder_map(
 }
 
 /// Build R prelude lines that validate `match_arg` / `choices` / `several_ok`
-/// parameters via `base::match.arg()` before the `.Call()`.
+/// parameters before the `.Call()`.
 ///
-/// Returns an empty vector when the method declares none. Both `match_arg`
-/// and `choices(...)` carry their choice list as the formal default
-/// (`c("a", "b", ...)`), so `base::match.arg(arg)` finds the list by
-/// itself — no second arg, no C helper lookup. `match_arg` adds a
-/// factor → character coercion in front of `match.arg`.
+/// Returns an empty vector when the method declares none. The plain scalar
+/// forms carry their choice list as the formal default (`c("a", "b", ...)`),
+/// so `base::match.arg(arg)` finds the list by itself. The other two forms
+/// name the list explicitly: `several_ok` goes through the strict
+/// `.miniextendr_match_arg_several` helper (every element must match, `NULL`
+/// selects all; #1472), and the `Option<T>` form skips `match.arg()` for
+/// `NULL` (#1473). For `match_arg` the list is the write-time placeholder
+/// (`c_ident` keys it, the same one `effective_r_defaults` puts in the formal);
+/// for `choices(...)` it is the literal. `match_arg` adds a factor → character
+/// coercion in front.
 ///
 /// Shared by `MethodContext::match_arg_prelude` (inherent impls) and
 /// `TraitMethodContext::match_arg_prelude` (trait impls) — see
@@ -187,6 +192,7 @@ pub(crate) fn match_arg_doc_placeholder_map(
 /// previously had no match_arg support at all).
 pub(crate) fn build_match_arg_prelude(
     per_param: &std::collections::HashMap<String, crate::miniextendr_fn::ParamAttrs>,
+    c_ident: &str,
 ) -> Vec<String> {
     let mut lines = Vec::new();
 
@@ -198,9 +204,14 @@ pub(crate) fn build_match_arg_prelude(
         lines.push(format!(
             "{r_name} <- if (is.factor({r_name})) as.character({r_name}) else {r_name}"
         ));
+        let placeholder = match_arg_placeholder(c_ident, &r_name);
         if attrs.several_ok {
             lines.push(format!(
-                "{r_name} <- base::match.arg({r_name}, several.ok = TRUE)"
+                "{r_name} <- .miniextendr_match_arg_several({r_name}, {placeholder}, \"{r_name}\")"
+            ));
+        } else if attrs.optional {
+            lines.push(format!(
+                "if (!is.null({r_name})) {r_name} <- base::match.arg({r_name}, {placeholder})"
             ));
         } else {
             lines.push(format!("{r_name} <- base::match.arg({r_name})"));
@@ -208,13 +219,19 @@ pub(crate) fn build_match_arg_prelude(
     }
 
     for (rust_name, attrs) in per_param {
-        if attrs.choices.is_none() {
+        let Some(choices) = attrs.choices.as_ref() else {
             continue;
-        }
+        };
         let r_name = crate::r_wrapper_builder::normalize_r_arg_string(rust_name);
+        let quoted: Vec<String> = choices.iter().map(|c| format!("\"{c}\"")).collect();
+        let quoted = quoted.join(", ");
         if attrs.several_ok {
             lines.push(format!(
-                "{r_name} <- match.arg({r_name}, several.ok = TRUE)"
+                "{r_name} <- .miniextendr_match_arg_several({r_name}, c({quoted}), \"{r_name}\")"
+            ));
+        } else if attrs.optional {
+            lines.push(format!(
+                "if (!is.null({r_name})) {r_name} <- match.arg({r_name}, c({quoted}))"
             ));
         } else {
             lines.push(format!("{r_name} <- match.arg({r_name})"));
@@ -292,14 +309,25 @@ pub(crate) fn effective_r_defaults(
             continue;
         }
         let r_name = crate::r_wrapper_builder::normalize_r_arg_string(rust_name);
-        defaults.insert(r_name.clone(), match_arg_placeholder(c_ident, &r_name));
+        // `Option<T>` (#1473): the formal is NULL (no choice); the prelude
+        // spells the choices out through the placeholder instead.
+        let default = if attrs.optional {
+            "NULL".to_string()
+        } else {
+            match_arg_placeholder(c_ident, &r_name)
+        };
+        defaults.insert(r_name, default);
     }
-    // choices(...) → c("a", "b", ...) formal. Lower priority than user
-    // defaults (kept for back-compat on non-match_arg params).
+    // choices(...) → c("a", "b", ...) formal (NULL for the `Option<T>` form).
+    // Lower priority than user defaults (kept for back-compat on non-match_arg
+    // params).
     for (rust_name, attrs) in per_param {
         if let Some(choices) = attrs.choices.as_ref() {
             let r_name = crate::r_wrapper_builder::normalize_r_arg_string(rust_name);
             defaults.entry(r_name).or_insert_with(|| {
+                if attrs.optional {
+                    return "NULL".to_string();
+                }
                 let quoted: Vec<String> = choices.iter().map(|c| format!("\"{c}\"")).collect();
                 format!("c({})", quoted.join(", "))
             });
@@ -402,7 +430,7 @@ impl<'a> MethodContext<'a> {
     /// Callers should include these lines in the R wrapper body after parameter
     /// defaulting but before the `.Call()`.
     pub fn match_arg_prelude(&self) -> Vec<String> {
-        build_match_arg_prelude(&self.method.method_attrs.per_param)
+        build_match_arg_prelude(&self.method.method_attrs.per_param, &self.c_ident)
     }
 
     /// Build the `.Call()` expression for a static/constructor call.

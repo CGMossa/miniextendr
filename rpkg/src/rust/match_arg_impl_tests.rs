@@ -140,6 +140,16 @@ impl S3MatchArgPoint {
         self.label = format!("{}-{:?}", self.label, mode);
         self.label.clone()
     }
+
+    /// Optional relabel (#1473): the R formal is `mode = NULL`, and `NULL`
+    /// leaves the label unchanged instead of picking the first choice.
+    #[miniextendr(match_arg(mode))]
+    pub fn maybe_relabel(&mut self, mode: Option<ImplMode>) -> String {
+        if let Some(mode) = mode {
+            self.label = format!("{}-{:?}", self.label, mode);
+        }
+        self.label.clone()
+    }
 }
 
 // endregion

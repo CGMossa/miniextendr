@@ -215,6 +215,8 @@ both the `extern "C-unwind"` wrapper and the corresponding `R_CallMethodDef` con
   - How `Err` values become condition parts. Set by `#[miniextendr(serde_error)]`.
 - `match_arg_several_ok_params`: `Vec<String>`
   - Parameter names with `#[miniextendr(match_arg, several_ok)]` — use
+- `match_arg_optional_params`: `Vec<String>`
+  - `Option<T>`-typed scalar `match_arg` parameter names — converted via
 - `preserve_param_names`: `bool`
   - When `true`, preserve original parameter names from `inputs` in the C wrapper
 - `vis`: `syn::Visibility`
@@ -369,6 +371,18 @@ fn inputs(self: Self, inputs: syn::punctuated::Punctuated<syn::FnArg, $crate::to
 
 Sets the function parameters (excluding `self` receiver).
 Each input becomes a `SEXP` argument in the C wrapper.
+
+#### `match_arg_optional`
+
+```rust
+fn match_arg_optional(self: Self, param_name: String) -> Self
+```
+
+Record a parameter as an `Option<T>` scalar `match_arg` (#1473).
+
+Passed through to `RustConversionBuilder::with_match_arg_optional`, which
+converts the parameter with `match_arg_option_from_sexp::<Inner>` so `NULL`
+becomes `None` and any other value is matched against `MatchArg::CHOICES`.
 
 #### `match_arg_several_ok`
 
@@ -2300,6 +2314,20 @@ Add a single parameter name that should use coercion.
 
 `param_name` is matched against the identifier in the function signature.
 Can be called multiple times to add several parameters.
+
+#### `with_match_arg_optional`
+
+```rust
+fn with_match_arg_optional(self: Self, param_name: String) -> Self
+```
+
+Mark a parameter as an `Option<T>` scalar `match_arg` — uses
+`match_arg_option_from_sexp` instead of `TryFromSexp` for converting
+NULL / STRSXP → `Option<EnumType>`. There is no `TryFromSexp for
+Option<T>` a downstream crate could provide for its own enum (orphan
+rule), and a `T: MatchArg` blanket would collide with the newtype
+blanket in `miniextendr_api::newtype`, so the wrapper calls the
+helper directly.
 
 #### `with_match_arg_several_ok`
 

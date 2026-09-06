@@ -60,12 +60,26 @@ test_that("env instance reset accepts multi-value choices", {
 })
 
 test_that("env several_ok rejects an all-invalid vector", {
-  # With several.ok = TRUE, `match.arg` is permissive about any subset of valid
-  # choices. An all-invalid input still fails.
   expect_error(
     EnvMatchArgCounter$new(c("Bogus", "Other")),
     "should be one of"
   )
+})
+
+test_that("env several_ok rejects a partially invalid vector (#1472)", {
+  # base match.arg(several.ok = TRUE) would have kept "Fast" and dropped
+  # "Bogus" silently; the strict prelude names the offending element.
+  expect_error(
+    EnvMatchArgCounter$new(c("Fast", "Bogus")),
+    "'modes' element 2 \\(\"Bogus\"\\) should be one of"
+  )
+  e <- EnvMatchArgCounter$new("Fast")
+  expect_error(e$reset(c("Bogus", "Safe")), "'modes' element 1")
+  expect_equal(e$count(), 1L)
+})
+
+test_that("env several_ok: NULL selects every choice", {
+  expect_equal(EnvMatchArgCounter$new(NULL)$count(), 3L)
 })
 
 # endregion
@@ -117,6 +131,14 @@ test_that("S3 constructor validates choices", {
 test_that("S3 instance method with match_arg validates", {
   p <- new_s3matchargpoint("alpha")
   expect_equal(relabel(p, "Safe"), "alpha-Safe")
+})
+
+test_that("S3 instance method with Option<T> match_arg: NULL means no choice (#1473)", {
+  p <- new_s3matchargpoint("beta")
+  expect_equal(maybe_relabel(p), "beta")
+  expect_equal(maybe_relabel(p, NULL), "beta")
+  expect_equal(maybe_relabel(p, "Sa"), "beta-Safe")
+  expect_error(maybe_relabel(p, "nope"), "should be one of")
 })
 
 test_that("S3MatchArgPoint class object constructs via $new", {

@@ -23,9 +23,12 @@ test_that("hand-written MatchArg newtype: several_ok and Vec<T> return", {
   expect_equal(foreign_enum_interps("near"), "nearest")
   # Omitted argument -> every choice, as match.arg(several.ok = TRUE) does.
   expect_equal(foreign_enum_interps(), c("linear", "cubic", "nearest"))
-  # match.arg(several.ok = TRUE) drops unmatched entries when at least one
-  # matches, and errors only when none do (base R semantics, not ours).
-  expect_equal(foreign_enum_interps(c("cubic", "spline")), "cubic")
+  # Strict several_ok (#1472): an unmatched element errors even when another
+  # element matches; base match.arg(several.ok = TRUE) would have dropped it.
+  expect_error(
+    foreign_enum_interps(c("cubic", "spline")),
+    "'methods' element 2 \\(\"spline\"\\) should be one of"
+  )
   expect_error(foreign_enum_interps(c("spline", "bogus")), "should be one of")
 })
 

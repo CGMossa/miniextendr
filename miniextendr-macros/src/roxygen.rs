@@ -707,6 +707,18 @@ pub(crate) fn strip_method_tags(
     type_name: &str,
     span: proc_macro2::Span,
 ) -> (Vec<String>, proc_macro2::TokenStream) {
+    strip_tags_in(tags, type_name, span, METHOD_ONLY_TAGS)
+}
+
+/// Shared body of [`strip_method_tags`] and [`strip_method_tags_r6`]: drop
+/// every tag whose name is in `method_only` and emit one warning const scope
+/// per dropped tag. The two public entry points differ only in the tag table.
+fn strip_tags_in(
+    tags: &[String],
+    type_name: &str,
+    span: proc_macro2::Span,
+    method_only: &[&str],
+) -> (Vec<String>, proc_macro2::TokenStream) {
     use quote::quote_spanned;
 
     let mut filtered = Vec::new();
@@ -717,7 +729,8 @@ pub(crate) fn strip_method_tags(
             filtered.push(tag.clone());
             continue;
         };
-        if !METHOD_ONLY_TAGS.contains(&name) {
+        if !method_only.contains(&name) {
+            // Keeps unrecognised tags (and, for R6, @param) without warning.
             filtered.push(tag.clone());
             continue;
         }
@@ -876,41 +889,7 @@ pub(crate) fn strip_method_tags_r6(
     type_name: &str,
     span: proc_macro2::Span,
 ) -> (Vec<String>, proc_macro2::TokenStream) {
-    use quote::quote_spanned;
-
-    let mut filtered = Vec::new();
-    let mut warnings = proc_macro2::TokenStream::new();
-
-    for tag in tags {
-        let Some(name) = roxygen_tag_name(tag) else {
-            filtered.push(tag.clone());
-            continue;
-        };
-        if !METHOD_ONLY_TAGS_R6.contains(&name) {
-            // Keeps @param (and any unrecognised tags) without warning.
-            filtered.push(tag.clone());
-            continue;
-        }
-        let msg = format!(
-            "miniextendr: @{} on impl block `{}` has no effect — move it to the method. Tag: {}",
-            name,
-            type_name,
-            tag.trim()
-        );
-        warnings.extend(quote_spanned! { span =>
-            const _: () = {
-                #[deprecated(note = #msg)]
-                #[doc(hidden)]
-                #[allow(dead_code)]
-                const _MINIEXTENDR_IMPL_METHOD_TAG_WARN: () = ();
-                #[doc(hidden)]
-                #[allow(dead_code)]
-                const _MINIEXTENDR_IMPL_METHOD_TAG_USE: () = _MINIEXTENDR_IMPL_METHOD_TAG_WARN;
-            };
-        });
-    }
-
-    (filtered, warnings)
+    strip_tags_in(tags, type_name, span, METHOD_ONLY_TAGS_R6)
 }
 
 /// Strip roxygen tag lines from doc attributes, keeping only regular documentation.

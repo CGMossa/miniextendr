@@ -191,7 +191,7 @@ impl<'a> TraitMethodContext<'a> {
     /// Build R prelude lines validating `match_arg`/`choices` params. See
     /// `r_class_formatter::build_match_arg_prelude`.
     pub(super) fn match_arg_prelude(&self) -> Vec<String> {
-        crate::r_class_formatter::build_match_arg_prelude(&self.method.per_param)
+        crate::r_class_formatter::build_match_arg_prelude(&self.method.per_param, &self.c_ident)
     }
 
     /// R-side `stopifnot()` precondition checks for this method's parameters.

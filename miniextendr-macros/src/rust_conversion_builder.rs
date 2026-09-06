@@ -27,6 +27,9 @@ pub struct RustConversionBuilder {
     strict: bool,
     /// Parameter names with `match_arg + several_ok` — use `match_arg_vec_from_sexp` instead of `TryFromSexp`.
     match_arg_several_ok_params: Vec<String>,
+    /// `Option<T>`-typed scalar `match_arg` parameter names — use
+    /// `match_arg_option_from_sexp` instead of `TryFromSexp` (#1473).
+    match_arg_optional_params: Vec<String>,
 }
 
 impl RustConversionBuilder {
@@ -37,6 +40,7 @@ impl RustConversionBuilder {
             coerce_params: Vec::new(),
             strict: false,
             match_arg_several_ok_params: Vec::new(),
+            match_arg_optional_params: Vec::new(),
         }
     }
 
@@ -65,6 +69,18 @@ impl RustConversionBuilder {
     /// instead of `TryFromSexp` for converting STRSXP → `Vec<EnumType>`.
     pub fn with_match_arg_several_ok(mut self, param_name: String) -> Self {
         self.match_arg_several_ok_params.push(param_name);
+        self
+    }
+
+    /// Mark a parameter as an `Option<T>` scalar `match_arg` — uses
+    /// `match_arg_option_from_sexp` instead of `TryFromSexp` for converting
+    /// NULL / STRSXP → `Option<EnumType>`. There is no `TryFromSexp for
+    /// Option<T>` a downstream crate could provide for its own enum (orphan
+    /// rule), and a `T: MatchArg` blanket would collide with the newtype
+    /// blanket in `miniextendr_api::newtype`, so the wrapper calls the
+    /// helper directly.
+    pub fn with_match_arg_optional(mut self, param_name: String) -> Self {
+        self.match_arg_optional_params.push(param_name);
         self
     }
 
@@ -377,6 +393,25 @@ impl RustConversionBuilder {
                     let stmt = quote_spanned! {span=>
                         let #ident: #ty = #strict_expr;
                     };
+                    return (vec![stmt], vec![]);
+                }
+
+                // Option<T> match_arg (#1473): NULL → None, else the scalar match.
+                if self
+                    .match_arg_optional_params
+                    .contains(&param_name.to_string())
+                    && let Some(inner_ty) = crate::option_inner_type(ty)
+                {
+                    let span = ty.span();
+                    let error_msg = format!(
+                        "failed to convert parameter '{}' to Option<{}>: invalid choice",
+                        param_name,
+                        quote!(#inner_ty)
+                    );
+                    let try_expr = quote_spanned! {span=>
+                        ::miniextendr_api::match_arg_option_from_sexp::<#inner_ty>(#sexp_ident)
+                    };
+                    let stmt = self.conversion_stmt(try_expr, &error_msg, ident, ty, span);
                     return (vec![stmt], vec![]);
                 }
 

@@ -211,12 +211,87 @@ test_that("match_arg several_ok [T; N]: wrong length panics with clear message",
   expect_error(match_arg_multi_mode_array(c("Fast", "Safe", "Debug")), "expected 2 values")
 })
 
-test_that("match_arg several_ok [T; N]: all-invalid value errors from match.arg", {
-  # When all values are invalid, match.arg errors with "should be one of"
+test_that("match_arg several_ok [T; N]: any invalid value errors in the prelude (#1472)", {
   expect_error(match_arg_multi_mode_array(c("Foo", "Bar")), "should be one of")
-  # When one value is invalid, match.arg silently drops it and Rust
-  # panics on length mismatch (2-element array, only 1 valid match)
-  expect_error(match_arg_multi_mode_array(c("Fast", "Invalid")), "expected 2 values")
+  # One bad element used to be dropped by match.arg(several.ok = TRUE) and only
+  # surfaced as the array length mismatch; the strict prelude names it instead.
+  expect_error(
+    match_arg_multi_mode_array(c("Fast", "Invalid")),
+    "'modes' element 2 \\(\"Invalid\"\\) should be one of"
+  )
+})
+
+# ============================================================================
+# several_ok is strict (#1472): every element must match; NULL selects all
+# ============================================================================
+
+test_that("several_ok: an unmatched element errors even when another matches", {
+  expect_error(
+    choices_multi_color(c("red", "purple")),
+    "'colors' element 2 \\(\"purple\"\\) should be one of \"red\", \"green\", \"blue\""
+  )
+  expect_error(match_arg_multi_mode(c("Fast", "zzz")), "'modes' element 2 \\(\"zzz\"\\) should be one of")
+  expect_error(match_arg_multi_mode_boxed(c("zzz", "Fast")), "'modes' element 1")
+  expect_error(match_arg_multi_mode_slice(c("Fast", NA)), "'modes' element 2")
+  expect_error(match_arg_multi_priority(1L, c("lo", "middle")), "'priorities' element 2")
+})
+
+test_that("several_ok: the error is attributed to the wrapper's call, not the helper", {
+  e <- tryCatch(match_arg_multi_mode(c("Fast", "zzz")), error = identity)
+  expect_identical(conditionCall(e)[[1L]], as.name("match_arg_multi_mode"))
+})
+
+test_that("several_ok: NULL selects every choice, like an omitted argument", {
+  expect_equal(choices_multi_color(NULL), "red, green, blue")
+  expect_equal(match_arg_multi_mode(NULL), "Fast, Safe, Debug")
+  expect_equal(match_arg_return_modes(NULL), c("Fast", "Safe", "Debug"))
+})
+
+test_that("several_ok: non-character and empty input error", {
+  expect_error(match_arg_multi_mode(1L), "'modes' must be NULL or a character vector")
+  expect_error(match_arg_multi_mode(character()), "'modes' must be of length >= 1")
+})
+
+test_that("several_ok: partial matching still applies per element", {
+  expect_equal(match_arg_multi_mode(c("F", "D")), "Fast, Debug")
+  expect_equal(choices_multi_metrics(2L, c("mea", "s")), "n=2, metrics=mean+sd")
+  # An ambiguous prefix matches nothing uniquely, so it is an error, not a drop.
+  expect_error(
+    choices_multi_metrics(2L, c("me", "s")),
+    "'metrics' element 1 \\(\"me\"\\) should be one of"
+  )
+})
+
+# ============================================================================
+# Option<T>: the optional scalar form (#1473)
+# ============================================================================
+
+test_that("Option<T> match_arg: omitted and NULL both mean no choice", {
+  expect_equal(match_arg_optional_mode(), "none")
+  expect_equal(match_arg_optional_mode(NULL), "none")
+  # The formal defaults to NULL, not to the choice vector.
+  expect_null(formals(match_arg_optional_mode)$mode)
+})
+
+test_that("Option<T> match_arg: a value is matched like the plain form", {
+  expect_equal(match_arg_optional_mode("Safe"), "Safe")
+  expect_equal(match_arg_optional_mode("D"), "Debug")
+  expect_equal(match_arg_optional_mode(factor("Fast")), "Fast")
+  expect_error(match_arg_optional_mode("nope"), "should be one of")
+  expect_error(match_arg_optional_mode(c("Fast", "Safe")), "must be of length 1")
+})
+
+test_that("Option<String> choices: NULL formal, matched when given", {
+  expect_equal(choices_optional_color(), "none")
+  expect_equal(choices_optional_color(NULL), "none")
+  expect_equal(choices_optional_color("gr"), "green")
+  expect_error(choices_optional_color("purple"), "should be one of")
+  expect_null(formals(choices_optional_color)$color)
+})
+
+test_that("Option<T> match_arg: mixed with a regular parameter", {
+  expect_equal(match_arg_optional_mixed(3L), "n=3, mode=none")
+  expect_equal(match_arg_optional_mixed(3L, "Fast"), "n=3, mode=Fast")
 })
 
 # ============================================================================

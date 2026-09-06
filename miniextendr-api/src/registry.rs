@@ -261,12 +261,16 @@ pub struct MatchArgParamDocEntry {
     /// `true` for `several_ok` params (emits "One or more of …");
     /// `false` for plain `match_arg` (emits "One of …").
     pub several_ok: bool,
+    /// `true` for an `Option<T>`-typed scalar param (#1473): the R formal
+    /// defaults to `NULL`, so the rendered line ends in ", or NULL for no
+    /// choice".
+    pub optional: bool,
     /// Function that returns the choices as a comma-separated quoted string,
     /// e.g. `"\"Fast\", \"Safe\", \"Debug\""`.
     pub choices_str: fn() -> String,
 }
 
-// SAFETY: function pointer, bool, and &'static str are Send+Sync.
+// SAFETY: function pointer, bools, and &'static str are Send+Sync.
 unsafe impl Sync for MatchArgParamDocEntry {}
 
 /// Entry mapping a Rust type name to its R-visible class name and class system.
@@ -1365,6 +1369,26 @@ pub fn write_r_wrappers_to_file(path: &str) {
   invisible(NULL)
 }
 
+# Internal helper: strict `match.arg(several.ok = TRUE)` for `several_ok` params.
+# Base R keeps only the elements that match as long as one of them does, so a
+# misspelled entry silently shortens the selection and the per-element check on
+# the Rust side never sees it (#1472). Here every element has to match a choice
+# (exactly or as a unique prefix), the first that does not is reported with its
+# position, and `NULL` selects every choice, like an omitted argument does. The
+# error is attributed to the wrapper's own call, not to this helper.
+.miniextendr_match_arg_several <- function(arg, choices, arg_name) {
+  if (is.null(arg)) return(choices)
+  .call <- sys.call(-1L)
+  if (!is.character(arg)) stop(simpleError(sprintf(\"'%s' must be NULL or a character vector\", arg_name), .call))
+  if (length(arg) == 0L) stop(simpleError(sprintf(\"'%s' must be of length >= 1\", arg_name), .call))
+  i <- pmatch(arg, choices, nomatch = 0L, duplicates.ok = TRUE)
+  bad <- which(is.na(i) | i == 0L)
+  if (length(bad)) {
+    stop(simpleError(sprintf(\"'%s' element %d (\\\"%s\\\") should be one of %s\", arg_name, bad[[1L]], arg[[bad[[1L]]]], paste(dQuote(choices, FALSE), collapse = \", \")), .call))
+  }
+  choices[i]
+}
+
 ",
     );
 
@@ -1398,7 +1422,12 @@ pub fn write_r_wrappers_to_file(path: &str) {
         } else {
             "One of"
         };
-        let replacement = format!("{prefix} {choices}.");
+        let suffix = if entry.optional {
+            ", or NULL for no choice"
+        } else {
+            ""
+        };
+        let replacement = format!("{prefix} {choices}{suffix}.");
         content = content.replace(entry.placeholder, &replacement);
     }
 
