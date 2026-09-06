@@ -254,7 +254,7 @@ fn result_err_parts_roundtrip() {
             .class(["pkg_too_large", "pkg_error"])
             .data("rule", 3)
             .data("max", 100.0);
-        let parts = miniextendr_api::__mx_result_err_parts!(err);
+        let parts = miniextendr_api::__mx_result_err_parts!(err, "pkg_error");
         let sexp = result_err_condition_value(parts, None);
         match RCondition::from_tagged_sexp(sexp).expect("tagged") {
             RCondition::Error {
@@ -272,11 +272,18 @@ fn result_err_parts_roundtrip() {
             other => panic!("wrong variant: {other:?}"),
         }
 
-        // The Debug fallback: a plain String error keeps its historical rendering.
+        // A plain String error: under the `serde` feature it takes the serde
+        // arm (family class, text unquoted); otherwise the Debug fallback keeps
+        // the historical rendering.
         let plain = String::from("boom");
-        let parts = miniextendr_api::__mx_result_err_parts!(plain);
-        assert_eq!(parts.message, "\"boom\"");
-        assert!(parts.class.is_empty());
+        let parts = miniextendr_api::__mx_result_err_parts!(plain, "pkg_error");
+        if cfg!(feature = "serde") {
+            assert_eq!(parts.message, "boom");
+            assert_eq!(parts.class, ["pkg_error"]);
+        } else {
+            assert_eq!(parts.message, "\"boom\"");
+            assert!(parts.class.is_empty());
+        }
         assert!(parts.data.is_none());
     });
 }

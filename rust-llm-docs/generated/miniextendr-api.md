@@ -26284,12 +26284,17 @@ pub trait RConditionError
 Give a `Result<T, E>` error type an R class vector and structured fields.
 
 Every `#[miniextendr]` function or method returning `Result<T, E>` raises
-`Err(e)` as an R error. By default the error is a bare `rust_error` whose
-message is `format!("{e:?}")`. Implement this trait for `E` (or return
-[`RError`], which implements it) and the `Err` arm instead raises
+`Err(e)` as an R error. Implement this trait for `E` (or return
+[`RError`], which implements it) and the `Err` arm raises
 `c(<class()…>, "rust_error", "simpleError", "error", "condition")` with
 every `data()` field readable as `e$<name>`, so a thiserror-style error enum
-can keep `?` composition *and* give R handlers something to dispatch on:
+can keep `?` composition *and* give R handlers something to dispatch on.
+
+Without an impl, the `Err` arm falls back in two steps. Under the `serde`
+feature an `E: serde::Serialize + Display` is classed from its serde shape
+(see [`serde_err_parts`]: variant → member class, fields → data, `Display`
+→ message). Anything else is a bare `rust_error` whose message is
+`format!("{e:?}")`.
 
 ```ignore
 use miniextendr_api::condition::{ConditionData, RConditionError};

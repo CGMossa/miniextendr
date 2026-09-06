@@ -184,13 +184,14 @@ pub enum ReturnHandling {
 
 /// How the generated `Err` arm turns an error value into condition parts
 /// (message, class vector, structured data).
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ErrPartsMode {
     /// Autoref-specialisation probe (`__mx_result_err_parts!`): `RConditionError`
-    /// when the error type implements it, `Debug` otherwise.
-    #[default]
-    Probe,
-    /// `#[miniextendr(serde_error)]`: serialize the error with serde; the enum
+    /// when the error type implements it; else, under the API crate's `serde`
+    /// feature, the serde shape for an `E: Serialize + Display` with `prefix`
+    /// (`<crate>_error`) as the family class; `Debug` otherwise.
+    Probe { prefix: String },
+    /// `#[miniextendr(serde_error(..))]`: serialize the error with serde; the enum
     /// variant becomes the member class `<prefix>_<variant>`, the payload fields
     /// become the condition's data. `tag` is the internally-tagged discriminator
     /// field consumed as the variant (`#[serde(tag = "kind")]`); `skip` and
@@ -207,7 +208,9 @@ impl ErrPartsMode {
     /// Resolve a parsed `serde_error` spec (or its absence) into a mode.
     pub fn from_spec(spec: Option<&crate::miniextendr_fn::SerdeErrorSpec>) -> Self {
         match spec {
-            None => ErrPartsMode::Probe,
+            None => ErrPartsMode::Probe {
+                prefix: crate::miniextendr_fn::default_serde_error_prefix(),
+            },
             Some(spec) => ErrPartsMode::Serde {
                 tag: spec.tag().to_string(),
                 prefix: spec.prefix(),
@@ -220,7 +223,9 @@ impl ErrPartsMode {
     /// The expression yielding an `ErrParts` from the bound error `e`.
     pub fn expr(&self) -> TokenStream {
         match self {
-            ErrPartsMode::Probe => quote! { ::miniextendr_api::__mx_result_err_parts!(e) },
+            ErrPartsMode::Probe { prefix } => {
+                quote! { ::miniextendr_api::__mx_result_err_parts!(e, #prefix) }
+            }
             ErrPartsMode::Serde {
                 tag,
                 prefix,
@@ -354,7 +359,7 @@ impl CWrapperContext {
             has_self: false,
             call_method_def_ident: None,
             strict: false,
-            err_parts: ErrPartsMode::Probe,
+            err_parts: ErrPartsMode::from_spec(None),
             match_arg_several_ok_params: Vec::new(),
             preserve_param_names: false,
             vis: syn::Visibility::Inherited,

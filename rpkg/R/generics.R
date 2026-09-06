@@ -214,7 +214,7 @@ NULL
 #' @name check_bound
 NULL
 
-# SerdeChecker fixture generic (`#[miniextendr(serde_error)]` on an S3
+# SerdeChecker fixture generic (serde-classed `Result` error from an S3
 # method). Exported by the auto-generated wrappers under @rdname SerdeChecker,
 # aliased here for R CMD check.
 

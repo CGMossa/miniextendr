@@ -1369,7 +1369,7 @@ impl ParsedMethod {
                             method_attrs.unwrap_in_r = true;
                         } else if inner.path.is_ident("serde_error") {
                             method_attrs.serde_error =
-                                crate::miniextendr_fn::parse_serde_error_nested(&inner)?;
+                                Some(crate::miniextendr_fn::parse_serde_error_nested(&inner)?);
                         } else if inner.path.is_ident("generic") {
                             let _: syn::Token![=] = inner.input.parse()?;
                             let value: syn::LitStr = inner.input.parse()?;
@@ -1601,7 +1601,7 @@ impl ParsedMethod {
                     method_attrs.unwrap_in_r = true;
                 } else if meta.path.is_ident("serde_error") {
                     method_attrs.serde_error =
-                        crate::miniextendr_fn::parse_serde_error_nested(&meta)?;
+                        Some(crate::miniextendr_fn::parse_serde_error_nested(&meta)?);
                 } else if meta.path.is_ident("as") {
                     // Parse as = "data.frame", as = "list", etc.
                     method_attrs.as_coercion_span = Some(meta.path.span());
@@ -2631,7 +2631,7 @@ impl ParsedImpl {
                 {
                     return Err(syn::Error::new(
                         fn_item.sig.ident.span(),
-                        "`#[miniextendr(serde_error)]` requires a `Result<T, E>` return type: it \
+                        "`#[miniextendr(serde_error(..))]` requires a `Result<T, E>` return type: it \
                          classes the condition raised from the `Err` arm",
                     ));
                 }

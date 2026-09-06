@@ -20,7 +20,7 @@ optional `data = ...` argument to attach structured named fields readable as
 `Result<T, E>` returns get the same treatment through the
 [`RConditionError`](#classed-result-errors-with-rconditionerror-and-rerror) trait,
 or, for error enums that already derive `serde::Serialize`, through
-[`#[miniextendr(serde_error)]`](#deriving-the-classes-from-a-serde-error-type).
+[the serde shape](#deriving-the-classes-from-a-serde-error-type).
 
 > **Import note.** `error!` and `condition!` are shadowed by the crate-root
 > modules `error` / `condition`, so `use miniextendr_api::*;` (or a direct
@@ -183,8 +183,9 @@ struct, a rename in your `RConditionError::data()` impl). Renaming every field
 with a prefix to rescue one would make `e$<name>` access inconsistent across
 conditions. When the payload is an error type's own serde shape that other
 consumers read, do the renaming at the condition boundary instead:
-`#[miniextendr(serde_error)]` takes `skip(..)` / `rename(..)` and drops a
-`message` field that merely echoes `Display` (see
+`#[miniextendr(serde_error(skip(..), rename(..)))]` drops or renames payload
+fields, and a `message` field that merely echoes `Display` is dropped with no
+option (see
 [Payload fields named `message`](#payload-fields-named-message)).
 
 ```rust
@@ -277,10 +278,16 @@ withCallingHandlers(
 ## Classed `Result` errors with `RConditionError` and `RError`
 
 A `#[miniextendr]` function or method returning `Result<T, E>` raises `Err(e)`
-as an R error. By default that error is a bare `rust_error` whose message is
-`format!("{e:?}")` and whose `kind` is `"result_err"`. To give R handlers
-something to dispatch on without giving up `?` composition, implement
-`miniextendr_api::condition::RConditionError` for the error type:
+as an R error whose `kind` is `"result_err"`. The `Err` arm picks the class
+vector and data in three steps, the first that applies winning:
+
+1. `E` implements `miniextendr_api::condition::RConditionError` (this section).
+2. The API crate's `serde` feature is on and `E: serde::Serialize + Display`
+   ([derived from the serde shape](#deriving-the-classes-from-a-serde-error-type)).
+3. Otherwise a bare `rust_error` whose message is `format!("{e:?}")`.
+
+To give R handlers something to dispatch on without giving up `?` composition,
+implement `RConditionError` for the error type:
 
 ```rust
 use miniextendr_api::condition::{ConditionData, RConditionError};
@@ -358,11 +365,14 @@ keeps the blanket `From<E: Error>` coherent; it works with
 ### Deriving the classes from a serde error type
 
 When the error type already derives `serde::Serialize` (for logging, JSON
-transport, or a downstream client), the same information can drive the R
-condition without an `RConditionError` impl. `#[miniextendr(serde_error)]`
-serializes the `Err` value: the enum variant becomes the member class
-`<prefix>_<variant>`, the variant's fields become `e$<name>`, and the message
-comes from `Display`. Requires the `serde` feature.
+transport, or a downstream client), the same information drives the R
+condition without an `RConditionError` impl and without any attribute: with the
+API crate's `serde` feature enabled, every `Result<T, E>` whose
+`E: Serialize + Display` serializes the `Err` value. The enum variant becomes
+the member class `<prefix>_<variant>`, the variant's fields become `e$<name>`,
+and the message comes from `Display`. `#[miniextendr(serde_error(..))]` exists
+only to carry options (`tag`, `prefix`, `skip`, `rename`); the bare flag is a
+compile error, since it would switch nothing on.
 
 ```rust
 #[derive(Debug, thiserror::Error, serde::Serialize)]
@@ -374,7 +384,7 @@ pub enum EngineError {
     OutOfRange { value: f64, max: f64 },
 }
 
-#[miniextendr(serde_error)]
+#[miniextendr]
 pub fn check(value: f64) -> Result<f64, EngineError> {
     if value > 100.0 { return Err(EngineError::OutOfRange { value, max: 100.0 }); }
     Ok(value)
@@ -402,15 +412,16 @@ e$value; e$max
   payload contributes that struct's fields; any other newtype or tuple payload
   lands under `e$value`. Unit variants carry classes only. A value that
   serializes without variant information (a plain struct, a string) gets just
-  the family class.
+  the family class. `Result<T, String>` and `Result<T, &str>` therefore raise
+  `c("mypkg_error", "rust_error", …)` with the text as the message, no data.
 - Values follow the `RValue` mapping (`RValue::from_serde`, see
   [SERDE_R.md](SERDE_R.md#owned-values-rvaluefrom_serde)): scalars,
   homogeneous `Vec<T>` as atomic vectors, nested structs as named lists,
   `None` as `NULL`. The reserved names above apply to the payload fields; a
   clash raises a `rust_error` describing it, exactly as for `data()`, with
   the exceptions below.
-- `serde_error` needs a `Result` return type and cannot be combined with
-  `unwrap_in_r`; both are compile errors.
+- `serde_error(..)` needs a `Result` return type and cannot be combined with
+  `unwrap_in_r`; both are compile errors, as is the bare `serde_error` flag.
 
 #### Payload fields named `message`
 
@@ -458,8 +469,8 @@ cannot see the error type's fields at expansion time; only the option grammar
 is checked there. A field named `call` or `kind` has no equality rule and
 must be skipped or renamed.
 - Choose `RConditionError` when the message or class vector needs to differ
-  from the serde shape; `serde_error` is the zero-boilerplate path for enums
-  that are already serde-tagged.
+  from the serde shape (it takes precedence); the serde path is the
+  zero-boilerplate default for enums that are already serde-tagged.
 
 ## Trait-ABI and ALTREP error class layering
 

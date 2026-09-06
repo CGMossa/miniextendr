@@ -1,13 +1,14 @@
-//! `#[miniextendr(serde_error)]`: classed `Result` errors derived from the
-//! error type's serde output (#1449).
+//! Classed `Result` errors derived from the error type's serde output (#1449).
 //!
-//! No `RConditionError` impl: the enum variant becomes the member class
-//! `<prefix>_<variant>`, the variant's fields become `e$<name>`, and the
-//! message comes from `Display`. Internally tagged enums
-//! (`#[serde(tag = "kind")]`) have the tag consumed as the variant; externally
-//! tagged enums (serde's default) report the variant name verbatim. The default
-//! prefix is `<crate>_error` (`miniextendr_error` here); `serde_error(prefix =
-//! "engine")` overrides it.
+//! Automatic under the `serde` feature: a `Result<T, E>` whose `E` is
+//! `Serialize + Display` and has no `RConditionError` impl needs no attribute.
+//! The enum variant becomes the member class `<prefix>_<variant>`, the
+//! variant's fields become `e$<name>`, and the message comes from `Display`.
+//! Internally tagged enums (`#[serde(tag = "kind")]`) have the tag consumed as
+//! the variant; externally tagged enums (serde's default) report the variant
+//! name verbatim. The default prefix is `<crate>_error` (`miniextendr_error`
+//! here); `#[miniextendr(serde_error(prefix = "engine"))]` overrides it, and
+//! the attribute exists only for such options.
 //!
 //! Payload-field control (#1457): `serde_error(skip("message"))` drops a field,
 //! `serde_error(rename(message = "detail"))` splices it under another name, and
@@ -55,14 +56,14 @@ impl std::error::Error for EngineError {}
 
 /// Struct variant with one string field.
 /// @param field Field name to report missing.
-#[miniextendr(serde_error)]
+#[miniextendr]
 pub fn serde_err_missing(field: String) -> Result<i32, EngineError> {
     Err(EngineError::MissingField { field })
 }
 
 /// Struct variant with numeric fields and a nested unit enum.
 /// @param value Value to check against the bound 100.
-#[miniextendr(serde_error)]
+#[miniextendr]
 pub fn serde_err_range(value: f64) -> Result<f64, EngineError> {
     if value > 100.0 {
         return Err(EngineError::OutOfRange {
@@ -75,7 +76,7 @@ pub fn serde_err_range(value: f64) -> Result<f64, EngineError> {
 }
 
 /// Unit variant: classes only, no data.
-#[miniextendr(serde_error)]
+#[miniextendr]
 pub fn serde_err_unit_variant() -> Result<(), EngineError> {
     Err(EngineError::Io)
 }
@@ -87,9 +88,9 @@ pub fn serde_err_prefixed(value: f64) -> Result<f64, EngineError> {
     serde_err_range(value)
 }
 
-/// The `Ok` arm is untouched by `serde_error`.
+/// The `Ok` arm is untouched by the serde path.
 /// @param value Returned as-is.
-#[miniextendr(serde_error)]
+#[miniextendr]
 pub fn serde_err_ok(value: f64) -> Result<f64, EngineError> {
     Ok(value)
 }
@@ -119,7 +120,7 @@ impl std::fmt::Display for ExtError {
 
 /// Raise one of the externally tagged variants.
 /// @param which One of `"bad"`, `"plain"`, `"unit"`.
-#[miniextendr(serde_error)]
+#[miniextendr]
 pub fn serde_err_external(which: String) -> Result<(), ExtError> {
     match which.as_str() {
         "bad" => Err(ExtError::Bad { code: 7 }),
@@ -169,7 +170,7 @@ fn parser_error(which: &str, message: String) -> ParserError {
 /// `parse` (text differs) and `call` hit the reserved-name error.
 /// @param which One of `"parse"`, `"wrapped"`, `"call"`.
 /// @param message Payload text.
-#[miniextendr(serde_error)]
+#[miniextendr]
 pub fn serde_err_message_default(which: String, message: String) -> Result<(), ParserError> {
     Err(parser_error(&which, message))
 }
@@ -227,7 +228,6 @@ impl SerdeChecker {
 
     /// Check `value` against the bound; raises `miniextendr_error_out_of_range`.
     /// @param value Value to check.
-    #[miniextendr(serde_error)]
     pub fn check_value(&self, value: f64) -> Result<f64, EngineError> {
         if value > self.max {
             return Err(EngineError::OutOfRange {

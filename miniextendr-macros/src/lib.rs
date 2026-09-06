@@ -529,8 +529,9 @@ fn build_match_arg_helpers(
 /// - `#[miniextendr(coerce)]` — coerce R type before conversion (also usable per-parameter)
 /// - `#[miniextendr(strict)]` — reject lossy conversions for i64/u64/isize/usize
 /// - `#[miniextendr(unwrap_in_r)]` — return `Result<T, E>` to R without unwrapping
-/// - `#[miniextendr(serde_error)]` — class the `Err` arm from the error's serde shape;
-///   `serde_error(tag = "..", prefix = "..", skip(..), rename(a = ".."))`
+/// - `#[miniextendr(serde_error(tag = "..", prefix = "..", skip(..), rename(a = ".."))]` —
+///   options for the serde-classed `Err` arm. The path itself is automatic under the
+///   API crate's `serde` feature for every `Result<T, E>` with `E: Serialize + Display`.
 /// - `#[miniextendr(dots = typed_list!(...))]` — validate dots, create `dots_typed`
 /// - `#[miniextendr(internal)]` — adds `@keywords internal` to R wrapper
 /// - `#[miniextendr(noexport)]` — suppresses `@export` from R wrapper
@@ -886,7 +887,7 @@ pub fn miniextendr(
     if serde_error.is_some() && !return_type_analysis::output_is_result(output) {
         return syn::Error::new_spanned(
             output,
-            "`#[miniextendr(serde_error)]` requires a `Result<T, E>` return type: it classes \
+            "`#[miniextendr(serde_error(..))]` requires a `Result<T, E>` return type: it classes \
              the condition raised from the `Err` arm",
         )
         .into_compile_error()

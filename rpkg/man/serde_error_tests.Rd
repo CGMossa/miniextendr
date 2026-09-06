@@ -64,7 +64,7 @@ serde_err_message_renamed_onto_line(which, message)
 \item{message}{Payload text.}
 }
 \description{
-The \code{Ok} arm is untouched by \code{serde_error}.
+The \code{Ok} arm is untouched by the serde path.
 
 Struct variant with numeric fields and a nested unit enum.
 

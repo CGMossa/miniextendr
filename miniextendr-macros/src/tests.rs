@@ -183,19 +183,17 @@ fn miniextendr_attr_postfix_parses_and_rejects_conflicts() {
 fn miniextendr_attr_serde_error_forms() {
     use crate::miniextendr_fn::SerdeErrorSpec;
 
-    // Bare flag: defaults (`kind` tag, `<crate>_error` prefix).
-    let attrs = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(serde_error))
-        .expect("should parse serde_error");
+    // Option list: the only accepted form. Unset options keep the defaults
+    // (`kind` tag, `<crate>_error` prefix).
+    let attrs = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(serde_error(tag = "type")))
+        .expect("should parse nested serde_error");
     let spec = attrs.serde_error.expect("serde_error set");
-    assert_eq!(spec, SerdeErrorSpec::default());
-    assert_eq!(spec.tag(), "kind");
+    assert_eq!(spec.tag(), "type");
     assert!(
         spec.prefix().ends_with("_error"),
         "default prefix is `<crate>_error`: {}",
         spec.prefix()
     );
-
-    // Nested options.
     let attrs = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(serde_error(
         tag = "type",
         prefix = "engine"
@@ -204,14 +202,26 @@ fn miniextendr_attr_serde_error_forms() {
     let spec = attrs.serde_error.expect("serde_error set");
     assert_eq!(spec.tag(), "type");
     assert_eq!(spec.prefix(), "engine");
+    assert_eq!(SerdeErrorSpec::default().tag(), "kind");
 
-    // Explicit boolean.
-    let attrs = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(serde_error = false))
-        .expect("should parse serde_error = false");
-    assert!(attrs.serde_error.is_none());
-    let attrs = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(serde_error = true))
-        .expect("should parse serde_error = true");
-    assert!(attrs.serde_error.is_some());
+    // The serde path is on for every eligible error type under the `serde`
+    // feature, so the flag forms carry no information and are rejected.
+    for input in [
+        quote::quote!(serde_error),
+        quote::quote!(serde_error = true),
+        quote::quote!(serde_error = false),
+        quote::quote!(serde_error()),
+    ] {
+        let text = input.to_string();
+        let err = syn::parse2::<MiniextendrFnAttrs>(input)
+            .err()
+            .unwrap_or_else(|| panic!("`{text}` must fail"));
+        assert!(err.to_string().contains("is not a switch"), "{text}: {err}");
+        assert!(
+            err.to_string().contains("serde_error(tag ="),
+            "{text}: {err}"
+        );
+    }
 }
 
 #[test]
@@ -230,9 +240,10 @@ fn miniextendr_attr_serde_error_rejects_bad_input() {
         .expect("empty prefix must fail");
     assert!(err.to_string().contains("must not be empty"), "{err}");
 
-    let err = syn::parse2::<MiniextendrFnAttrs>(quote::quote!(serde_error, unwrap_in_r))
-        .err()
-        .expect("serde_error + unwrap_in_r must fail");
+    let err =
+        syn::parse2::<MiniextendrFnAttrs>(quote::quote!(serde_error(prefix = "p"), unwrap_in_r))
+            .err()
+            .expect("serde_error + unwrap_in_r must fail");
     assert!(
         err.to_string()
             .contains("cannot be used with `unwrap_in_r`"),
@@ -351,9 +362,17 @@ fn err_parts_mode_expr_selects_the_serde_path() {
     use crate::c_wrapper_builder::ErrPartsMode;
     use crate::miniextendr_fn::SerdeErrorSpec;
 
-    assert_eq!(ErrPartsMode::from_spec(None), ErrPartsMode::Probe);
-    let probe = ErrPartsMode::Probe.expr().to_string();
-    assert!(probe.contains("__mx_result_err_parts"), "{probe}");
+    // No options: the runtime probe, handed the `<crate>_error` prefix for
+    // its serde arm.
+    let mode = ErrPartsMode::from_spec(None);
+    let ErrPartsMode::Probe { prefix } = &mode else {
+        panic!("no spec must select the probe: {mode:?}");
+    };
+    assert!(prefix.ends_with("_error"), "{prefix}");
+    let probe = normalize_tokens(mode.expr());
+    assert!(probe.contains("__mx_result_err_parts!(e,\""), "{probe}");
+    assert!(probe.contains(&format!("\"{prefix}\"")), "{probe}");
+    assert!(!probe.contains("serde_err_parts"), "{probe}");
 
     let spec = SerdeErrorSpec {
         tag: Some("type".into()),
