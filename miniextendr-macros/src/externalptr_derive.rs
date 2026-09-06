@@ -1134,6 +1134,7 @@ NULL
             ::miniextendr_api::registry::RWrapperEntry {
                 priority: ::miniextendr_api::registry::RWrapperPriority::Sidecar,
                 source_file: file!(),
+                source_line: line!(),
                 content: #r_wrappers,
             };
 

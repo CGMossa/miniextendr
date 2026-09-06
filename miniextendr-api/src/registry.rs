@@ -230,6 +230,8 @@ pub struct RWrapperEntry {
     /// for standalone functions that don't have an explicit one, so that all
     /// functions from the same source file share a single .Rd page.
     pub source_file: &'static str,
+    /// Source line of the macro invocation, for source-order function documentation.
+    pub source_line: u32,
 }
 
 // SAFETY: All fields are immutable and valid for 'static lifetime.
@@ -506,27 +508,41 @@ pub unsafe extern "C" fn miniextendr_register_routines(dll: *mut DllInfo) {
 
 /// Collect all R wrapper entries, sorted by priority and deduplicated.
 ///
+/// Standalone functions are ordered by source file and line, so shared help
+/// pages follow the order in which their functions were written.
 /// Within each priority group, S7 class definitions are topologically sorted
 /// so parents are defined before children (S7 `parent = X` requires X to exist).
 ///
 /// Host-only — wasm32 doesn't run wrapper-gen.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn collect_r_wrappers() -> Vec<std::borrow::Cow<'static, str>> {
-    let mut entries: Vec<&RWrapperEntry> = MX_R_WRAPPERS.iter().collect();
-    entries.sort_by_key(|e| e.priority);
+    collect_r_wrapper_entries(MX_R_WRAPPERS.iter().collect())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn collect_r_wrapper_entries(
+    mut entries: Vec<&RWrapperEntry>,
+) -> Vec<std::borrow::Cow<'static, str>> {
+    // Keep the dependency-sensitive class/trait ordering stable. Only standalone
+    // functions need source ordering within their priority group.
+    entries.sort_by_key(|entry| {
+        let source = if entry.priority == RWrapperPriority::Function {
+            (entry.source_file, entry.source_line)
+        } else {
+            ("", 0)
+        };
+        (entry.priority, source)
+    });
 
     let mut seen = std::collections::HashSet::<&str>::new();
     let mut result: Vec<std::borrow::Cow<'static, str>> = Vec::with_capacity(entries.len());
     for entry in entries {
         let trimmed = entry.content.trim();
         if !trimmed.is_empty() && seen.insert(trimmed) {
-            // For standalone functions without explicit @rdname, inject one
+            // For standalone functions without explicit page routing, inject @rdname
             // derived from the source file stem so same-file functions share
             // a single .Rd page.
-            if entry.priority == RWrapperPriority::Function
-                && !has_rdname_tag(trimmed)
-                && !has_no_rd_tag(trimmed)
-            {
+            if entry.priority == RWrapperPriority::Function && !has_explicit_page_tag(trimmed) {
                 if let Some(rdname) = rdname_from_source_file(entry.source_file) {
                     result.push(std::borrow::Cow::Owned(inject_rdname(trimmed, &rdname)));
                     continue;
@@ -543,20 +559,16 @@ pub fn collect_r_wrappers() -> Vec<std::borrow::Cow<'static, str>> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-/// Check if an R wrapper fragment already has an `@rdname` tag.
-fn has_rdname_tag(content: &str) -> bool {
+/// Check whether a fragment explicitly chooses or suppresses its help page.
+fn has_explicit_page_tag(content: &str) -> bool {
     content.lines().any(|line| {
-        let trimmed = line.trim();
-        trimmed.starts_with("#' @rdname ")
-    })
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-/// Check if an R wrapper fragment has `@noRd`.
-fn has_no_rd_tag(content: &str) -> bool {
-    content.lines().any(|line| {
-        let trimmed = line.trim();
-        trimmed == "#' @noRd"
+        let Some(roxygen) = line.trim().strip_prefix("#'") else {
+            return false;
+        };
+        matches!(
+            roxygen.split_whitespace().next(),
+            Some("@rdname" | "@describeIn" | "@name" | "@noRd")
+        )
     })
 }
 
@@ -2105,6 +2117,99 @@ mod tests {
     fn resolve_list_wrappers(content: &str, entries: &[ClassNameEntry]) -> String {
         let class_index = build_class_name_index(entries.iter());
         resolve_list_return_wrappers(content, &class_index)
+    }
+
+    #[test]
+    fn explicit_help_page_routing_suppresses_file_stem_grouping() {
+        for tag in [
+            "@rdname topic",
+            "@describeIn topic Details",
+            "@name topic",
+            "@noRd",
+            "@rdname\ttopic",
+            "@describeIn\n#' topic Details",
+        ] {
+            let content = format!("#' {tag}\nf <- function() {{}}");
+            assert!(has_explicit_page_tag(&content), "{content}");
+        }
+        for content in [
+            "#' @rdnameOther topic",
+            "#' @param x See @describeIn",
+            "# ordinary @name topic",
+            "f <- function() {}",
+        ] {
+            assert!(!has_explicit_page_tag(content), "{content}");
+        }
+        let entries = [
+            RWrapperEntry {
+                priority: RWrapperPriority::Function,
+                source_file: "src/methods.rs",
+                source_line: 1,
+                content: "#' @name topic\ntopic <- function() {}",
+            },
+            RWrapperEntry {
+                priority: RWrapperPriority::Function,
+                source_file: "src/methods.rs",
+                source_line: 2,
+                content: "#' @describeIn topic Details\nf <- function() {}",
+            },
+            RWrapperEntry {
+                priority: RWrapperPriority::Function,
+                source_file: "src/methods.rs",
+                source_line: 3,
+                content: "#' @description Default page\ng <- function() {}",
+            },
+        ];
+        let output = collect_r_wrapper_entries(entries.iter().collect());
+        assert_eq!(output[0], entries[0].content);
+        assert_eq!(output[1], entries[1].content);
+        assert!(output[2].contains("#' @rdname methods"));
+    }
+
+    #[test]
+    fn function_wrappers_follow_source_order_without_reordering_classes() {
+        let entry = |priority, source_file, source_line, content| RWrapperEntry {
+            priority,
+            source_file,
+            source_line,
+            content,
+        };
+        let entries = [
+            entry(
+                RWrapperPriority::Function,
+                "b.rs",
+                1,
+                "#' @noRd\nother <- function() {}",
+            ),
+            entry(RWrapperPriority::Class, "z.rs", 90, "Parent <- new.env()"),
+            entry(
+                RWrapperPriority::Function,
+                "a.rs",
+                20,
+                "#' @noRd\nsecond <- function() {}",
+            ),
+            entry(
+                RWrapperPriority::Class,
+                "a.rs",
+                1,
+                "Child <- new.env(parent = Parent)",
+            ),
+            entry(
+                RWrapperPriority::TraitImpl,
+                "a.rs",
+                1,
+                "trait_method <- function() {}",
+            ),
+            entry(
+                RWrapperPriority::Function,
+                "a.rs",
+                10,
+                "#' @noRd\nfirst <- function() {}",
+            ),
+        ];
+        let output = collect_r_wrapper_entries(entries.iter().collect());
+        let expected = [1, 3, 5, 2, 0, 4].map(|index| entries[index].content);
+        assert_eq!(output, expected);
     }
 
     #[test]

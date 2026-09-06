@@ -1637,6 +1637,7 @@ pub fn miniextendr(
             ::miniextendr_api::registry::RWrapperEntry {
                 priority: ::miniextendr_api::registry::RWrapperPriority::Function,
                 source_file: file!(),
+                source_line: line!(),
                 content: concat!(
                     "# Generated from Rust fn `",
                     stringify!(#rust_ident),

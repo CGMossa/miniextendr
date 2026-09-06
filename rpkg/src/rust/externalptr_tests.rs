@@ -22,7 +22,6 @@ pub struct Point {
 /// @examples
 /// ptr <- extptr_counter_new(1L)
 /// p <- extptr_point_new(0.1, 0.2)
-/// @aliases extptr_counter_new extptr_point_new
 /// @param initial Initial value for the counter.
 #[miniextendr]
 pub fn extptr_counter_new(initial: i32) -> miniextendr_api::externalptr::ExternalPtr<Counter> {

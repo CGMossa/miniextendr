@@ -14,9 +14,6 @@ use miniextendr_api::miniextendr;
 /// \dontrun{
 /// unsafe_C_check_interupt_after()
 /// }
-/// @aliases invisibly_return_no_arrow invisibly_return_arrow invisibly_option_return_none
-///   invisibly_option_return_some invisibly_result_return_ok force_invisible_i32 force_visible_unit
-///   with_interrupt_check unsafe_C_check_interupt_after unsafe_C_check_interupt_unwind
 pub fn invisibly_return_no_arrow() {}
 
 /// Test that a function with explicit -> () return is invisible in R.

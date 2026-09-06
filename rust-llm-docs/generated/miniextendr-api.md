@@ -20394,6 +20394,8 @@ R wrapper code with priority for ordering.
   - R source code fragment.
 - `source_file`: `&'static str`
   - Source file path (from `file!()`). Used to derive a default `@rdname`
+- `source_line`: `u32`
+  - Source line of the macro invocation, for source-order function documentation.
 
 ### `registry::SidecarPropEntry`
 
@@ -34235,6 +34237,8 @@ fn collect_r_wrappers() -> Vec<std::borrow::Cow<'static, str>>
 
 Collect all R wrapper entries, sorted by priority and deduplicated.
 
+Standalone functions are ordered by source file and line, so shared help
+pages follow the order in which their functions were written.
 Within each priority group, S7 class definitions are topologically sorted
 so parents are defined before children (S7 `parent = X` requires X to exist).
 

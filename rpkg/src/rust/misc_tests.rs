@@ -11,7 +11,6 @@ use miniextendr_api::prelude::SEXP;
 /// @examples
 /// underscore_it_all(1L, 2)
 /// do_nothing()
-/// @aliases underscore_it_all do_nothing
 pub fn underscore_it_all(_: i32, _: f64) {}
 
 // Simple SEXP return
