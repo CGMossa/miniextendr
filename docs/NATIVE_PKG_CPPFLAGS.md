@@ -120,7 +120,10 @@ final set of C preprocessor flags that reach `cc`."
 `@NATIVE_PKG_CPPFLAGS@` already wired in - scaffolded packages get it
 for free. But `upgrade_miniextendr_package()` does **not** rewrite
 `configure.ac` by default (`configure_ac = FALSE`) because users often
-customise it with feature flags.
+customise it with feature flags. Upgrades compare the retained file with the
+current template and warn about any differences, including custom edits.
+Review those differences or run `upgrade_miniextendr_package(configure_ac = TRUE)`
+to replace the file with the current template.
 
 So if you upgrade an older package whose `configure.ac` predates the
 `NATIVE_PKG_CPPFLAGS` block, the new `Makevars.in` will reference a

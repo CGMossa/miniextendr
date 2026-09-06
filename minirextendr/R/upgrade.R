@@ -26,8 +26,9 @@
 #' @param local_path Optional path to local miniextendr repository for vendoring.
 #' @param configure_ac Logical. If `TRUE`, overwrites configure.ac with the
 #'   current template. Defaults to `FALSE` because users often customise
-#'   configure.ac with feature flags. When `FALSE`, a heuristic check warns
-#'   if the existing configure.ac appears outdated.
+#'   configure.ac with feature flags. When `FALSE`, compares the existing file
+#'   with the current template and warns about differences, including custom
+#'   edits. Review those differences or use `TRUE` to replace the file.
 #' @param autoconf Logical. If `TRUE` (default) and `autoconf` is available,
 #'   regenerates the configure script after upgrading.
 #' @param allow_dirty Logical. If `FALSE` (default), aborts when scaffolding
@@ -255,8 +256,9 @@ upgrade_gitignore <- function() {
 
 #' Check configure.ac for drift
 #'
-#' Heuristic check for key structural elements that indicate the configure.ac
-#' is up to date. Warns if missing.
+#' Compare the complete file with the current template, rendered for this
+#' package. Custom edits also produce a warning; leave the file untouched so
+#' users can review and retain those edits when updating the build system.
 #'
 #' @noRd
 check_configure_ac_drift <- function() {
@@ -264,22 +266,23 @@ check_configure_ac_drift <- function() {
   if (!fs::file_exists(configure_ac)) return(invisible())
 
   content <- readLines(configure_ac, warn = FALSE)
-  text <- paste(content, collapse = "\n")
+  # Select by the target layout; a previous scaffolding call may have left
+  # get_template_type() set to a different layout in this R session.
+  layout <- if (identical(detect_project_type(), "monorepo")) {
+    file.path("monorepo", "rpkg")
+  } else {
+    "rpkg"
+  }
+  template_file <- system.file("templates", layout, "configure.ac",
+                               package = "minirextendr", mustWork = TRUE)
+  template <- readLines(template_file, warn = FALSE)
+  # configure.ac has one template variable: the package name in AC_INIT.
+  template <- gsub("{{package}}", get_package_name(), template, fixed = TRUE)
 
-  missing <- character()
-  if (!grepl("CARGO_STATICLIB_NAME", text, fixed = TRUE)) {
-    missing <- c(missing, "CARGO_STATICLIB_NAME substitution")
-  }
-  if (!grepl("AC_CONFIG_AUX_DIR", text, fixed = TRUE)) {
-    missing <- c(missing, "AC_CONFIG_AUX_DIR([tools])")
-  }
-  if (!grepl("CARGO_TARGET_DIR", text, fixed = TRUE)) {
-    missing <- c(missing, "CARGO_TARGET_DIR setup")
-  }
-
-  if (length(missing) > 0) {
+  if (!identical(content, template)) {
     cli::cli_warn(c(
-      "configure.ac may be outdated (missing: {paste(missing, collapse = ', ')})",
+      "configure.ac differs from the current template and was left unchanged.",
+      "i" = "Differences may be custom edits or outdated build-system logic; review them before rebuilding.",
       "i" = "Re-run with {.code configure_ac = TRUE} to replace it with the current template.",
       "!" = "This will overwrite any custom feature flags in configure.ac."
     ))

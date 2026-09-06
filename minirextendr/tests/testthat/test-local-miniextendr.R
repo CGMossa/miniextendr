@@ -91,6 +91,16 @@ test_that("use_local_miniextendr() adds .miniextendr-local to .gitignore and .Rb
   }
 })
 
+test_that("old configure advice explicitly requests template replacement", {
+  pkg <- make_mx_pkg()
+  on.exit(unlink(pkg, recursive = TRUE), add = TRUE)
+  repo <- make_fake_mx_repo()
+  on.exit(unlink(repo, recursive = TRUE), add = TRUE)
+
+  withr::local_options(usethis.quiet = TRUE)
+  expect_message(use_local_miniextendr(repo, path = pkg), "configure_ac = TRUE")
+})
+
 test_that("use_local_miniextendr() rejects a path without miniextendr-api/Cargo.toml", {
   pkg <- make_mx_pkg()
   on.exit(unlink(pkg, recursive = TRUE), add = TRUE)
