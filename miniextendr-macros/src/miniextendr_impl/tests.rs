@@ -3724,9 +3724,10 @@ fn method_call_caller_is_rejected_clearly() {
     }
 }
 
-/// `#[miniextendr(serde_error)]` on a method swaps the `Err` arm from the
-/// `RConditionError`/`Debug` probe to `serde_err_parts` (#1449); methods
-/// without it keep the probe.
+/// `#[miniextendr(serde_error(..))]` on a method swaps the `Err` arm from the
+/// runtime probe to a direct `serde_err_parts` call carrying the options
+/// (#1449, #1457); methods without it keep the probe, whose serde arm is
+/// automatic under the `serde` feature.
 #[test]
 fn method_serde_error_selects_serde_err_parts() {
     let parsed = parse_impl(
@@ -3734,14 +3735,13 @@ fn method_serde_error_selects_serde_err_parts() {
         syn::parse_quote! {
             impl Checker {
                 pub fn new(max: f64) -> Self { unimplemented!() }
-                #[miniextendr(serde_error)]
+                #[miniextendr(serde_error(prefix = "engine"))]
                 pub fn check(&self, v: f64) -> Result<f64, EngineError> { unimplemented!() }
                 #[miniextendr(serde_error(tag = "type", prefix = "engine"))]
                 pub fn check_unit(&self, v: f64) -> Result<(), EngineError> { unimplemented!() }
                 #[miniextendr(serde_error(skip("message"), rename(source = "cause")))]
                 pub fn parse(&self, v: f64) -> Result<f64, EngineError> { unimplemented!() }
-                #[miniextendr(serde_error = false)]
-                pub fn plain(&self, v: f64) -> Result<f64, String> { unimplemented!() }
+                pub fn plain(&self, v: f64) -> Result<f64, EngineError> { unimplemented!() }
                 pub fn probe(&self, v: f64) -> Result<f64, String> { unimplemented!() }
             }
         },
@@ -3764,22 +3764,49 @@ fn method_serde_error_selects_serde_err_parts() {
     assert!(flat.contains("&[\"message\"],"), "{tokens}");
     assert!(flat.contains("&[(\"source\",\"cause\")],"), "{tokens}");
 
+    // No attribute: the probe, with the crate prefix for its serde arm.
     for name in ["plain", "probe"] {
         let tokens = c_wrapper_tokens(&parsed, name);
         assert!(tokens.contains("__mx_result_err_parts"), "{name}: {tokens}");
+        assert!(
+            tokens.contains("_error\""),
+            "{name}: prefix literal: {tokens}"
+        );
         assert!(!tokens.contains("serde_err_parts"), "{name}: {tokens}");
     }
 }
 
-/// `serde_error` needs an `Err` arm to act on and contradicts `unwrap_in_r`.
+/// `serde_error(..)` needs an `Err` arm to act on, contradicts `unwrap_in_r`,
+/// and is not a switch: the bare flag and the boolean forms are rejected.
 #[test]
 fn method_serde_error_validation() {
+    for attr in [
+        quote::quote!(serde_error),
+        quote::quote!(serde_error = true),
+        quote::quote!(serde_error = false),
+    ] {
+        let attrs = default_impl_attrs(ClassSystem::S3);
+        let text = attr.to_string();
+        let err = ParsedImpl::parse(
+            attrs,
+            syn::parse_quote! {
+                impl Checker {
+                    #[miniextendr(#attr)]
+                    pub fn check(&self, v: f64) -> Result<f64, String> { unimplemented!() }
+                }
+            },
+        )
+        .err()
+        .unwrap_or_else(|| panic!("`{text}` must fail"));
+        assert!(err.to_string().contains("is not a switch"), "{text}: {err}");
+    }
+
     let attrs = default_impl_attrs(ClassSystem::S3);
     let err = ParsedImpl::parse(
         attrs,
         syn::parse_quote! {
             impl Checker {
-                #[miniextendr(serde_error)]
+                #[miniextendr(serde_error(prefix = "p"))]
                 pub fn check(&self, v: f64) -> f64 { unimplemented!() }
             }
         },
@@ -3796,7 +3823,7 @@ fn method_serde_error_validation() {
         attrs,
         syn::parse_quote! {
             impl Checker {
-                #[miniextendr(serde_error, unwrap_in_r)]
+                #[miniextendr(serde_error(prefix = "p"), unwrap_in_r)]
                 pub fn check(&self, v: f64) -> Result<f64, String> { unimplemented!() }
             }
         },

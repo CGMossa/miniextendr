@@ -818,12 +818,17 @@ pub fn check_condition_data(data: Option<ConditionData>) -> Option<ConditionData
 /// Give a `Result<T, E>` error type an R class vector and structured fields.
 ///
 /// Every `#[miniextendr]` function or method returning `Result<T, E>` raises
-/// `Err(e)` as an R error. By default the error is a bare `rust_error` whose
-/// message is `format!("{e:?}")`. Implement this trait for `E` (or return
-/// [`RError`], which implements it) and the `Err` arm instead raises
+/// `Err(e)` as an R error. Implement this trait for `E` (or return
+/// [`RError`], which implements it) and the `Err` arm raises
 /// `c(<class()…>, "rust_error", "simpleError", "error", "condition")` with
 /// every `data()` field readable as `e$<name>`, so a thiserror-style error enum
-/// can keep `?` composition *and* give R handlers something to dispatch on:
+/// can keep `?` composition *and* give R handlers something to dispatch on.
+///
+/// Without an impl, the `Err` arm falls back in two steps. Under the `serde`
+/// feature an `E: serde::Serialize + Display` is classed from its serde shape
+/// (see [`serde_err_parts`]: variant → member class, fields → data, `Display`
+/// → message). Anything else is a bare `rust_error` whose message is
+/// `format!("{e:?}")`.
 ///
 /// ```ignore
 /// use miniextendr_api::condition::{ConditionData, RConditionError};
@@ -1002,38 +1007,76 @@ pub struct ErrParts {
     pub data: Option<ConditionData>,
 }
 
-/// Autoref-specialisation probe, preferred arm: `E: RConditionError`.
+/// Autoref-specialisation probe, first stage, preferred arm: `E: RConditionError`.
 ///
-/// The generated code calls `(&e).__mx_err_parts()` with both probe traits in
-/// scope. Method resolution tries the receiver type `&E` by value first, which
-/// only this impl (on `E`, taking `&self`) satisfies; the `Debug` fallback on
-/// `&E` needs one more auto-ref and is only reached when `E` does not
-/// implement [`RConditionError`].
+/// The generated code calls `(&e).__mx_classed_parts()` with both first-stage
+/// traits in scope. Method resolution tries the receiver type `&E` by value
+/// first, which only this impl (on `E`, taking `&self`) satisfies; the
+/// [`ErrPartsUnclassed`] arm on `&E` needs one more auto-ref and is only
+/// reached when `E` does not implement [`RConditionError`]. It yields `None`,
+/// and the second stage ([`ErrPartsSerde`] / [`ErrPartsDebug`]) decides.
+///
+/// Two two-way probes rather than one three-way probe: the `Serialize` and
+/// `Debug` bounds both hold for `&E` whenever they hold for `E`, so a single
+/// method name with three impls at increasing reference depth is ambiguous at
+/// the first step. Each stage has exactly one impl on `E` and one on `&E`.
 #[doc(hidden)]
 pub trait ErrPartsClassed {
-    fn __mx_err_parts(&self) -> ErrParts;
+    fn __mx_classed_parts(&self) -> Option<ErrParts>;
 }
 
 impl<E: RConditionError> ErrPartsClassed for E {
     #[track_caller]
-    fn __mx_err_parts(&self) -> ErrParts {
-        ErrParts {
+    fn __mx_classed_parts(&self) -> Option<ErrParts> {
+        Some(ErrParts {
             message: self.message(),
             class: self.class(),
             data: check_condition_data(self.data()),
-        }
+        })
     }
 }
 
-/// Autoref-specialisation probe, fallback arm: any `E: Debug` (the historical
+/// First stage, fallback arm: no [`RConditionError`] impl.
+#[doc(hidden)]
+pub trait ErrPartsUnclassed {
+    fn __mx_classed_parts(&self) -> Option<ErrParts>;
+}
+
+impl<E> ErrPartsUnclassed for &E {
+    fn __mx_classed_parts(&self) -> Option<ErrParts> {
+        None
+    }
+}
+
+/// Second stage, preferred arm: `E: Serialize + Display` under the `serde`
+/// feature, classed via [`serde_err_parts`] with the defaults (`kind` tag,
+/// the `<crate>_error` prefix the macro passes in, no skip / rename).
+/// `#[miniextendr(serde_error(..))]` bypasses the probe with explicit options.
+///
+/// The trait exists without the feature so the generated `use` resolves; it
+/// then has no impl and every type takes the [`ErrPartsDebug`] arm.
+#[doc(hidden)]
+pub trait ErrPartsSerde {
+    fn __mx_fallback_parts(&self, prefix: &str) -> ErrParts;
+}
+
+#[cfg(feature = "serde")]
+impl<E: ::serde::Serialize + std::fmt::Display> ErrPartsSerde for E {
+    #[track_caller]
+    fn __mx_fallback_parts(&self, prefix: &str) -> ErrParts {
+        serde_err_parts(self, "kind", prefix, &[], &[])
+    }
+}
+
+/// Second stage, fallback arm: any `E: Debug` (the historical
 /// `format!("{e:?}")` rendering, no class, no data).
 #[doc(hidden)]
 pub trait ErrPartsDebug {
-    fn __mx_err_parts(&self) -> ErrParts;
+    fn __mx_fallback_parts(&self, prefix: &str) -> ErrParts;
 }
 
 impl<E: std::fmt::Debug> ErrPartsDebug for &E {
-    fn __mx_err_parts(&self) -> ErrParts {
+    fn __mx_fallback_parts(&self, _prefix: &str) -> ErrParts {
         ErrParts {
             message: format!("{self:?}"),
             class: Vec::new(),
@@ -1043,13 +1086,23 @@ impl<E: std::fmt::Debug> ErrPartsDebug for &E {
 }
 
 /// Internal: the `Err(e)` probe used by generated wrappers. Not public API.
+///
+/// `$prefix` is the family class for the serde arm (`<crate>_error`, computed
+/// by the macro from `CARGO_CRATE_NAME` at expansion time).
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __mx_result_err_parts {
-    ($e:expr) => {{
+    ($e:expr, $prefix:expr) => {{
         #[allow(unused_imports)]
-        use $crate::condition::{ErrPartsClassed as _, ErrPartsDebug as _};
-        (&$e).__mx_err_parts()
+        use $crate::condition::{
+            ErrPartsClassed as _, ErrPartsDebug as _, ErrPartsSerde as _, ErrPartsUnclassed as _,
+        };
+        match &$e {
+            __mx_e => match __mx_e.__mx_classed_parts() {
+                ::core::option::Option::Some(parts) => parts,
+                ::core::option::Option::None => __mx_e.__mx_fallback_parts($prefix),
+            },
+        }
     }};
 }
 
@@ -1057,7 +1110,13 @@ macro_rules! __mx_result_err_parts {
 
 // region: Serde-tagged Result errors (#[miniextendr(serde_error)])
 
-/// Build the `Err`-arm parts for `#[miniextendr(serde_error)]`.
+/// Build the `Err`-arm parts from the error's serde shape.
+///
+/// Reached two ways: automatically, for every `Result<T, E>` whose `E` is
+/// `Serialize + Display` without an [`RConditionError`] impl (the
+/// [`ErrPartsSerde`] probe arm, defaults only), or explicitly through
+/// `#[miniextendr(serde_error(tag = .., prefix = .., skip(..), rename(..)))]`,
+/// which carries the options and always takes this path.
 ///
 /// Message from `Display`; classes `[<prefix>_<variant>, <prefix>]` when the
 /// serialized value carries a variant, `[<prefix>]` otherwise; data from the
@@ -1777,6 +1836,32 @@ mod condition_macro_tests {
             assert_eq!(names(&parts), ["detail"]);
         }
 
+        /// The probe's second stage under the `serde` feature: an
+        /// `E: Serialize + Display` is classed with the defaults and the
+        /// macro-supplied prefix; a `String` error gets the family class and
+        /// its text unquoted.
+        #[test]
+        fn err_parts_probe_classes_serialize_display_types() {
+            let parts = crate::__mx_result_err_parts!(Tagged::Io, "p");
+            assert_eq!(parts.message, "io");
+            assert_eq!(parts.class, ["p_io", "p"]);
+            assert!(parts.data.is_none());
+
+            let parts =
+                crate::__mx_result_err_parts!(Tagged::MissingField { field: "id".into() }, "p");
+            assert_eq!(parts.class, ["p_missing_field", "p"]);
+            assert_eq!(names(&parts), ["field"]);
+
+            let parts = crate::__mx_result_err_parts!(String::from("bad input"), "p");
+            assert_eq!(parts.message, "bad input");
+            assert_eq!(parts.class, ["p"]);
+            assert!(parts.data.is_none());
+
+            let parts = crate::__mx_result_err_parts!("static text", "p");
+            assert_eq!(parts.message, "static text");
+            assert_eq!(parts.class, ["p"]);
+        }
+
         /// #1459: a `rename` target the variant already carries would give the
         /// condition two `line` entries; R reads only the first.
         #[test]
@@ -1840,7 +1925,7 @@ mod condition_macro_tests {
     fn rerror_reserved_field_rejected_at_err_arm() {
         use super::RError;
         let err = std::panic::AssertUnwindSafe(RError::new("m").data("kind", 2));
-        let payload = std::panic::catch_unwind(move || crate::__mx_result_err_parts!(err.0))
+        let payload = std::panic::catch_unwind(move || crate::__mx_result_err_parts!(err.0, "p"))
             .err()
             .expect("must panic");
         let msg = payload
@@ -1850,6 +1935,31 @@ mod condition_macro_tests {
             .expect("plain panic message");
         assert!(msg.contains("reserved"), "got: {msg}");
         assert!(msg.contains("`kind`"), "got: {msg}");
+    }
+
+    /// The probe's first stage: an `RConditionError` impl wins outright.
+    #[test]
+    fn err_parts_probe_prefers_rconditionerror() {
+        use super::RError;
+        let e = RError::new("m")
+            .class(["member", "family"])
+            .data("input", 1);
+        let parts = crate::__mx_result_err_parts!(e, "p");
+        assert_eq!(parts.message, "m");
+        assert_eq!(parts.class, ["member", "family"]);
+        assert_eq!(parts.data.expect("data")[0].0, "input");
+    }
+
+    /// The probe's last resort: a type that is neither `RConditionError` nor
+    /// `Serialize` renders with `Debug`, no class, no data.
+    #[test]
+    fn err_parts_probe_falls_back_to_debug() {
+        #[derive(Debug)]
+        struct Opaque;
+        let parts = crate::__mx_result_err_parts!(Opaque, "p");
+        assert_eq!(parts.message, "Opaque");
+        assert!(parts.class.is_empty());
+        assert!(parts.data.is_none());
     }
 
     #[test]

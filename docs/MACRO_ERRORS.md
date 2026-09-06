@@ -245,17 +245,28 @@ Those options emit `.call = NULL` (no call captured at all), so there is no slot
 for `call = caller` to redirect. Keep one: `call = caller` for attributed errors
 from an internal entry point, `fast` for the no-attribution fast path.
 
-### "`serde_error` cannot be used with `unwrap_in_r`"
+### "`serde_error` is not a switch"
 
-`#[miniextendr(serde_error)]` classes the condition raised from a `Result`'s
-`Err` arm. `unwrap_in_r` hands the whole `Result` to R as a value and never
-raises, so there is nothing to class. Drop `unwrap_in_r` to raise a classed
-error, or drop `serde_error` to return the `Result`. See
+Under the API crate's `serde` feature every `Result<T, E>` whose
+`E: serde::Serialize + Display` (and without an `RConditionError` impl) is
+already classed from its serde shape, so the bare `#[miniextendr(serde_error)]`
+flag, `serde_error = true`, `serde_error = false` and an empty `serde_error()`
+would switch nothing on or off. The attribute only carries options: write
+`serde_error(tag = "..", prefix = "..", skip(..), rename(a = ".."))`, or drop
+it. See
 [CONDITIONS.md](CONDITIONS.md#deriving-the-classes-from-a-serde-error-type).
 
-### "`#[miniextendr(serde_error)]` requires a `Result<T, E>` return type"
+### "`serde_error` cannot be used with `unwrap_in_r`"
 
-The attribute only changes the generated `Err` arm. A function or method that
+`#[miniextendr(serde_error(..))]` classes the condition raised from a
+`Result`'s `Err` arm. `unwrap_in_r` hands the whole `Result` to R as a value
+and never raises, so there is nothing to class. Drop `unwrap_in_r` to raise a
+classed error, or drop the options to return the `Result`. See
+[CONDITIONS.md](CONDITIONS.md#deriving-the-classes-from-a-serde-error-type).
+
+### "`#[miniextendr(serde_error(..))]` requires a `Result<T, E>` return type"
+
+The options only change the generated `Err` arm. A function or method that
 does not return `Result` has no `Err` arm, so the attribute would be a silent
 no-op; it is rejected instead. Return `Result<T, E>` with
 `E: serde::Serialize + Display`.
