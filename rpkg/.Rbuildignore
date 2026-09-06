@@ -35,9 +35,8 @@
 # R CMD check output
 \.Rcheck$
 
-# Vendor compression stamp file and staging directory (dev-only)
+# Vendor compression stamp file (dev-only)
 ^inst/\.vendor\.tar\.xz\.cksum$
-^\.vendor-tarball-staging$
 
 # Vendored crate metadata (causes R CMD check NOTEs/ERRORs)
 \.cargo-checksum\.json$

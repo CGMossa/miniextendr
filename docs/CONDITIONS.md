@@ -64,6 +64,41 @@ class(e)
 `[&str; N]`, `Vec<String>`, slices. The same vector form is available on
 `warning!` and `condition!`.
 
+### Testing the class vector
+
+testthat's `expect_s3_class(e, c("pkg_error_missing_field", "rust_error", "error"))`
+is `inherits(e, class)`: it passes when *any one* of the listed classes is
+present. A test written that way keeps passing when a layer disappears, such as
+the custom class dropped, `rust_error` replaced by a bare `simpleError`, or a
+family class lost at a version bump. To pin the layering, assert the whole
+vector with `exact = TRUE`:
+
+```r
+e <- tryCatch(check(150), error = identity)
+testthat::expect_s3_class(
+  e,
+  c("pkg_error_out_of_range", "pkg_error", "rust_error", "simpleError", "error", "condition"),
+  exact = TRUE
+)
+```
+
+When only the leading layers are yours to assert (the framework's tail may
+grow), compare the prefix instead:
+
+```r
+cls <- c("pkg_error_out_of_range", "pkg_error", "rust_error")
+testthat::expect_identical(class(e)[seq_along(cls)], cls)
+```
+
+A small helper in `tests/testthat/helper-conditions.R` makes the exact form the
+easy one to reach for:
+
+```r
+expect_condition_classes <- function(x, classes) {
+  testthat::expect_identical(class(x)[seq_along(classes)], classes)
+}
+```
+
 ## Runnable examples
 
 ### `error!()`
@@ -335,6 +370,11 @@ e$value; e$max
 tryCatch(check(150), pkg_error = function(e) "family handler")
 # [1] "family handler"
 ```
+
+In tests, assert this vector exactly (`expect_s3_class(e, classes, exact = TRUE)`
+or a prefix comparison, see [Testing the class vector](#testing-the-class-vector));
+the any-of default of `expect_s3_class()` cannot tell a dropped layer from a
+present one.
 
 Detection is by trait, not by attribute: the generated `Err` arm probes
 `E: RConditionError` first and falls back to the `Debug` rendering otherwise,
