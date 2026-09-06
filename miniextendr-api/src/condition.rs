@@ -1081,6 +1081,12 @@ macro_rules! __mx_result_err_parts {
 /// Any other collision with `message`, `call` or `kind` still panics via
 /// [`check_condition_data`].
 ///
+/// After `skip` / `rename` the field names must be distinct: a `rename` whose
+/// target is a name the variant already carries (or two payload fields that
+/// serialize under one name) would give the condition two entries with the
+/// same name, of which R's `e$name` reads only the first. That panics too,
+/// naming the field and the rename that produced it (#1459).
+///
 /// Serialization failing (a map with non-string keys, a custom `Serialize`
 /// erroring) panics with both failures in the message: the original error
 /// text must not be lost behind the reporting problem.
@@ -1123,10 +1129,45 @@ pub fn serde_err_parts<E: ?Sized + ::serde::Serialize + std::fmt::Display>(
             (!echoes_display).then_some((name, value))
         })
         .collect();
+    check_distinct_field_names(&fields, rename);
     ErrParts {
         message,
         class,
         data: check_condition_data((!fields.is_empty()).then_some(fields)),
+    }
+}
+
+/// Panic when two payload fields share a name after `skip` / `rename`.
+///
+/// R's `e$<name>` returns the first entry with that name and the second is
+/// unreachable, which is the silent-overwrite failure the reserved-name rule
+/// exists to remove (#1440). Neither first-wins nor last-wins would report it.
+#[cfg(feature = "serde")]
+#[track_caller]
+fn check_distinct_field_names(fields: &[(String, crate::RValue)], rename: &[(&str, &str)]) {
+    let mut seen = std::collections::HashSet::with_capacity(fields.len());
+    for (name, _) in fields {
+        if seen.insert(name.as_str()) {
+            continue;
+        }
+        let renames: Vec<String> = rename
+            .iter()
+            .filter(|(_, to)| *to == name)
+            .map(|(from, to)| format!("`rename({from} = \"{to}\")`"))
+            .collect();
+        if renames.is_empty() {
+            panic!(
+                "#[miniextendr(serde_error)]: condition data field `{name}` appears twice in the \
+                 serialized payload; R's `e${name}` would read only the first. Give the fields \
+                 distinct names or `skip` one of them."
+            );
+        }
+        panic!(
+            "#[miniextendr(serde_error)]: condition data field `{name}` appears twice: {} targets \
+             a name this variant already carries; R's `e${name}` would read only the first. Pick \
+             another target or `skip` the existing field.",
+            renames.join(" and ")
+        );
     }
 }
 
@@ -1734,6 +1775,64 @@ mod condition_macro_tests {
                 &[("message", "detail")],
             );
             assert_eq!(names(&parts), ["detail"]);
+        }
+
+        /// #1459: a `rename` target the variant already carries would give the
+        /// condition two `line` entries; R reads only the first.
+        #[test]
+        fn rename_onto_a_name_the_variant_carries_panics() {
+            let err = std::panic::AssertUnwindSafe(Wrapped::Parse {
+                message: "unexpected token".into(),
+                line: 3,
+            });
+            let msg = panic_message(move || {
+                serde_err_parts(&err.0, "kind", "p", &[], &[("message", "line")]);
+            });
+            assert!(msg.contains("field `line` appears twice"), "{msg}");
+            assert!(msg.contains("`rename(message = \"line\")`"), "{msg}");
+
+            // The same attribute is fine on a variant without `line`.
+            let parts = serde_err_parts(
+                &Wrapped::Echo {
+                    message: "boom".into(),
+                },
+                "kind",
+                "p",
+                &[],
+                &[("message", "line")],
+            );
+            assert_eq!(names(&parts), ["line"]);
+        }
+
+        /// A target that only *another* variant carries is no collision, and
+        /// `skip` frees a name for `rename` because both run before the check.
+        #[test]
+        fn rename_target_is_checked_per_variant_after_skip() {
+            let parts = serde_err_parts(
+                &Wrapped::Bad { call: "f()".into() },
+                "kind",
+                "p",
+                &[],
+                &[("call", "line")],
+            );
+            assert_eq!(names(&parts), ["line"]);
+
+            let parts = serde_err_parts(
+                &Wrapped::Parse {
+                    message: "unexpected token".into(),
+                    line: 3,
+                },
+                "kind",
+                "p",
+                &["line"],
+                &[("message", "line")],
+            );
+            assert_eq!(names(&parts), ["line"]);
+            let data = parts.data.expect("data");
+            assert!(matches!(
+                &data[0].1,
+                RValue::Character(v) if v == &vec![Some("unexpected token".to_string())]
+            ));
         }
     }
 

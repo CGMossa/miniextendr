@@ -442,7 +442,11 @@ pub fn parse_keep(text: String) -> Result<f64, ParserError> { /* ... */ }
 - `serde_error(rename(message = "detail", ...))` splices the field under the
   new name (`e$detail`). The source may be an identifier or, for a serde-renamed
   field whose name is not one, a string literal: `rename("kebab-name" = "kebab")`.
-  A target may not be `message`, `call` or `kind`; that is a compile error.
+  A target may not be `message`, `call` or `kind`, and two pairs may not share
+  a target; both are compile errors. A target the variant already carries
+  (`rename(message = "line")` on `Parse`) would give the condition two `line`
+  fields of which `e$line` reads only the first, so it raises a `rust_error`
+  naming the field and the rename at raise time (#1459).
 - With no option, a `message` field whose value is exactly the `Display` text
   is dropped as redundant with the condition's own `message` slot. `Wrapped`
   above therefore needs nothing; `Parse` (whose `Display` adds the line) still
