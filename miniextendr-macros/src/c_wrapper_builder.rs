@@ -532,7 +532,7 @@ impl CWrapperContext {
             if let syn::FnArg::Typed(pt) = arg
                 && let syn::Pat::Ident(pat_ident) = pt.pat.as_ref()
             {
-                let param_name = pat_ident.ident.to_string();
+                let param_name = crate::naming::ident_name(&pat_ident.ident);
                 if self.match_arg_several_ok_params.contains(&param_name) {
                     continue;
                 }

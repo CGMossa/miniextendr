@@ -171,7 +171,10 @@ pub fn derive_match_arg(input: DeriveInput) -> syn::Result<TokenStream> {
         let choice_name = if let Some(r) = var_attrs.rename {
             r
         } else {
-            apply_rename_all(&variant.ident.to_string(), attrs.rename_all.as_deref())
+            apply_rename_all(
+                &crate::naming::ident_name(&variant.ident),
+                attrs.rename_all.as_deref(),
+            )
         };
 
         choice_names.push(choice_name);

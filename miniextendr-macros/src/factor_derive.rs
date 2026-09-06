@@ -212,7 +212,7 @@ fn derive_simple_factor(
         let level_name = if let Some(r) = var_attrs.rename {
             r
         } else {
-            apply_rename_all(&variant.ident.to_string(), rename_all)
+            apply_rename_all(&crate::naming::ident_name(&variant.ident), rename_all)
         };
 
         level_names.push(level_name);
@@ -353,7 +353,7 @@ fn derive_interaction_factor(
         let outer_name = if let Some(r) = var_attrs.rename {
             r
         } else {
-            apply_rename_all(&variant.ident.to_string(), rename_all)
+            apply_rename_all(&crate::naming::ident_name(&variant.ident), rename_all)
         };
 
         outer_names.push(outer_name);

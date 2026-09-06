@@ -46,7 +46,7 @@
 /// (like vctrs) may use named arguments that must match the original name.
 pub fn normalize_r_arg_ident(rust_ident: &syn::Ident) -> syn::Ident {
     syn::Ident::new(
-        &normalize_r_arg_string(&rust_ident.to_string()),
+        &normalize_r_arg_string(&crate::naming::ident_name(rust_ident)),
         rust_ident.span(),
     )
 }
@@ -133,9 +133,7 @@ impl<'a> RArgumentBuilder<'a> {
     /// Rust side -- R formals always emit plain `...`.
     pub fn with_dots(mut self, named_dots: Option<String>) -> Self {
         self.has_dots = true;
-        self.named_dots = named_dots.map(|s| {
-            normalize_r_arg_ident(&syn::Ident::new(&s, proc_macro2::Span::call_site())).to_string()
-        });
+        self.named_dots = named_dots.map(|s| normalize_r_arg_string(&s));
         self
     }
 

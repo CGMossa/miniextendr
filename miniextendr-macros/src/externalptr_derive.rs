@@ -800,7 +800,7 @@ fn generate_class_integration_r_code(
                 type = type_name,
             ));
             for slot in pub_slots {
-                let field = slot.name.to_string();
+                let field = crate::naming::ident_name(&slot.name);
                 // Must match the sidecar accessor's actual C symbol exactly (#1273
                 // crate-prefixing) — routed through the shared naming.rs helpers.
                 let getter_c = crate::naming::sidecar_getter_c_name(type_name, &field);
@@ -840,7 +840,7 @@ fn generate_class_integration_r_code(
                 type = type_name,
             ));
             for (i, slot) in pub_slots.iter().enumerate() {
-                let field = slot.name.to_string();
+                let field = crate::naming::ident_name(&slot.name);
                 // Must match the sidecar accessor's actual C symbol exactly (#1273
                 // crate-prefixing) — routed through the shared naming.rs helpers.
                 let getter_c = crate::naming::sidecar_getter_c_name(type_name, &field);
@@ -936,7 +936,7 @@ NULL
 
     for slot in &pub_slots {
         let field_name = &slot.name;
-        let field_name_str = field_name.to_string();
+        let field_name_str = crate::naming::ident_name(field_name);
         let prot_index = PROT_BASE_LEN + slot.index;
 
         // C function names (crate-prefixed for webR cross-package symbol
@@ -1092,7 +1092,7 @@ NULL
         let entries: Vec<_> = pub_slots
             .iter()
             .map(|slot| {
-                let field_str = slot.name.to_string();
+                let field_str = crate::naming::ident_name(&slot.name);
                 let doc_str = slot
                     .prop_doc
                     .as_deref()

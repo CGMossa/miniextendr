@@ -165,7 +165,7 @@ pub fn expand_typed_dataframe(input: TypedDataframeInput) -> TokenStream {
 
     // Per-field generated bits.
     let col_fields = fields.iter().map(|f| {
-        let col_ident = format_ident!("{}_col", f.name);
+        let col_ident = format_ident!("{}_col", crate::naming::unraw(&f.name));
         if f.optional {
             quote! { #col_ident: ::std::option::Option<::miniextendr_api::SEXP> }
         } else {
@@ -175,7 +175,7 @@ pub fn expand_typed_dataframe(input: TypedDataframeInput) -> TokenStream {
 
     let accessors = fields.iter().map(|f| {
         let method_ident = &f.name;
-        let col_ident = format_ident!("{}_col", f.name);
+        let col_ident = format_ident!("{}_col", crate::naming::unraw(&f.name));
         let elem_ty = &f.elem_ty;
         let method_attrs = &f.attrs;
         if f.optional {
@@ -209,8 +209,8 @@ pub fn expand_typed_dataframe(input: TypedDataframeInput) -> TokenStream {
 
     // Per-field validation: walk each declared column, batch errors.
     let validation_locals = fields.iter().map(|f| {
-        let col_ident = format_ident!("{}_col", f.name);
-        let name_str = f.name.to_string();
+        let col_ident = format_ident!("{}_col", crate::naming::unraw(&f.name));
+        let name_str = crate::naming::ident_name(&f.name);
         let elem_ty = &f.elem_ty;
         if f.optional {
             quote! {
@@ -269,10 +269,15 @@ pub fn expand_typed_dataframe(input: TypedDataframeInput) -> TokenStream {
         }
     });
 
-    let col_idents = fields.iter().map(|f| format_ident!("{}_col", f.name));
+    let col_idents = fields
+        .iter()
+        .map(|f| format_ident!("{}_col", crate::naming::unraw(&f.name)));
     let col_idents_for_struct = col_idents.clone();
 
-    let declared_names: Vec<String> = fields.iter().map(|f| f.name.to_string()).collect();
+    let declared_names: Vec<String> = fields
+        .iter()
+        .map(|f| crate::naming::ident_name(&f.name))
+        .collect();
     let declared_count = fields.len();
     let allow_extra_check = if allow_extra {
         quote! {}

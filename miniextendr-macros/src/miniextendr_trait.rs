@@ -376,8 +376,11 @@ fn generate_trait_abi(trait_item: &ItemTrait) -> TokenStream {
         .iter()
         .map(|m| {
             let name = &m.name;
-            let shim_name =
-                quote::format_ident!("__{}_{}_shim", trait_name.to_string().to_lowercase(), name);
+            let shim_name = quote::format_ident!(
+                "__{}_{}_shim",
+                trait_name.to_string().to_lowercase(),
+                crate::naming::unraw(name)
+            );
             quote::quote! {
                 #name: #shim_name::<#(#trait_param_idents,)* #impl_t>
             }
@@ -720,10 +723,10 @@ fn generate_method_shim(
         .zip(method.param_types.iter())
         .enumerate()
         .map(|(i, (name, ty))| {
-            let name_str = name.to_string();
+            let name_str = crate::naming::ident_name(name);
             let (is_self_ref, is_mut) = param_is_self_ref(ty);
             if is_self_ref {
-                let extptr_name = quote::format_ident!("__extptr_{}", name);
+                let extptr_name = quote::format_ident!("__extptr_{}", crate::naming::unraw(name));
                 if is_mut {
                     quote::quote! {
                         let mut #extptr_name: ::miniextendr_api::ExternalPtr<#impl_t> = unsafe {

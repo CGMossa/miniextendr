@@ -315,7 +315,7 @@ pub fn derive_altrep(input: syn::DeriveInput) -> syn::Result<proc_macro2::TokenS
         })?;
     }
 
-    let class_name = class_name.unwrap_or_else(|| ident.to_string());
+    let class_name = class_name.unwrap_or_else(|| crate::naming::ident_name(ident));
 
     generate_direct_altrep_registration(ident, &input.generics, &class_name)
 }

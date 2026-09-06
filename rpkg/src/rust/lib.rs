@@ -259,6 +259,7 @@ mod r_wrapper_attrs;
 #[cfg(feature = "rand")]
 mod rand_adapter_tests;
 mod rarray_tests;
+mod raw_ident_tests;
 #[cfg(feature = "rayon")]
 mod rayon_tests;
 mod rdata_sidecar_tests;

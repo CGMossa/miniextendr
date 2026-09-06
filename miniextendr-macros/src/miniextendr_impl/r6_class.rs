@@ -76,7 +76,7 @@ fn active_setter_precondition_checks(setter: &ParsedMethod) -> Vec<String> {
 
     let mut per_param = setter.method_attrs.per_param.clone();
     if let syn::Pat::Ident(pat_ident) = value_arg.pat.as_mut() {
-        let rust_name = pat_ident.ident.to_string();
+        let rust_name = crate::naming::ident_name(&pat_ident.ident);
         if rust_name != "value" {
             if let Some(attrs) = per_param.remove(&rust_name) {
                 per_param.insert("value".to_string(), attrs);

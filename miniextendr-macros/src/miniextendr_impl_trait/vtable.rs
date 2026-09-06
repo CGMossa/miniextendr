@@ -405,11 +405,11 @@ fn generate_concrete_vtable_shims(
                     } else {
                         format_ident!("arg{}", i)
                     };
-                    let name_str = name.to_string();
+                    let name_str = crate::naming::ident_name(&name);
 
                     // Handle &Self params: extract ExternalPtr<ConcreteType>
                     if is_self_ref_type(&pt.ty) {
-                        let extptr_name = format_ident!("__extptr_{}", name);
+                        let extptr_name = format_ident!("__extptr_{}", crate::naming::unraw(&name));
                         quote::quote! {
                             let #extptr_name: ::miniextendr_api::ExternalPtr<#concrete_type> = unsafe {
                                 ::miniextendr_api::trait_abi::extract_arg(argc, argv, #i, #name_str)
@@ -967,7 +967,7 @@ pub(super) fn generate_trait_method_c_wrapper(
             {
                 // Track this param for dereferencing in the call expression
                 if let syn::Pat::Ident(pat_ident) = pt.pat.as_ref() {
-                    self_ref_params.insert(pat_ident.ident.to_string());
+                    self_ref_params.insert(crate::naming::ident_name(&pat_ident.ident));
                 }
                 // Replace &Self with ExternalPtr<ConcreteType>
                 let pat = &pt.pat;

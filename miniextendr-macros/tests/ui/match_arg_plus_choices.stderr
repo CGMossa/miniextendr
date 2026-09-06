@@ -1,0 +1,5 @@
+error: cannot combine match_arg and choices() on parameter `mode`; match_arg takes the choice list from the parameter type's `MatchArg` impl, choices() supplies a literal list for a string parameter; use one of them
+  --> tests/ui/match_arg_plus_choices.rs:12:70
+   |
+12 | fn bad_both(#[miniextendr(match_arg, choices("fast", "slow"))] mode: String) -> String {
+   |                                                                      ^^^^^^

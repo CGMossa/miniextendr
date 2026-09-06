@@ -187,7 +187,7 @@ impl TraitMethod {
     fn r_method_name(&self) -> String {
         self.r_name
             .clone()
-            .unwrap_or_else(|| self.ident.to_string())
+            .unwrap_or_else(|| crate::naming::ident_name(&self.ident))
     }
 
     /// Generates the C wrapper function identifier: `C_{crate}_{Type}__{Trait}__{method}`.
@@ -672,7 +672,7 @@ impl syn::parse::Parse for TpieMethod {
         input.parse::<syn::Token![;]>()?;
 
         Ok(TpieMethod {
-            r_name: r_name_ident.to_string(),
+            r_name: crate::naming::ident_name(&r_name_ident),
             sig,
         })
     }

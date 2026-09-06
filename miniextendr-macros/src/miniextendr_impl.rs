@@ -1960,7 +1960,7 @@ impl ParsedMethod {
             .iter()
             .filter_map(|arg| match arg {
                 syn::FnArg::Typed(pt) => match pt.pat.as_ref() {
-                    syn::Pat::Ident(pat_ident) => Some(pat_ident.ident.to_string()),
+                    syn::Pat::Ident(pat_ident) => Some(crate::naming::ident_name(&pat_ident.ident)),
                     _ => None,
                 },
                 _ => None,
@@ -2001,7 +2001,7 @@ impl ParsedMethod {
                 if let syn::FnArg::Typed(pat_type) = input
                     && let syn::Pat::Ident(pat_ident) = pat_type.pat.as_ref()
                 {
-                    Some(pat_ident.ident.to_string())
+                    Some(crate::naming::ident_name(&pat_ident.ident))
                 } else {
                     None
                 }
@@ -2036,7 +2036,7 @@ impl ParsedMethod {
             let syn::Pat::Ident(pat_ident) = pat_type.pat.as_ref() else {
                 continue;
             };
-            let param_name = pat_ident.ident.to_string();
+            let param_name = crate::naming::ident_name(&pat_ident.ident);
 
             // Validate Missing nesting and Missing<Dots>
             crate::miniextendr_fn::validate_param_type(pat_type.ty.as_ref(), pat_type.ty.span())?;
@@ -2081,7 +2081,7 @@ impl ParsedMethod {
             if let syn::FnArg::Typed(pt) = arg
                 && let syn::Pat::Ident(pat_ident) = pt.pat.as_ref()
             {
-                let name = pat_ident.ident.to_string();
+                let name = crate::naming::ident_name(&pat_ident.ident);
                 if crate::r_wrapper_builder::is_missing_type(pt.ty.as_ref())
                     && param_defaults.contains_key(&name)
                 {
@@ -2192,8 +2192,8 @@ impl ParsedMethod {
             return r_name.clone();
         }
         match &self.method_attrs.postfix {
-            Some(postfix) => format!("{}{postfix}", self.ident),
-            None => self.ident.to_string(),
+            Some(postfix) => format!("{}{postfix}", crate::naming::ident_name(&self.ident)),
+            None => crate::naming::ident_name(&self.ident),
         }
     }
 
@@ -2871,7 +2871,7 @@ impl ParsedImpl {
                 explicit_prop == prop_name
             } else {
                 // Try to match by stripping "set_" prefix from method name
-                let method_name = m.ident.to_string();
+                let method_name = crate::naming::ident_name(&m.ident);
                 method_name.strip_prefix("set_").unwrap_or(&method_name) == prop_name
             }
         })
@@ -3369,7 +3369,7 @@ fn find_param_type<'a>(
     for arg in inputs {
         if let syn::FnArg::Typed(pt) = arg
             && let syn::Pat::Ident(pat_ident) = pt.pat.as_ref()
-            && pat_ident.ident == name
+            && crate::naming::unraw(&pat_ident.ident) == name
         {
             return Some(pt.ty.as_ref());
         }
