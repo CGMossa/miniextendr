@@ -37,9 +37,7 @@ pub fn raw_ident_args(
 /// `choices(...)` (`match.arg`) on a keyword parameter.
 /// @param type One of `"fast"` or `"slow"`.
 #[miniextendr]
-pub fn raw_ident_choice(
-    #[miniextendr(choices("fast", "slow"))] r#type: String,
-) -> String {
+pub fn raw_ident_choice(#[miniextendr(choices("fast", "slow"))] r#type: String) -> String {
     r#type
 }
 
