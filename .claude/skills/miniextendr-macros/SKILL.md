@@ -1,6 +1,6 @@
 ---
 name: miniextendr-macros
-description: Use when the user asks how #[miniextendr] works, how Rust functions become R-callable, how C or R wrappers are generated, what codegen attributes like strict/internal/noexport/dots do, how the tagged-SEXP error transport works, or when debugging generated wrapper code. Also use when working in miniextendr-macros/src/*.rs files or miniextendr-api/src/registry.rs.
+description: "Use when the user asks how #[miniextendr] works, how Rust functions become R-callable, how C or R wrappers are generated, what codegen attributes like strict/internal/noexport/dots do, how the tagged-SEXP error transport works, or when debugging generated wrapper code. Also use when working in miniextendr-macros/src/*.rs files or miniextendr-api/src/registry.rs."
 ---
 
 # miniextendr Proc Macro System

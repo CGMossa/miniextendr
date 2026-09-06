@@ -1,6 +1,6 @@
 ---
 name: miniextendr-altrep
-description: Use when the user asks about implementing ALTREP (Alternative Representation) vectors in miniextendr, including derive macros (#[derive(AltrepInteger)], #[derive(AltrepReal)], etc.), guard modes (unsafe/rust_unwind/r_unwind), the manual derive path, AltrepExtract trait, no_lowlevel opt-out, option validation rules (subset/dataptr/serialize), the single-struct pattern, why #[miniextendr] on 1-field structs is removed, or compute-on-access iterator patterns.
+description: "Use when the user asks about implementing ALTREP (Alternative Representation) vectors in miniextendr, including derive macros (#[derive(AltrepInteger)], #[derive(AltrepReal)], etc.), guard modes (unsafe/rust_unwind/r_unwind), the manual derive path, AltrepExtract trait, no_lowlevel opt-out, option validation rules (subset/dataptr/serialize), the single-struct pattern, why #[miniextendr] on 1-field structs is removed, or compute-on-access iterator patterns."
 ---
 
 # miniextendr ALTREP

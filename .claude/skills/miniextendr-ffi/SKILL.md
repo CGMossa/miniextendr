@@ -1,6 +1,6 @@
 ---
 name: miniextendr-ffi
-description: Use when the user asks about the FFI safety layer in miniextendr: #[r_ffi_checked] proc macro, checked vs _unchecked FFI variants, when _unchecked is safe, with_r_unwind_protect / with_r_unwind_protect_or_raise, GC protection (OwnedProtect, ProtectScope), the R longjmp leak in the tagged-condition path, MXL300 / MXL301 lint rules, the nonapi feature gate, or the continuation token.
+description: "Use when the user asks about the FFI safety layer in miniextendr: #[r_ffi_checked] proc macro, checked vs _unchecked FFI variants, when _unchecked is safe, with_r_unwind_protect / with_r_unwind_protect_or_raise, GC protection (OwnedProtect, ProtectScope), the R longjmp leak in the tagged-condition path, MXL300 / MXL301 lint rules, the nonapi feature gate, or the continuation token."
 ---
 
 # miniextendr FFI Layer
