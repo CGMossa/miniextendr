@@ -37,10 +37,8 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/A2-ai/miniextendr"
-homepage = "https://github.com/A2-ai/miniextendr"
 keywords = ["r", "ffi", "bindings"]
 categories = ["api-bindings", "external-ffi-bindings"]
-exclude = ["vendor"]
 
 [profile.release]
 debug-assertions = true

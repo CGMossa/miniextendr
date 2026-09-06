@@ -44,13 +44,14 @@
 //! This is the cost MXL300 is buying off: every direct `Rf_error()` would
 //! incur the same leak with no observability.
 //!
-//! ## Log drain
+//! ## Deferred R work
 //!
 //! Every call to `with_r_unwind_protect` (and its variants) drains the
-//! cross-thread log queue via the crate-private `drain_log_queue_if_available`
+//! cross-thread log queue via the crate-private `drain_pending_r_work`
 //! helper before returning or re-raising an R error. This ensures that records
 //! buffered by worker threads are flushed to R's console on every FFI exit —
-//! including error paths.
+//! including error paths. With `arrow`, it also releases preserve roots whose
+//! Arrow allocation owners were dropped on background threads.
 //!
 //! ## Cross references
 //!
@@ -297,19 +298,14 @@ pub(crate) fn panic_message_with_location(payload: &(dyn Any + Send)) -> String 
     }
 }
 
-// region: Log drain integration
+// region: Deferred R work
 
-/// Drain the cross-thread log queue if the `log` feature is enabled.
-///
-/// This is called at every exit point of `run_r_unwind_protect` (normal
-/// return, Rust panic, and immediately before `R_ContinueUnwind`) so that
-/// worker-thread log records always reach R's console before the FFI call
-/// returns or re-raises an R error.
-///
-/// When the `log` feature is disabled this compiles to a no-op; there is
-/// no runtime overhead.
+/// Finish work queued by background threads on every R unwind exit path.
+/// R's preserve list can only be modified on its main thread.
 #[inline]
-fn drain_log_queue_if_available() {
+fn drain_pending_r_work() {
+    #[cfg(feature = "arrow")]
+    crate::optionals::arrow_impl::drain_pending_r_buffer_releases();
     #[cfg(feature = "log")]
     crate::optionals::log_impl::drain_log_queue();
 }
@@ -393,7 +389,7 @@ where
                     drop(data);
                     // Drain worker-thread log records before returning the panic
                     // payload to the caller (which will convert it to an R error).
-                    drain_log_queue_if_available();
+                    drain_pending_r_work();
                     Err(payload)
                 } else {
                     // Normal completion - return the result
@@ -403,7 +399,7 @@ where
                         .expect("result not set after successful completion");
                     drop(data);
                     // Drain worker-thread log records on the normal success path.
-                    drain_log_queue_if_available();
+                    drain_pending_r_work();
                     Ok(result)
                 }
             }
@@ -414,12 +410,12 @@ where
                 if payload.downcast_ref::<RErrorMarker>().is_some() {
                     // R error - drain log records before re-raising so worker
                     // thread output is not lost even on error exits.
-                    drain_log_queue_if_available();
+                    drain_pending_r_work();
                     // Continue R's unwind (diverges, never returns)
                     R_ContinueUnwind(token);
                 } else {
                     // Rust panic — drain before returning the payload.
-                    drain_log_queue_if_available();
+                    drain_pending_r_work();
                     Err(payload)
                 }
             }

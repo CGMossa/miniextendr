@@ -2,16 +2,9 @@ name: miri nightly
 
 # INFORMATIONAL nightly Miri run for miniextendr-api (#202).
 #
-# `miniextendr_api::r_memory::try_recover_r_sexp` does a *speculative* sxpinfo
-# read at `data_ptr - SEXPREC_DATA_OFFSET` to recover the source R SEXP behind a
-# vector's data pointer. For pointers that did NOT come from an R SEXP (e.g. a
-# Rust-allocated Arrow buffer) that read has no valid allocation provenance under
-# Rust's Stacked/Tree Borrows model — defined at the hardware level, but UB in
-# the abstract machine, which Miri correctly flags. The function therefore carries
-# a `#[cfg(miri)]` no-op branch (returns `None`) so the copy path is exercised and
-# Miri stays clean. This job runs the Miri-only regression that keeps that gate
-# honest: `r_memory::miri_tests::recover_from_rust_buffer_returns_none`. Remove the
-# gate and the test trips a Miri provenance error.
+# Exercise the Arrow ownership registry with ordinary Rust buffers. Lookups
+# must never read preceding bytes or dereference the recorded SEXP. These tests
+# run the production lookup implementation, without a cfg(miri) substitute.
 #
 # Deliberately INFORMATIONAL and NOT on the pull_request / push matrix:
 #   * It never runs on PRs, so it can never block a merge.
@@ -26,7 +19,7 @@ on:
   schedule:
     - cron: '30 4 * * *'
   # Manual trigger to exercise the gate on demand (e.g. to validate this
-  # workflow, or after touching r_memory.rs) without waiting for the cron.
+  # workflow, or after changing Arrow ownership) without waiting for the cron.
   workflow_dispatch:
 
 permissions:
@@ -34,7 +27,7 @@ permissions:
 
 jobs:
   miri:
-    name: Miri (informational) / try_recover_r_sexp gate
+    name: Miri (informational) / Arrow buffer ownership
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -43,7 +36,7 @@ jobs:
 
       # miniextendr-api/build.rs calls `R RHOME` (or reads $R_HOME) to resolve
       # libR for LINK time. Miri interprets the test's MIR and never links a real
-      # binary, and the Miri-gated test touches no R symbols — so a dummy R_HOME
+      # binary, and the ownership tests touch no R symbols — so a dummy R_HOME
       # satisfies build.rs's existence check without installing R (same trick as
       # ci.yml's rust-lint / check-features jobs).
       - name: Set dummy R_HOME
@@ -66,18 +59,14 @@ jobs:
       - name: Miri setup
         run: cargo +nightly miri setup
 
-      # Minimal feature surface (`--no-default-features` drops `doc-lint`) and
-      # `--lib` so we compile/run only the crate's unit tests — the Miri-gated
-      # test lives in `r_memory`. The name filter runs just that test: the rest
-      # of miniextendr-api's suite links libR / walks linkme #[distributed_slice]
-      # tables, neither of which Miri can execute. Widen the feature set only if
-      # a future gate needs it and Miri stays happy.
-      - name: Miri test (try_recover_r_sexp gate)
+      # Run only the pure Rust registry tests; the remaining API tests call R
+      # or use linkme tables that Miri cannot execute.
+      - name: Miri test (Arrow buffer ownership)
         id: miri
         continue-on-error: true
         run: >-
-          cargo +nightly miri test -p miniextendr-api --no-default-features --lib
-          -- recover_from_rust_buffer_returns_none 2>&1 | tee "$RUNNER_TEMP/miri.log"
+          cargo +nightly miri test -p miniextendr-api --no-default-features --features arrow --lib
+          -- r_buffers::tests 2>&1 | tee "$RUNNER_TEMP/miri.log"
         shell: bash
 
       - name: Surface Miri outcome in job summary
@@ -85,15 +74,13 @@ jobs:
         shell: bash
         run: |
           {
-            echo "## Miri (informational): try_recover_r_sexp gate"
+            echo "## Miri (informational): Arrow buffer ownership"
             echo ""
             echo "Outcome: \`${{ steps.miri.outcome }}\`"
             echo ""
             if [ "${{ steps.miri.outcome }}" != "success" ]; then
-              echo "The Miri gate test FAILED. This is informational (it never blocks"
-              echo "merges), but a failure usually means the \`#[cfg(miri)]\` no-op branch"
-              echo "in \`try_recover_r_sexp\` (miniextendr-api/src/r_memory.rs) regressed —"
-              echo "Miri is flagging the speculative sxpinfo read as a provenance violation."
+              echo "The Arrow ownership tests failed under Miri. Inspect the log for"
+              echo "an invalid buffer access or pointer-provenance violation."
               echo ""
             fi
             if [ -f "$RUNNER_TEMP/miri.log" ]; then

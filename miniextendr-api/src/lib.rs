@@ -264,6 +264,10 @@ pub use miniextendr_macros::{
     PreferList, PreferRNativeType, RFactor, TryFromList, TryFromSexp,
 };
 
+// These dev-dependencies are used by integration tests, not unit tests.
+#[cfg(test)]
+use {miniextendr_engine as _, proptest as _};
+
 pub mod altrep;
 pub mod altrep_bridge;
 pub mod altrep_data;
@@ -831,8 +835,6 @@ pub use refcount_protect::{ArenaGuard, RefCountedArena, ThreadLocalArena};
 
 pub mod allocator;
 pub use allocator::RAllocator;
-
-pub mod r_memory;
 
 // region: Trait ABI Support
 //
