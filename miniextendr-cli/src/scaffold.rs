@@ -401,6 +401,12 @@ pub const RPKG_PLAN: &[PlanEntry] = &[
         exec: false,
     },
     PlanEntry {
+        template: "Makevars.win",
+        dest: Dest::Path("src/Makevars.win"),
+        render: Render::Mustache,
+        exec: false,
+    },
+    PlanEntry {
         template: "win.def.in",
         dest: Dest::Path("src/win.def.in"),
         render: Render::Mustache,

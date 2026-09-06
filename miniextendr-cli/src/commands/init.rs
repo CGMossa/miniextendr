@@ -734,6 +734,10 @@ mod tests {
                 false
             )
         );
+        assert_eq!(
+            read(&root, "my.proj/src/Makevars.win"),
+            disk_template("templates/monorepo/rpkg/Makevars.win")
+        );
         // bump-version.R keeps copy_template() semantics: {{{rpkg_name}}}
         // substituted, nothing else touched, no placeholder residue.
         let bump = read(&root, "tools/bump-version.R");

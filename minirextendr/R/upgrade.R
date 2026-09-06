@@ -192,6 +192,7 @@ check_scaffolding_clean <- function(proj_dir = usethis::proj_get()) {
     "src/r_shim.h",
     "src/rust/build.rs",
     "src/Makevars.in",
+    "src/Makevars.win",
     "src/win.def.in",
     "inst/include/mx_abi.h",
     "bootstrap.R",

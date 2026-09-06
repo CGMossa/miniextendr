@@ -96,3 +96,15 @@ test_that("find_workspace_root resolves its path argument, not getwd()", {
     normalizePath(target)
   )
 })
+
+test_that("check_scaffolding_clean guards modified Windows linker settings", {
+  skip_if(!nzchar(Sys.which("git")), "git not available")
+  pkg <- withr::local_tempdir()
+  init_repo_with_committed_file(pkg, "src/Makevars.win", "include Makevars")
+  writeLines("PKG_LIBS = custom-windows-libs", file.path(pkg, "src", "Makevars.win"))
+
+  expect_error(
+    minirextendr:::check_scaffolding_clean(pkg),
+    "uncommitted changes"
+  )
+})

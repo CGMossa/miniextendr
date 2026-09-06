@@ -126,6 +126,7 @@ fn init_package_scaffolds_canonical_build_system() {
         "cleanup",
         "configure.win",
         "src/Makevars.in",
+        "src/Makevars.win",
         "src/win.def.in",
         "src/stub.c",
         "src/r_shim.h",
