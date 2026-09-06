@@ -264,84 +264,11 @@ impl std::fmt::Debug for RStringArray {
 
 // endregion
 
-// Note: RRecordBatch removed — automatic SEXP pointer recovery in individual
-// array IntoR impls makes per-column provenance tracking unnecessary.
-// RecordBatch.into_sexp() → arrow_array_to_sexp() → Float64Array.into_sexp()
-// (which does try_recover_r_sexp automatically).
-
 // endregion
 
-// region: RPreservedSexp — GC guard for Arrow Allocation trait
-
-/// GC guard that keeps an R SEXP alive for as long as an Arrow Buffer exists.
-///
-/// Uses `R_PreserveObject`/`R_ReleaseObject` (mutex-protected in R 4.0+)
-/// rather than a Rust-side protect pool, because Arrow buffers may be
-/// dropped on non-main threads (Arrow is `Send + Sync`).
-struct RPreservedSexp(SEXP);
-
-// SAFETY: R_PreserveObject/R_ReleaseObject are mutex-protected in R 4.0+.
-// The SEXP data is immutable once preserved (we only read via DATAPTR_RO).
-unsafe impl Send for RPreservedSexp {}
-unsafe impl Sync for RPreservedSexp {}
-impl std::panic::RefUnwindSafe for RPreservedSexp {}
-
-// Allocation is automatically implemented via blanket impl:
-//   impl<T: Send + Sync + RefUnwindSafe> Allocation for T
-
-impl Drop for RPreservedSexp {
-    fn drop(&mut self) {
-        // SAFETY: R_ReleaseObject is thread-safe (mutex-protected in R 4.0+).
-        // We use _unchecked because this Drop may fire off the R main thread.
-        unsafe { sys::R_ReleaseObject_unchecked(self.0) }
-    }
-}
-
-// endregion
-
-// region: R-backed buffer detection (gates speculative SEXP recovery)
-
-/// Attempt zero-copy recovery of the source R vector behind an Arrow primitive
-/// value buffer. Returns `None` (→ caller copies) unless the buffer came
-/// straight from R via [`sexp_to_arrow_buffer`].
-///
-/// `try_recover_r_sexp` performs a *speculative, provenance-free* read at
-/// `data_ptr - SEXPREC_header` and validates it heuristically (type tag +
-/// ALTREP bit + length). Those heuristics are only sound when `data_ptr` is the
-/// true start of an R vector's data region, so two buffer shapes must never
-/// reach the probe (#867):
-///
-/// 1. **Sliced buffers** (`ptr_offset() > 0`): DataFusion's contiguous-run
-///    filter optimization returns a *slice* of an R-backed input, so the data
-///    pointer lands in the *middle* of the R vector. Subtracting the header
-///    offset hits the vector's own data — never a real SEXPREC — and can
-///    false-positive the heuristics (deterministic on the strict glibc R 4.5/4.6
-///    runners; layout-dependent elsewhere).
-/// 2. **Freshly allocated Arrow buffers** (`MutableBuffer`-backed): these have
-///    `ptr_offset() == 0` but their capacity is rounded up to the 64-byte Arrow
-///    `ALIGNMENT`, whereas an R-backed `from_custom_allocation` buffer records
-///    its capacity as *exactly* the byte length. The exact-capacity check
-///    excludes filter/sort/aggregate outputs that DataFusion materializes into
-///    fresh Arrow memory.
-///
-/// The element type `T: RNativeType` supplies both the byte size
-/// (`len * size_of::<T>()`) and the expected `T::SEXP_TYPE`, so a caller cannot
-/// pass a size that disagrees with the SEXP type tag, and the gate cannot be
-/// bypassed without also running the probe.
-///
-/// # Safety
-///
-/// Must be called on R's main thread (delegates to `try_recover_r_sexp`).
-unsafe fn try_recover_r_backed_buffer<T: RNativeType>(
-    buffer: &arrow_buffer::Buffer,
-    len: usize,
-) -> Option<SEXP> {
-    // Only an unsliced, exact-capacity buffer can have come from sexp_to_arrow_buffer.
-    if buffer.ptr_offset() != 0 || buffer.capacity() != len * size_of::<T>() {
-        return None;
-    }
-    unsafe { crate::r_memory::try_recover_r_sexp(buffer.as_ptr(), T::SEXP_TYPE, len) }
-}
+mod r_buffers;
+pub(crate) use r_buffers::drain_pending_r_buffer_releases;
+use r_buffers::{RBufferOwner, original_r_vector};
 
 // region: Zero-copy buffer helpers
 
@@ -349,7 +276,8 @@ unsafe fn try_recover_r_backed_buffer<T: RNativeType>(
 ///
 /// The returned Buffer holds a GC guard (via `R_PreserveObject`) that keeps
 /// the R SEXP alive. When all references to the Buffer are dropped, the
-/// guard releases the R object for GC.
+/// guard releases the R object for GC. Background-thread drops defer release
+/// until the next R unwind boundary.
 ///
 /// Returns `None` if the SEXP's data pointer is null (e.g., ALTREP types
 /// that return null from `DATAPTR_RO` when they cannot expose a contiguous
@@ -360,6 +288,7 @@ unsafe fn try_recover_r_backed_buffer<T: RNativeType>(
 /// - `sexp` must be a valid R vector with contiguous data of type `T`
 /// - Must be called on R's main thread (for `R_PreserveObject`)
 unsafe fn sexp_to_arrow_buffer<T: RNativeType>(sexp: SEXP) -> Option<arrow_buffer::Buffer> {
+    let _guard = unsafe { crate::OwnedProtect::new(sexp) };
     let len = sexp.len();
     if len == 0 {
         return Some(arrow_buffer::Buffer::from(Vec::<u8>::new()));
@@ -374,8 +303,7 @@ unsafe fn sexp_to_arrow_buffer<T: RNativeType>(sexp: SEXP) -> Option<arrow_buffe
     }
 
     // Preserve the R object so it won't be GC'd while Arrow holds a reference
-    unsafe { sys::R_PreserveObject(sexp) };
-    let guard = Arc::new(RPreservedSexp(sexp));
+    let guard = Arc::new(unsafe { RBufferOwner::new::<T>(sexp, ptr) });
 
     let byte_len = len * std::mem::size_of::<T>();
 
@@ -1160,11 +1088,11 @@ impl IntoR for Float64Array {
     }
 
     fn into_sexp(self) -> SEXP {
-        // Zero-copy: recover the source R SEXP from a genuinely R-backed buffer
-        // (unsliced + exact capacity) — otherwise the speculative probe reads
-        // off into unrelated memory (#867).
-        if let Some(sexp) =
-            unsafe { try_recover_r_backed_buffer::<f64>(self.values().inner(), self.len()) }
+        // Only a registered, complete R buffer can return its source. A new
+        // Arrow null bitmap may require replacing values with R sentinels.
+        if let Some(sexp) = original_r_vector::<f64>(self.values().inner(), self.len())
+            && (self.null_count() == 0
+                || (0..self.len()).all(|i| !self.is_null(i) || is_na_real(self.value(i))))
         {
             return sexp;
         }
@@ -1196,9 +1124,11 @@ impl IntoR for Int32Array {
     }
 
     fn into_sexp(self) -> SEXP {
-        // Recovery only for unsliced, exact-capacity (R-backed) buffers — see #867.
-        if let Some(sexp) =
-            unsafe { try_recover_r_backed_buffer::<i32>(self.values().inner(), self.len()) }
+        // Only a registered, complete R buffer can return its source. A new
+        // Arrow null bitmap may require replacing values with R sentinels.
+        if let Some(sexp) = original_r_vector::<i32>(self.values().inner(), self.len())
+            && (self.null_count() == 0
+                || (0..self.len()).all(|i| !self.is_null(i) || self.value(i) == NA_INTEGER))
         {
             return sexp;
         }
@@ -1229,9 +1159,11 @@ impl IntoR for UInt8Array {
     }
 
     fn into_sexp(self) -> SEXP {
-        // Recovery only for unsliced, exact-capacity (R-backed) buffers — see #867.
-        if let Some(sexp) =
-            unsafe { try_recover_r_backed_buffer::<u8>(self.values().inner(), self.len()) }
+        // Only a registered, complete R buffer can return its source. A new
+        // Arrow null bitmap may require replacing values with R sentinels.
+        if let Some(sexp) = original_r_vector::<u8>(self.values().inner(), self.len())
+            && (self.null_count() == 0
+                || (0..self.len()).all(|i| !self.is_null(i) || self.value(i) == 0))
         {
             return sexp;
         }

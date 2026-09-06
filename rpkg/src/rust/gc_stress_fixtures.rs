@@ -2431,6 +2431,163 @@ pub fn gc_stress_reader_enum_map() {
 
 // endregion
 
+// region: Arrow buffer ownership (#1326)
+
+/// Reject a Rust-owned Arrow allocation whose preceding bytes resemble an R
+/// vector header. Buffer size and contents cannot establish R ownership.
+#[cfg(feature = "arrow")]
+#[miniextendr(noexport)]
+pub fn gc_stress_arrow_header_lookalike() {
+    use miniextendr_api::arrow_impl::{Float64Array, arrow_buffer};
+    use miniextendr_api::{IntoR, OwnedProtect, SexpExt};
+    use std::sync::Arc;
+
+    let source = vec![42.0f64].into_sexp();
+    let _source_guard = unsafe { OwnedProtect::new(source) };
+    let data = unsafe { miniextendr_api::sys::DATAPTR_RO(source) }.cast::<u8>();
+    let header_len = data.addr() - source.0.addr();
+    assert_eq!(header_len % size_of::<u64>(), 0);
+    let mut storage = vec![0u64; header_len / size_of::<u64>() + 1];
+    // Copy a real header into ordinary Rust memory. The old probe accepted
+    // these bytes as a SEXP; never pass that bogus pointer back to R.
+    unsafe {
+        std::ptr::copy_nonoverlapping(
+            source.0.cast::<u8>(),
+            storage.as_mut_ptr().cast::<u8>(),
+            header_len + size_of::<f64>(),
+        );
+    }
+    let fake_sexp = storage.as_mut_ptr().cast();
+    let values_ptr = unsafe { storage.as_mut_ptr().cast::<u8>().add(header_len) };
+    let buffer = unsafe {
+        arrow_buffer::Buffer::from_custom_allocation(
+            std::ptr::NonNull::new(values_ptr).unwrap(),
+            size_of::<f64>(),
+            Arc::new(storage),
+        )
+    };
+    assert_eq!(buffer.ptr_offset(), 0);
+    assert_eq!(buffer.capacity(), size_of::<f64>());
+    let array = Float64Array::new(arrow_buffer::ScalarBuffer::from(buffer), None);
+    let result = array.into_sexp();
+    assert_ne!(
+        result.0, fake_sexp,
+        "accepted a Rust allocation as an R SEXP"
+    );
+    let _result_guard = unsafe { OwnedProtect::new(result) };
+    assert_eq!(result.real_elt(0), 42.0);
+}
+
+/// Keep independent Arrow owners rooted when one is dropped by a background
+/// thread, then recover the original R vector through the surviving owner.
+#[cfg(feature = "arrow")]
+#[miniextendr(noexport)]
+pub fn gc_stress_arrow_background_drop() {
+    use miniextendr_api::arrow_impl::Float64Array;
+    use miniextendr_api::{IntoR, OwnedProtect, SexpExt, TryFromSexp};
+
+    let source = vec![10.0f64, 20.0, 30.0].into_sexp();
+    let source_guard = unsafe { OwnedProtect::new(source) };
+    let first = Float64Array::try_from_sexp(source).unwrap();
+    let second = Float64Array::try_from_sexp(source).unwrap();
+    drop(source_guard);
+    #[cfg(not(target_family = "wasm"))]
+    std::thread::spawn(move || drop(first)).join().unwrap();
+    #[cfg(target_family = "wasm")]
+    drop(first);
+
+    // R allocation after the background drop must leave the surviving owner
+    // rooted; under gctorture this also forces a collection.
+    let allocation = vec![0i32; 64].into_sexp();
+    let _allocation_guard = unsafe { OwnedProtect::new(allocation) };
+    let result = second.into_sexp();
+    assert_eq!(result, source);
+    let _result_guard = unsafe { OwnedProtect::new(result) };
+    assert_eq!(unsafe { result.as_slice::<f64>() }, [10.0, 20.0, 30.0]);
+}
+
+/// Changed Arrow validity must materialize R sentinels even when the values
+/// buffer is still backed by a complete R vector.
+#[cfg(feature = "arrow")]
+#[miniextendr(noexport)]
+pub fn gc_stress_arrow_changed_nulls() {
+    use miniextendr_api::arrow_impl::{Float64Array, Int32Array, UInt8Array, arrow_buffer};
+    use miniextendr_api::{IntoR, OwnedProtect, SexpExt, TryFromSexp};
+
+    let nulls = Some(arrow_buffer::NullBuffer::from(vec![true, false]));
+    let source = vec![1.0f64, 2.0].into_sexp();
+    let _source_guard = unsafe { OwnedProtect::new(source) };
+    let array = Float64Array::try_from_sexp(source).unwrap();
+    let result = Float64Array::new(array.values().clone(), nulls.clone()).into_sexp();
+    let _result_guard = unsafe { OwnedProtect::new(result) };
+    assert_ne!(result, source);
+    assert_eq!(result.real_elt(0), 1.0);
+    assert_eq!(
+        result.real_elt(1).to_bits(),
+        miniextendr_api::altrep_traits::NA_REAL.to_bits()
+    );
+    assert_eq!(source.real_elt(1), 2.0);
+
+    let source = vec![1i32, 2].into_sexp();
+    let _source_guard = unsafe { OwnedProtect::new(source) };
+    let array = Int32Array::try_from_sexp(source).unwrap();
+    let result = Int32Array::new(array.values().clone(), nulls.clone()).into_sexp();
+    let _result_guard = unsafe { OwnedProtect::new(result) };
+    assert_ne!(result, source);
+    assert_eq!(result.integer_elt(0), 1);
+    assert_eq!(
+        result.integer_elt(1),
+        miniextendr_api::altrep_traits::NA_INTEGER
+    );
+    assert_eq!(source.integer_elt(1), 2);
+
+    let source = vec![1u8, 2].into_sexp();
+    let _source_guard = unsafe { OwnedProtect::new(source) };
+    let array = UInt8Array::try_from_sexp(source).unwrap();
+    let result = UInt8Array::new(array.values().clone(), nulls).into_sexp();
+    let _result_guard = unsafe { OwnedProtect::new(result) };
+    assert_ne!(result, source);
+    assert_eq!(unsafe { result.as_slice::<u8>() }, [1, 0]);
+    assert_eq!(unsafe { source.as_slice::<u8>() }, [1, 2]);
+}
+
+/// Materialize fresh one-row DataFusion aggregate buffers under GC pressure.
+#[cfg(feature = "datafusion")]
+#[miniextendr(noexport)]
+pub fn gc_stress_datafusion_global_aggregate() {
+    use miniextendr_api::arrow_impl::{
+        ArrayRef, Field, Float64Array, Int32Array, RecordBatch, Schema,
+    };
+    use miniextendr_api::datafusion_impl::RSessionContext;
+    use miniextendr_api::{IntoR, OwnedProtect, SexpExt, TryFromSexp};
+    use std::sync::Arc;
+
+    let x = vec![1i32, 2, 3].into_sexp();
+    let _x_guard = unsafe { OwnedProtect::new(x) };
+    let y = vec![10.0f64, 20.0, 30.0].into_sexp();
+    let _y_guard = unsafe { OwnedProtect::new(y) };
+    let x: ArrayRef = Arc::new(Int32Array::try_from_sexp(x).unwrap());
+    let y: ArrayRef = Arc::new(Float64Array::try_from_sexp(y).unwrap());
+    let schema = Arc::new(Schema::new(vec![
+        Field::new("x", x.data_type().clone(), false),
+        Field::new("y", y.data_type().clone(), false),
+    ]));
+    let context = RSessionContext::new();
+    context
+        .register_record_batch("t", RecordBatch::try_new(schema, vec![x, y]).unwrap())
+        .unwrap();
+    let result = context
+        .sql_to_record_batch("SELECT SUM(y) AS total, AVG(y) AS avg_y, MAX(x) AS max_x FROM t")
+        .unwrap()
+        .into_sexp();
+    let _result_guard = unsafe { OwnedProtect::new(result) };
+    assert_eq!(result.vector_elt(0).real_elt(0), 60.0);
+    assert_eq!(result.vector_elt(1).real_elt(0), 20.0);
+    assert_eq!(result.vector_elt(2).integer_elt(0), 3);
+}
+
+// endregion
+
 // region: Arrow RecordBatch materialization (#867)
 
 /// Materialize a `RecordBatch` whose columns are *sliced views* of R-backed

@@ -162,13 +162,6 @@ mod arrow {
         result == x // should be FALSE
     }
 
-    /// Verifies r_memory::sexprec_data_offset is nonzero (init ran).
-    /// @export
-    #[miniextendr]
-    pub fn zero_copy_sexprec_offset() -> i32 {
-        miniextendr_api::r_memory::sexprec_data_offset() as i32
-    }
-
     /// Round-trip Float64Array through Arrow and return the result.
     /// The zero-copy path returns the original R SEXP — serialization is trivial.
     /// @export

@@ -113,8 +113,8 @@ test_that("Int32Array round-trip returns the values unchanged", {
 })
 
 test_that("ALTREP compact integer (1:n) correctly falls through to copy", {
-  # 1:5 creates an ALTREP compact sequence — data isn't at fixed offset
-  # from SEXP header. Arrow recovery must fail gracefully, returning a copy.
+  # ALTREP may share another object's storage, so it cannot establish unique
+  # R buffer identity. Arrow conversion must return a copy.
   x <- 1:5
   expect_false(zero_copy_arrow_i32_identity(x))
   # But values are preserved correctly
@@ -131,17 +131,6 @@ test_that("UInt8Array round-trip returns same R object (zero-copy)", {
 test_that("Computed Arrow array is NOT the same object (different memory)", {
   x <- c(1.0, 2.0, 3.0)
   expect_false(zero_copy_arrow_f64_computed_is_different(x))
-})
-
-# endregion
-
-# region: SEXPREC data offset
-
-test_that("SEXPREC data offset was computed at init", {
-  offset <- zero_copy_sexprec_offset()
-  expect_true(offset > 0)
-  # On 64-bit systems, sizeof(SEXPREC_ALIGN) is typically 48 or 56 bytes
-  expect_true(offset >= 32 && offset <= 128)
 })
 
 # endregion

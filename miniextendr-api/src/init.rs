@@ -89,9 +89,6 @@ pub unsafe fn package_init(dll: *mut DllInfo, pkg_name: &CStr) {
             #[cfg(feature = "log")]
             crate::optionals::log_impl::install_r_logger();
 
-            // 3c. Compute SEXPREC data offset (used by Arrow SEXP recovery, etc.)
-            crate::r_memory::init_sexprec_data_offset();
-
             // 4. Set ALTREP package name and DllInfo
             crate::miniextendr_set_altrep_pkg_name(pkg_name.as_ptr());
             crate::set_altrep_dll_info(dll);

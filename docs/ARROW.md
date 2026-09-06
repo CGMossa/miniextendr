@@ -347,34 +347,20 @@ pub fn lazy_strings(prefix: &str, n: i32) -> SEXP {
 
 ## How It Works
 
-### SEXP Pointer Recovery (`r_memory` module)
+### R buffer ownership
 
-R stores vector data at a fixed offset from the SEXP header:
+When an R vector is borrowed by Arrow, its allocation owner preserves the
+vector and registers the data pointer, element type, and full length. Returning
+an unsliced array with that registered identity can reuse the original SEXP.
+Fresh Arrow allocations, slices, and ALTREP storage take the copy path. A changed
+null bitmap also takes the copy path if its missing values require new R sentinels.
+No conversion reads bytes before an Arrow buffer or infers ownership from capacity.
 
-```text
-[VECTOR_SEXPREC header (48 bytes on 64-bit)] [data...]
- ^                                            ^
- SEXP                                         DATAPTR_RO(sexp)
-```
-
-All R vector types (REALSXP, INTSXP, RAWSXP, STRSXP, VECSXP) use the same
-`VECTOR_SEXPREC` header. Non-vector types use larger `SEXPREC` but don't have
-data pointers.
-
-At package init, we measure the offset on a real R vector. Then in `IntoR`:
-
-```text
-candidate_sexp = data_ptr - offset
-verify: TYPEOF(candidate) == expected AND LENGTH(candidate) == expected AND DATAPTR_RO(candidate) == data_ptr
-```
-
-**Safety consideration**: For Rust-allocated buffers, `data_ptr - offset` points to
-arbitrary heap memory. The 4-byte type-tag read at that address is technically undefined
-behavior in Rust's abstract model (the pointer wasn't derived from an R allocation).
-In practice, this is safe. The address is in mapped heap memory and the read is
-immediately validated by the triple check (type + length + DATAPTR_RO round-trip),
-which makes false positives impossible. ALTREP vectors also fail safely (the
-DATAPTR_RO round-trip check catches them, since ALTREP data isn't at a fixed offset).
+Each independent Arrow allocation owner keeps one preserve root; clones share
+that owner. The last clone removes its ownership record. If this happens on a
+background thread, the preserve root is queued for release at the next R unwind
+boundary. Both `R_PreserveObject` and `R_ReleaseObject` run on R's main thread;
+R's preserve list is not thread-safe.
 
 ### String conversion (`charsxp_to_str`)
 
