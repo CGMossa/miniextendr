@@ -4,7 +4,6 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
 description = "Runtime library for miniextendr - safe Rust-R interop with worker threads, ALTREP, and type conversions"
@@ -104,11 +103,11 @@ tinyvec = ["dep:tinyvec"]
 borsh = ["dep:borsh"]
 ## Enable Apache Arrow integration. Provides zero-copy conversions between R vectors/data.frames
 ## and Arrow arrays/RecordBatch. Foundation for DataFusion and other Arrow-based tools.
-arrow = ["dep:arrow-array", "dep:arrow-buffer", "dep:arrow-schema", "dep:arrow-select"]
+arrow = ["dep:arrow-array", "dep:arrow-buffer", "dep:arrow-schema"]
 ## Enable DataFusion SQL query engine. Depends on `arrow`. Provides `RSessionContext` for
 ## running SQL queries on R data frames. Uses Tokio internally (current_thread block_on).
 ## IMPORTANT: Tokio uses `rt` (current_thread), NOT `rt-multi-thread`. See datafusion_impl.rs.
-datafusion = ["arrow", "dep:datafusion", "dep:tokio"]
+datafusion = ["arrow", "dep:arrow-select", "dep:datafusion", "dep:tokio"]
 ## Enable log crate integration. Routes Rust log macros (info!, warn!, error!)
 ## to R's console output (Rprintf/REprintf). Automatically installed during package_init().
 log = ["dep:log"]

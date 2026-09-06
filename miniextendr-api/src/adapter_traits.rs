@@ -1016,7 +1016,7 @@ mod tests {
         assert_eq!(result, Some(42));
 
         let result: Option<f64> = RFromStr::from_str("3.141592653589793");
-        assert_eq!(result, Some(f64::consts::PI));
+        assert_eq!(result, Some(core::f64::consts::PI));
 
         let result: Option<bool> = RFromStr::from_str("true");
         assert_eq!(result, Some(true));
@@ -1078,7 +1078,6 @@ mod tests {
         assert_eq!(arr, arr2);
     }
 
-    use core::f64;
     // Tests for RIterator
     use std::cell::RefCell;
 

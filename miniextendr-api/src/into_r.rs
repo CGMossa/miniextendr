@@ -213,15 +213,15 @@ impl IntoR for std::convert::Infallible {
     type Error = std::convert::Infallible;
     #[inline]
     fn try_into_sexp(self) -> Result<crate::SEXP, Self::Error> {
-        Ok(crate::SEXP::nil())
+        match self {}
     }
     #[inline]
     unsafe fn try_into_sexp_unchecked(self) -> Result<crate::SEXP, Self::Error> {
-        self.try_into_sexp()
+        match self {}
     }
     #[inline]
     fn into_sexp(self) -> crate::SEXP {
-        crate::SEXP::nil()
+        match self {}
     }
 }
 

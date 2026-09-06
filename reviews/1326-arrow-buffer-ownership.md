@@ -22,3 +22,17 @@ Regression fixtures cover fake R headers, changed validity, independent owners
 and background drops, sliced record batches, and fresh DataFusion aggregate
 results. The nightly Miri job now exercises the actual registry implementation
 instead of substituting a no-op for unsafe recovery.
+
+The first Miri run passed both registry tests but exposed nightly warnings:
+unused inherited package metadata, `arrow-select` enabled without DataFusion,
+integration-only dev-dependencies in the unit-test target, a deprecated
+`core::f64` module import, and unreachable forwarding on `Infallible`. Removed
+the redundant metadata/import, narrowed the dependency feature, acknowledged
+the integration-only dependencies, and used exhaustive `match self {}` bodies.
+
+Documenting before the first install left stale wrappers: the roxygen build
+deliberately skips wrapper generation and updates its timestamp. Making the
+shared library newer triggered wrapper regeneration on the next install, which
+then failed its load check because the old namespace still exported
+`zero_copy_sexprec_offset`. Documenting the regenerated wrappers and reinstalling
+removes that obsolete export and installs the new private regression wrappers.
