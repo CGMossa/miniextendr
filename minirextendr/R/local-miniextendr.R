@@ -62,7 +62,7 @@ override. The marker is recorded but inert until the latch is cleared \\
   if (!any(grepl(".miniextendr-local", cac, fixed = TRUE))) {
     cli::cli_alert_warning(
       "This package's {.path configure.ac} predates local-checkout support. \\
-Run {.code upgrade_miniextendr_package()} then {.code miniextendr_autoconf()} \\
+Run {.code upgrade_miniextendr_package(configure_ac = TRUE)} then {.code miniextendr_autoconf()} \\
 to pick up the marker-file branch."
     )
   }

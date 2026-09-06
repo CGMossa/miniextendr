@@ -29,8 +29,9 @@ subdirectories for a miniextendr \code{configure.ac}.}
 
 \item{configure_ac}{Logical. If \code{TRUE}, overwrites configure.ac with the
 current template. Defaults to \code{FALSE} because users often customise
-configure.ac with feature flags. When \code{FALSE}, a heuristic check warns
-if the existing configure.ac appears outdated.}
+configure.ac with feature flags. When \code{FALSE}, compares the existing file
+with the current template and warns about differences, including custom
+edits. Review those differences or use \code{TRUE} to replace the file.}
 
 \item{autoconf}{Logical. If \code{TRUE} (default) and \code{autoconf} is available,
 regenerates the configure script after upgrading.}
