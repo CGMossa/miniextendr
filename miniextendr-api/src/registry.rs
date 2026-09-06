@@ -230,6 +230,11 @@ pub struct RWrapperEntry {
     /// for standalone functions that don't have an explicit one, so that all
     /// functions from the same source file share a single .Rd page.
     pub source_file: &'static str,
+    /// Line the generating item starts on in `source_file`. Together with the
+    /// file it fixes the emission order within a priority group at source
+    /// order, so the blocks merged onto a shared `.Rd` page read as written
+    /// rather than in link order (#1476).
+    pub source_line: u32,
 }
 
 // SAFETY: All fields are immutable and valid for 'static lifetime.
@@ -504,27 +509,30 @@ pub unsafe extern "C" fn miniextendr_register_routines(dll: *mut DllInfo) {
     }
 }
 
-/// Collect all R wrapper entries, sorted by priority and deduplicated.
+/// Collect all R wrapper entries, sorted and deduplicated.
 ///
-/// Within each priority group, S7 class definitions are topologically sorted
-/// so parents are defined before children (S7 `parent = X` requires X to exist).
+/// Entries are ordered by `sort_wrapper_entries`: priority first, then source
+/// file, then source line. Within each priority group, S7 class definitions are
+/// additionally topologically sorted so parents are defined before children
+/// (S7 `parent = X` requires X to exist).
 ///
 /// Host-only — wasm32 doesn't run wrapper-gen.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn collect_r_wrappers() -> Vec<std::borrow::Cow<'static, str>> {
     let mut entries: Vec<&RWrapperEntry> = MX_R_WRAPPERS.iter().collect();
-    entries.sort_by_key(|e| e.priority);
+    sort_wrapper_entries(&mut entries);
 
     let mut seen = std::collections::HashSet::<&str>::new();
     let mut result: Vec<std::borrow::Cow<'static, str>> = Vec::with_capacity(entries.len());
     for entry in entries {
         let trimmed = entry.content.trim();
         if !trimmed.is_empty() && seen.insert(trimmed) {
-            // For standalone functions without explicit @rdname, inject one
-            // derived from the source file stem so same-file functions share
-            // a single .Rd page.
+            // For standalone functions that do not assign themselves to a
+            // page (`@rdname`, `@describeIn`), inject an `@rdname` derived
+            // from the source file stem so same-file functions share a
+            // single .Rd page.
             if entry.priority == RWrapperPriority::Function
-                && !has_rdname_tag(trimmed)
+                && !has_page_assignment_tag(trimmed)
                 && !has_no_rd_tag(trimmed)
             {
                 if let Some(rdname) = rdname_from_source_file(entry.source_file) {
@@ -542,12 +550,33 @@ pub fn collect_r_wrappers() -> Vec<std::borrow::Cow<'static, str>> {
     result
 }
 
+/// Order wrapper entries for emission: by priority (the load-order
+/// dependencies between sidecar accessors, classes, functions, trait impls and
+/// vctrs methods), then by source file, then by the line the item starts on.
+///
+/// Within one source file that is source order, so the `@description`
+/// paragraphs and `\usage` entries roxygen merges onto a shared `@rdname` /
+/// `@describeIn` page appear in the order the Rust file defines them, not in
+/// link order (#1476). The sort is stable, so entries generated at the same
+/// file and line (a `macro_rules!` expansion) keep their registration order.
 #[cfg(not(target_arch = "wasm32"))]
-/// Check if an R wrapper fragment already has an `@rdname` tag.
-fn has_rdname_tag(content: &str) -> bool {
+fn sort_wrapper_entries(entries: &mut [&RWrapperEntry]) {
+    entries.sort_by_key(|e| (e.priority, e.source_file, e.source_line));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+/// Check if an R wrapper fragment already assigns itself to a documentation
+/// page: `@rdname <topic>` or `@describeIn <topic> <desc>`.
+///
+/// roxygen2 rejects `@describeIn` next to `@rdname`, so the default
+/// `@rdname <file stem>` must not be injected into a fragment carrying it
+/// (#1476). `@name` deliberately does not count: it names the topic, not the
+/// file, and the rpkg fixtures pair `@name rpkg_x` with the injected file-stem
+/// `@rdname` to keep one page per source file under a custom topic name.
+fn has_page_assignment_tag(content: &str) -> bool {
     content.lines().any(|line| {
         let trimmed = line.trim();
-        trimmed.starts_with("#' @rdname ")
+        trimmed.starts_with("#' @rdname ") || trimmed.starts_with("#' @describeIn ")
     })
 }
 
@@ -1897,9 +1926,11 @@ fn detect_duplicate_wrapper_defs(
 ///
 /// Recognises only **top-level** definitions: the line must start at column 0
 /// (no leading whitespace -- indented forms are R6/S7 closures, not standalone
-/// wrappers) and the left-hand side must be a single bare R identifier. Lines
-/// where the LHS is a call (e.g. `S7::method(...) <- function`) or contains `$`
-/// / `[[` / `::` are not bare definitions and are skipped.
+/// wrappers) and the left-hand side must be a single R name, either bare or
+/// backtick-quoted (`` `[.foo` <- function `` is how a non-syntactic S3 method
+/// is written, #1475; the name is returned without the backticks). Lines where
+/// the LHS is a call (e.g. `S7::method(...) <- function`) or contains `$` /
+/// `[[` / `::` are not bare definitions and are skipped.
 #[cfg(not(target_arch = "wasm32"))]
 fn parse_top_level_fn_def_name(line: &str) -> Option<&str> {
     // Top-level only: reject any leading whitespace.
@@ -1915,10 +1946,18 @@ fn parse_top_level_fn_def_name(line: &str) -> Option<&str> {
     if name.is_empty() {
         return None;
     }
+    // Backtick-quoted name: anything goes inside, as long as the quotes close
+    // and the LHS is nothing but the quoted name.
+    if let Some(inner) = name
+        .strip_prefix('`')
+        .and_then(|rest| rest.strip_suffix('`'))
+    {
+        return (!inner.is_empty() && !inner.contains('`')).then_some(inner);
+    }
     // Bare identifier only: R names may contain letters, digits, `.` and `_`,
     // and must not start with a digit. Anything else (a call on the LHS, a `$`
-    // assignment, a `::`-qualified target, backtick-quoted names with spaces)
-    // is not a standalone wrapper definition we own.
+    // assignment, a `::`-qualified target) is not a standalone wrapper
+    // definition we own.
     let mut chars = name.chars();
     let first = chars.next()?;
     if !(first.is_ascii_alphabetic() || first == '.') {
@@ -2687,6 +2726,79 @@ mod tests {
             parse_top_level_fn_def_name(".miniextendr_raise_condition <- function(.val) {"),
             Some(".miniextendr_raise_condition")
         );
+    }
+
+    #[test]
+    fn parse_top_level_fn_def_name_accepts_backticked_def() {
+        // Non-syntactic S3 method names are emitted backtick-quoted (#1475);
+        // the scan sees the bare name so two `[.foo` definitions still collide.
+        assert_eq!(
+            parse_top_level_fn_def_name("`[.mx_bag` <- function(x, i, ...) {"),
+            Some("[.mx_bag")
+        );
+        assert_eq!(
+            parse_top_level_fn_def_name("`$.mx_bag` <- function(x, name) {"),
+            Some("$.mx_bag")
+        );
+        // Unterminated or empty quoting is not a definition we own.
+        assert_eq!(parse_top_level_fn_def_name("`[.foo <- function() {}"), None);
+        assert_eq!(parse_top_level_fn_def_name("`` <- function() {}"), None);
+    }
+
+    #[test]
+    fn detect_duplicate_wrapper_defs_sees_through_backticks() {
+        let content = "`[.foo` <- function(x, i) 1\n`[.foo` <- function(x, i) 2\n";
+        let err = detect_duplicate_wrapper_defs(content, &std::collections::HashMap::new())
+            .expect_err("duplicate backticked definition must be reported");
+        assert!(err.contains("`[.foo`"), "{err}");
+    }
+
+    #[test]
+    fn has_page_assignment_tag_recognises_rdname_and_describein_only() {
+        assert!(has_page_assignment_tag(
+            "#' @rdname topic\nf <- function() 1"
+        ));
+        assert!(has_page_assignment_tag(
+            "#' @describeIn topic Short text\n#' wrapped\nf <- function() 1"
+        ));
+        // `@name` names the topic but keeps the file-stem page (rpkg pairs
+        // `@name rpkg_x` with the injected `@rdname`).
+        assert!(!has_page_assignment_tag(
+            "#' @name topic\nf <- function() 1"
+        ));
+        assert!(!has_page_assignment_tag(
+            "#' @title T\n#' @export\nf <- function() 1"
+        ));
+        // Prefix-only matches do not count.
+        assert!(!has_page_assignment_tag("#' @rdnamex\nf <- function() 1"));
+    }
+
+    #[test]
+    fn sort_wrapper_entries_is_priority_then_file_then_line() {
+        fn entry(
+            priority: RWrapperPriority,
+            source_file: &'static str,
+            source_line: u32,
+            content: &'static str,
+        ) -> RWrapperEntry {
+            RWrapperEntry {
+                priority,
+                content,
+                source_file,
+                source_line,
+            }
+        }
+        let a = entry(RWrapperPriority::Function, "b.rs", 10, "b10");
+        let b = entry(RWrapperPriority::Function, "a.rs", 30, "a30");
+        let c = entry(RWrapperPriority::Class, "z.rs", 1, "class");
+        let d = entry(RWrapperPriority::Function, "a.rs", 5, "a5");
+        let e = entry(RWrapperPriority::Function, "a.rs", 5, "a5-second");
+        let mut entries = vec![&a, &b, &c, &d, &e];
+        sort_wrapper_entries(&mut entries);
+        let order: Vec<&str> = entries.iter().map(|e| e.content).collect();
+        // Classes first; then functions in file order, then source order; the
+        // two entries at the same file:line keep their registration order.
+        assert_eq!(order, ["class", "a5", "a5-second", "a30", "b10"]);
     }
 
     #[test]

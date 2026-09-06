@@ -1085,6 +1085,7 @@ NULL
         Span::call_site(),
     );
     let source_location_doc = crate::source_location_doc(name.span());
+    let source_line_lit = syn::LitInt::new(&name.span().start().line.to_string(), name.span());
 
     // For S7 class systems, emit MX_S7_SIDECAR_PROPS entries so the S7 codegen
     // can substitute @prop lines for sidecar properties at write time.
@@ -1134,6 +1135,7 @@ NULL
             ::miniextendr_api::registry::RWrapperEntry {
                 priority: ::miniextendr_api::registry::RWrapperPriority::Sidecar,
                 source_file: file!(),
+                source_line: #source_line_lit,
                 content: #r_wrappers,
             };
 

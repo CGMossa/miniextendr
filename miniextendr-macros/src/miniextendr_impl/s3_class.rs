@@ -4,7 +4,7 @@
 //! `<generic>.<class>` methods. Method dispatch is driven by the `class()`
 //! attribute vector — first match wins — so inheritance is "string-prefix"
 //! based and cheap. No formal slot validation, no multi-dispatch (vctrs-style
-//! double-dispatch is supported via `#[miniextendr(generic, class)]` for
+//! double-dispatch is supported via `#[miniextendr(s3(generic = "...", class = "..."))]` for
 //! `vec_ptype2.a.b` patterns). Pick S3 for tidyverse interop and for
 //! extending existing base generics (`print`, `format`, `summary`); use S4/S7
 //! when you need validation or formal hierarchies.
@@ -187,7 +187,8 @@ pub fn generate_s3_r_wrapper(parsed_impl: &ParsedImpl) -> String {
         }
         lines.push(format!(
             "{} <- function({}) {{",
-            s3_method_name, full_params
+            crate::naming::r_def_name(&s3_method_name),
+            full_params
         ));
 
         let what = format!("{}.{}", generic_name, class_name);

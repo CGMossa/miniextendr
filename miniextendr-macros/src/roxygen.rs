@@ -44,7 +44,21 @@ const MULTILINE_TAGS: &[&str] = &[
     "field",
     "value", // synonym for return
     "prop",  // S7 property documentation (roxygen2 8.0.0+)
+    // Tags whose *name* is a single word but whose text may wrap onto the
+    // next `///` line. Dropping the wrapped part silently truncated them (#1476).
+    "describeIn",
+    "family",
+    "inherit",
+    "inheritParams",
+    "inheritSection",
+    "keywords",
+    "concept",
 ];
+
+/// Tags whose wrapped continuation lines are joined back onto one line with a
+/// space instead of a newline: roxygen2 wants these on a single line, but a
+/// long `@title` in a Rust doc comment still gets wrapped by the author.
+const JOINED_TAGS: &[&str] = &["title"];
 
 /// Check if a tag name supports multi-line content.
 fn is_multiline_tag(tag: &str) -> bool {
@@ -54,6 +68,15 @@ fn is_multiline_tag(tag: &str) -> bool {
         .and_then(|rest| rest.split_whitespace().next())
         .unwrap_or("");
     MULTILINE_TAGS.contains(&tag_name)
+}
+
+/// Check if a tag's continuation lines are joined with a space (see [`JOINED_TAGS`]).
+fn is_joined_tag(tag: &str) -> bool {
+    let tag_name = tag
+        .strip_prefix('@')
+        .and_then(|rest| rest.split_whitespace().next())
+        .unwrap_or("");
+    JOINED_TAGS.contains(&tag_name)
 }
 
 /// Extract roxygen tag lines (starting with '@') from Rust doc attributes.
@@ -150,11 +173,16 @@ fn explicit_roxygen_tags_from_attrs(attrs: &[syn::Attribute]) -> Vec<String> {
                 tags.push(trimmed.to_string());
             } else if !trimmed.is_empty()
                 && let Some(last) = tags.last_mut()
-                && is_multiline_tag(last)
             {
-                // Continuation line for the current multi-line tag.
-                last.push('\n');
-                last.push_str(trimmed);
+                if is_multiline_tag(last) {
+                    // Continuation line for the current multi-line tag.
+                    last.push('\n');
+                    last.push_str(trimmed);
+                } else if is_joined_tag(last) {
+                    // Wrapped single-line tag: fold back onto one line.
+                    last.push(' ');
+                    last.push_str(trimmed);
+                }
             }
             // Leading prose (before any @tag) is captured separately by
             // `leading_prose_from_attrs` and promoted to @description in

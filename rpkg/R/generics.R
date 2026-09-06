@@ -58,6 +58,12 @@ NULL
 #' @name relabel
 NULL
 
+#' Number of values held by an object
+#' @param x An object.
+#' @param ... Additional arguments.
+#' @name size
+NULL
+
 #' Add via S3 dispatch
 #' @param x An object.
 #' @param ... Additional arguments.

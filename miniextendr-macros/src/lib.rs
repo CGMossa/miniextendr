@@ -1485,7 +1485,7 @@ pub fn miniextendr(
             internal_comment,
             no_rd_comment,
             export_comment,
-            r_wrapper_ident_str,
+            crate::naming::r_def_name(&r_wrapper_ident_str),
             formals_joined,
             prelude,
             r_wrapper_return_str
@@ -1499,7 +1499,7 @@ pub fn miniextendr(
             internal_comment,
             no_rd_comment,
             export_comment,
-            r_wrapper_ident_str,
+            crate::naming::r_def_name(&r_wrapper_ident_str),
             formals_joined,
             r_wrapper_return_str
         )
@@ -1637,6 +1637,7 @@ pub fn miniextendr(
             ::miniextendr_api::registry::RWrapperEntry {
                 priority: ::miniextendr_api::registry::RWrapperPriority::Function,
                 source_file: file!(),
+                source_line: #source_line_lit,
                 content: concat!(
                     "# Generated from Rust fn `",
                     stringify!(#rust_ident),

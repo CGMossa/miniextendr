@@ -218,6 +218,67 @@ pub(crate) fn apply_rename_all(name: &str, rename_all: Option<&str>) -> String {
     }
 }
 
+// region: R definition names
+
+/// R's reserved words: never usable as a bare name on the left of `<-`.
+const R_RESERVED_WORDS: &[&str] = &[
+    "if",
+    "else",
+    "repeat",
+    "while",
+    "function",
+    "for",
+    "next",
+    "break",
+    "TRUE",
+    "FALSE",
+    "NULL",
+    "Inf",
+    "NaN",
+    "NA",
+    "NA_integer_",
+    "NA_real_",
+    "NA_character_",
+    "NA_complex_",
+    "in",
+];
+
+/// Whether `name` is a syntactic R name: ASCII letters, digits, `.` and `_`
+/// only; starts with a letter, or with a `.` that is not followed by a digit;
+/// and is not a reserved word. Anything else (`[.foo`, `$.foo`, `==.foo`,
+/// `%in%.foo`) has to be backtick-quoted in source.
+pub(crate) fn is_syntactic_r_name(name: &str) -> bool {
+    let mut chars = name.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_alphabetic() => {}
+        Some('.') => {
+            if chars.next().is_some_and(|c| c.is_ascii_digit()) {
+                return false;
+            }
+        }
+        _ => return false,
+    }
+    name.chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '_')
+        && !R_RESERVED_WORDS.contains(&name)
+}
+
+/// The left-hand side of a generated `<name> <- function(...)` definition.
+///
+/// Syntactic names pass through unchanged so the common output stays readable;
+/// a non-syntactic one (an S3 method on `[`, `$`, `==`, ...) is wrapped in
+/// backticks, which R accepts for any name. Without this the wrapper file did
+/// not parse (#1475).
+pub(crate) fn r_def_name(name: &str) -> String {
+    if is_syntactic_r_name(name) {
+        name.to_string()
+    } else {
+        format!("`{}`", name.replace('`', "\\`"))
+    }
+}
+
+// endregion
+
 #[cfg(test)]
 mod tests {
     use super::*;

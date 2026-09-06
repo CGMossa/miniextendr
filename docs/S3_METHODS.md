@@ -22,13 +22,13 @@ impl Person {
     }
 
     /// Implements format.Person - returns a formatted string.
-    #[miniextendr(generic = "format")]
+    #[miniextendr(s3(generic = "format"))]
     pub fn fmt(&self) -> String {
         format!("{} (age {})", self.name, self.age)
     }
 
     /// Implements print.Person - prints and returns self invisibly.
-    #[miniextendr(generic = "print")]
+    #[miniextendr(s3(generic = "print"))]
     pub fn show(&mut self) {
         println!("Person: {}, age {}", self.name, self.age);
     }
@@ -71,18 +71,18 @@ greet.Person <- function(x, ...) {
 
 ## Key Concepts
 
-### Generic Override with `#[miniextendr(generic = "...")]`
+### Generic Override with `#[miniextendr(s3(generic = "..."))]`
 
-By default, the Rust method name becomes the S3 generic name. Use `generic = "..."` to
-override this, mapping to a different R generic:
+By default, the Rust method name becomes the S3 generic name. Use `s3(generic = "...")`
+on the method to override this, mapping to a different R generic:
 
 ```rust
 // Rust method is `fmt`, but R generic is `format`
-#[miniextendr(generic = "format")]
+#[miniextendr(s3(generic = "format"))]
 pub fn fmt(&self) -> String { ... }
 
 // Rust method is `show`, but R generic is `print`
-#[miniextendr(generic = "print")]
+#[miniextendr(s3(generic = "print"))]
 pub fn show(&mut self) { ... }
 ```
 
@@ -221,7 +221,7 @@ can be used in pipelines without double-printing.
 **Recommended pattern: use `&mut self` returning `()`:**
 
 ```rust
-#[miniextendr(generic = "print")]
+#[miniextendr(s3(generic = "print"))]
 pub fn show(&mut self) {
     println!("Person: {}, age {}", self.name, self.age);
 }
@@ -248,7 +248,7 @@ choice to get correct R behavior.
 **Alternative: `&self` returning `()`:**
 
 ```rust
-#[miniextendr(generic = "print")]
+#[miniextendr(s3(generic = "print"))]
 pub fn show(&self) {
     println!("Person: {}, age {}", self.name, self.age);
 }
@@ -274,7 +274,7 @@ use `format()` internally (e.g., `paste()`, `cat(format(x))`).
 **Recommended pattern: `&self` returning `String`:**
 
 ```rust
-#[miniextendr(generic = "format")]
+#[miniextendr(s3(generic = "format"))]
 pub fn fmt(&self) -> String {
     format!("{} (age {})", self.name, self.age)
 }
@@ -310,12 +310,12 @@ impl Temperature {
         Temperature { celsius }
     }
 
-    #[miniextendr(generic = "format")]
+    #[miniextendr(s3(generic = "format"))]
     pub fn fmt(&self) -> String {
         format!("{:.1}°C", self.celsius)
     }
 
-    #[miniextendr(generic = "print")]
+    #[miniextendr(s3(generic = "print"))]
     pub fn show(&mut self) {
         println!("{:.1}°C", self.celsius);
     }
@@ -403,6 +403,28 @@ What the macro does:
 
 Your Rust function receives exactly the arguments R dispatches with. For most S3 generics that is `(x, ...)`, so the first param is typed (`SEXP`, or a concrete type with `TryFromSexp`) and the last is `_dots: ...` to absorb the R-level `...`. If the generic takes more positional arguments (`vec_cast(x, to, ...)`), list them in order.
 
+### Operator generics (`[`, `[[`, `$`, `==`, ...)
+
+The generic name can be any R generic, including the operators:
+
+```rust
+#[miniextendr(s3(generic = "[", class = "percent"))]
+pub fn subset_percent(x: Vec<f64>, i: Vec<i32>, _dots: ...) -> Vec<f64> { ... }
+
+#[miniextendr(s3(generic = "$", class = "percent"))]
+pub fn dollar_percent(x: Vec<f64>, name: String) -> Result<f64, String> { ... }
+```
+
+The wrapper name `[.percent` is not a syntactic R name, so the generated
+definition is backtick-quoted, `` `[.percent` <- function(x, i, ...) ``, and
+the roxygen line stays `#' @method [ percent` (which roxygen2 turns into
+`S3method("[", percent)`). The same quoting applies to an impl-block method
+that overrides its generic, `#[miniextendr(s3(generic = "[["))]` (#1475). Group
+generics (`Ops`, `Math`) are not special-cased: write a method per operator.
+
+`$` methods receive the field name as a character string (`x$n` dispatches as
+`` `$.percent`(x, "n") ``), so type that parameter `String` or `&str`.
+
 ### Double dispatch (vctrs)
 
 A few generics dispatch on two arguments. vctrs calls `vec_ptype2(x, y, ...)` and resolves the method as `vec_ptype2.<class_of_x>.<class_of_y>`. Encode that as a dotted class string:
@@ -428,6 +450,37 @@ For non-vctrs generics from other packages (e.g., `tibble::tbl_sum`), add the im
 #[miniextendr(s3(generic = "tbl_sum", class = "my_tbl"))]
 pub fn tbl_sum_my_tbl(x: SEXP, _dots: ...) -> Vec<String> { ... }
 ```
+
+### Documentation pages for standalone methods
+
+Standalone functions without an explicit page assignment are grouped onto one
+`.Rd` page per Rust source file (the macro injects `@rdname <file stem>` at
+wrapper-generation time). Two tags override that:
+
+- `/// @rdname topic` puts the function on `topic`'s page.
+- `/// @describeIn topic Short description.` puts it on `topic`'s page *and*
+  lists it in that page's "Functions" section with the description. The
+  description may wrap onto following `///` lines; they stay attached (#1476).
+  roxygen2 rejects `@describeIn` next to `@rdname`, so the file-stem default is
+  not injected when either tag is present. `@name topic` alone only renames
+  the topic; the function stays on the file-stem page.
+  roxygen2 resolves `topic` to the destination *object's own* page
+  (`topic.Rd`), not to wherever that object's block was sent with `@rdname`.
+  So the destination must be documented under its own name: give it
+  `/// @rdname topic` explicitly, otherwise it lands on the file-stem page and
+  the `@describeIn` block ends up alone on `topic.Rd`.
+
+Functions are emitted in source order within a file (priority group first,
+then file, then line), so the `@description` paragraphs and `\usage` entries
+of a shared page appear in the order the Rust file defines them.
+
+One gotcha on shared pages: a parameter without a `@param` in the Rust doc
+gets a `@param <name> (no documentation available)` filler so roxygen2 does not
+warn on the single-function page. roxygen2 matches parameter names exactly, so
+on a shared page that filler does **not** merge with a hand-written
+`@param x,object ...` line; both show up. Document every parameter of every
+function that shares a page (`@param x` on each block is fine; identical names
+are merged).
 
 ### Constraints
 

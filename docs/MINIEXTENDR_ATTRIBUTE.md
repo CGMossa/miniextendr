@@ -324,11 +324,11 @@ system keyword:
 #[miniextendr(s3)]
 impl Person {
     // Override the S3 generic name
-    #[miniextendr(generic = "print")]
+    #[miniextendr(s3(generic = "print"))]
     pub fn show(&mut self) { println!("{}", self.name); }
 
     // Override the class suffix for double-dispatch
-    #[miniextendr(generic = "vec_ptype2", class = "my_vctr.my_vctr")]
+    #[miniextendr(s3(generic = "vec_ptype2", class = "my_vctr.my_vctr"))]
     pub fn ptype2_self(&self) -> SEXP { /* ... */ }
 
     // Generate as.data.frame.Person

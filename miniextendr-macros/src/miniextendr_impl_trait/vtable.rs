@@ -304,6 +304,7 @@ pub(super) fn generate_vtable_static(
             ::miniextendr_api::registry::RWrapperEntry {
                 priority: ::miniextendr_api::registry::RWrapperPriority::TraitImpl,
                 source_file: file!(),
+                source_line: #source_line_lit,
                 content: concat!(
                     "# Generated from Rust impl `",
                     stringify!(#trait_name),
