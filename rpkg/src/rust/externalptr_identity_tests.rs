@@ -30,7 +30,6 @@ impl PtrIdentityTest {
 /// a <- PtrIdentityTest$new(10L)
 /// b <- ptr_identity(a)
 /// identical(a, b) # TRUE
-/// @aliases ptr_identity ptr_pick_larger
 #[miniextendr]
 pub fn ptr_identity(x: ExternalPtr<PtrIdentityTest>) -> ExternalPtr<PtrIdentityTest> {
     x

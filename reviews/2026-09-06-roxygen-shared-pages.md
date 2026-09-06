@@ -17,3 +17,22 @@ Keep class/trait priority ordering stable, including the S7 inheritance sort.
 This makes shared-page usage and descriptions follow the author's source order.
 The generated help regression checks the real installed Rd page and runtime
 calls for both ordinary functions and an S3 method.
+
+CI's cross-package ABI tests passed, but its final drift gate failed because
+the tracked producer/consumer wrappers still used the old function order.
+The rpkg sync gate does not cover those separate package artifacts. Regenerate
+with `just cross-install` and `just cross-document`, then commit both wrappers.
+The wrapper blocks are unchanged except for order; all 387 cross-package
+assertions pass without warnings or failures.
+
+Linux R CMD check exposed duplicate aliases in old fixtures: their hand-written
+`@aliases` listed other functions that already have generated help on another
+page once explicit `@name` is honored. Remove these redundant lists; each
+function retains its own generated alias. The help regression now rejects
+aliases claimed by multiple pages. CI's `load_all()` test mode also registers
+the source package path without an installed help database, so read generated
+source Rd in that mode and retain installed-database checks for installed tests.
+
+Reordering the tracked cross-package wrappers also exposed trailing spaces
+in generated blank roxygen lines. All three tag renderers now emit `#'` for
+blank lines, preserving paragraph boundaries without adding trailing whitespace.

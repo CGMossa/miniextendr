@@ -13,9 +13,6 @@ use miniextendr_api::{miniextendr, typed_list};
 /// greetings_with_nameless_dots(1, 2, 3)
 /// greetings_last_as_named_dots(1L, x = 1, y = 2)
 /// }
-/// @aliases greetings_with_named_dots greetings_with_named_and_unused_dots
-///   greetings_with_nameless_dots greetings_last_as_named_dots
-///   greetings_last_as_named_and_unused_dots greetings_last_as_nameless_dots
 /// @param ... Additional arguments (captured as dots).
 pub fn greetings_with_named_dots(dots: ...) {
     let _ = dots;

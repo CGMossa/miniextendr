@@ -128,10 +128,6 @@ pub fn nested_panic() {
 /// miniextendr:::unsafe_C_r_error_in_thread()
 /// miniextendr:::unsafe_C_r_print_in_thread()
 /// }
-/// @aliases nested_panic add_panic add_panic_heap add_r_error add_r_error_heap
-///   drop_message_on_success drop_on_panic drop_on_panic_with_move unsafe_C_just_panic
-///   unsafe_C_panic_and_catch unsafe_C_r_error unsafe_C_r_error_in_catch unsafe_C_r_error_in_thread
-///   unsafe_C_r_print_in_thread
 pub fn add_panic(_left: i32, _right: i32) -> i32 {
     let _a = MsgOnDrop;
     panic!("we cannot add right now! ")

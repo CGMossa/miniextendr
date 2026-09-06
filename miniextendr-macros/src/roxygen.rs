@@ -198,8 +198,11 @@ pub(crate) fn format_roxygen_tags(tags: &[String]) -> String {
     let mut out = String::new();
     for tag in tags {
         for line in tag.lines() {
-            out.push_str("#' ");
-            out.push_str(line);
+            out.push_str("#'");
+            if !line.is_empty() {
+                out.push(' ');
+                out.push_str(line);
+            }
             out.push('\n');
         }
     }
@@ -212,7 +215,11 @@ pub(crate) fn format_roxygen_tags(tags: &[String]) -> String {
 pub(crate) fn push_roxygen_tags(lines: &mut Vec<String>, tags: &[String]) {
     for tag in tags {
         for line in tag.lines() {
-            lines.push(format!("#' {}", line));
+            lines.push(if line.is_empty() {
+                "#'".to_string()
+            } else {
+                format!("#' {line}")
+            });
         }
     }
 }
@@ -221,7 +228,11 @@ pub(crate) fn push_roxygen_tags(lines: &mut Vec<String>, tags: &[String]) {
 pub(crate) fn push_roxygen_tags_str(lines: &mut Vec<String>, tags: &[&str]) {
     for tag in tags {
         for line in tag.lines() {
-            lines.push(format!("#' {}", line));
+            lines.push(if line.is_empty() {
+                "#'".to_string()
+            } else {
+                format!("#' {line}")
+            });
         }
     }
 }

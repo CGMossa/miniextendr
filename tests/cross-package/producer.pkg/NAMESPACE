@@ -68,22 +68,28 @@ exportMethods(s4_distance)
 exportMethods(s4_x)
 exportMethods(s4_y)
 importFrom(R6,R6Class)
-importFrom(S7,S7_object)
-importFrom(S7,class_any)
-importFrom(S7,method)
-importFrom(S7,new_class)
-importFrom(S7,new_generic)
-importFrom(S7,new_object)
-importFrom(methods,new)
-importFrom(methods,setClass)
-importFrom(methods,setGeneric)
-importFrom(methods,setMethod)
-importFrom(vctrs,new_vctr)
-importFrom(vctrs,vec_cast)
-importFrom(vctrs,vec_data)
-importFrom(vctrs,vec_proxy)
-importFrom(vctrs,vec_ptype2)
-importFrom(vctrs,vec_ptype_abbr)
-importFrom(vctrs,vec_ptype_full)
-importFrom(vctrs,vec_restore)
+importFrom(S7,
+  S7_object,
+  class_any,
+  method,
+  new_class,
+  new_generic,
+  new_object
+)
+importFrom(methods,
+  new,
+  setClass,
+  setGeneric,
+  setMethod
+)
+importFrom(vctrs,
+  new_vctr,
+  vec_cast,
+  vec_data,
+  vec_proxy,
+  vec_ptype2,
+  vec_ptype_abbr,
+  vec_ptype_full,
+  vec_restore
+)
 useDynLib(producer.pkg, .registration = TRUE)

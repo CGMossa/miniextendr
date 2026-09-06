@@ -1,5 +1,17 @@
 test_that("describeIn functions share the named help page in source order", {
-  db <- tools::Rd_db("miniextendr")
+  # load_all() registers the source directory as the namespace path; it has
+  # generated man pages but no installed help database. Exercise both modes.
+  pkg_path <- getNamespaceInfo("miniextendr", "path")
+  db <- if (dir.exists(file.path(pkg_path, "man"))) {
+    tools::Rd_db(dir = pkg_path)
+  } else {
+    tools::Rd_db("miniextendr")
+  }
+  aliases <- unlist(lapply(db, function(page) {
+    nodes <- page[vapply(page, function(x) identical(attr(x, "Rd_tag"), "\\alias"), logical(1))]
+    unique(unlist(nodes))
+  }), use.names = FALSE)
+  expect_length(unique(aliases[duplicated(aliases)]), 0L)
   expect_true("doc_shared_topic.Rd" %in% names(db))
   rd <- db[["doc_shared_topic.Rd"]]
   section <- function(tag) {
