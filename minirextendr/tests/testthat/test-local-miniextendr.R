@@ -77,18 +77,31 @@ test_that("use_local_miniextendr() adds .miniextendr-local to .gitignore and .Rb
   withr::local_options(usethis.quiet = TRUE)
   use_local_miniextendr(repo, path = pkg)
 
-  # .gitignore
-  gitignore <- file.path(pkg, ".gitignore")
-  if (file.exists(gitignore)) {
-    gi_lines <- readLines(gitignore, warn = FALSE)
-    expect_true(any(grepl(".miniextendr-local", gi_lines, fixed = TRUE)))
+  gi_lines <- readLines(file.path(pkg, ".gitignore"), warn = FALSE)
+  expect_true(".miniextendr-local" %in% gi_lines)
+
+  rbi_lines <- readLines(file.path(pkg, ".Rbuildignore"), warn = FALSE)
+  ignored <- function(path) {
+    any(vapply(rbi_lines, grepl, logical(1), x = path, perl = TRUE))
   }
-  # .Rbuildignore
+  expect_true(ignored(".miniextendr-local"))
+  expect_false(ignored("x.miniextendr-local"))
+  expect_false(ignored(".miniextendr-local.backup"))
+})
+
+test_that("use_local_miniextendr() replaces the malformed build-ignore entry", {
+  pkg <- make_mx_pkg()
+  on.exit(unlink(pkg, recursive = TRUE), add = TRUE)
+  repo <- make_fake_mx_repo()
+  on.exit(unlink(repo, recursive = TRUE), add = TRUE)
   rbi <- file.path(pkg, ".Rbuildignore")
-  if (file.exists(rbi)) {
-    rbi_lines <- readLines(rbi, warn = FALSE)
-    expect_true(any(grepl("miniextendr-local", rbi_lines, fixed = TRUE)))
-  }
+  writeLines(c("^\\\\.miniextendr-local$$", "^keep-me$"), rbi)
+
+  withr::local_options(usethis.quiet = TRUE)
+  use_local_miniextendr(repo, path = pkg)
+  use_local_miniextendr(repo, path = pkg)
+
+  expect_equal(readLines(rbi), c("^keep-me$", "^\\.miniextendr-local$"))
 })
 
 test_that("use_local_miniextendr() rejects a path without miniextendr-api/Cargo.toml", {
@@ -130,18 +143,26 @@ test_that("unuse_local_miniextendr() removes the marker and returns TRUE", {
   use_local_miniextendr(repo, path = pkg)
   expect_true(file.exists(file.path(pkg, ".miniextendr-local")))
 
+  rbi <- file.path(pkg, ".Rbuildignore")
+  writeLines(c("^\\\\.miniextendr-local$$", "^keep-me$"), rbi)
+
   result <- unuse_local_miniextendr(path = pkg)
   expect_true(isTRUE(result))
   expect_false(file.exists(file.path(pkg, ".miniextendr-local")))
+  expect_equal(readLines(rbi), "^keep-me$")
 })
 
 test_that("unuse_local_miniextendr() is idempotent when no marker exists", {
   pkg <- make_mx_pkg()
   on.exit(unlink(pkg, recursive = TRUE), add = TRUE)
 
+  rbi <- file.path(pkg, ".Rbuildignore")
+  writeLines(c("^\\\\.miniextendr-local$$", "^keep-me$"), rbi)
+
   withr::local_options(usethis.quiet = TRUE)
   result <- unuse_local_miniextendr(path = pkg)
   expect_true(isFALSE(result))
+  expect_equal(readLines(rbi), "^keep-me$")
 })
 
 # ---------------------------------------------------------------------------
