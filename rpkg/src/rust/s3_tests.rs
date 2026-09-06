@@ -36,6 +36,14 @@ impl S3Counter {
         self.value
     }
 
+    /// Extracts the counter's value through the S3 dollar operator.
+    /// @param name The field name, `"value"`.
+    #[miniextendr(s3(generic = "$"))]
+    pub fn field(&self, name: &str) -> i32 {
+        assert_eq!(name, "value", "unknown counter field");
+        self.value
+    }
+
     /// A static method that returns a default counter (value = 0).
     pub fn default_counter() -> Self {
         S3Counter { value: 0 }
@@ -107,5 +115,28 @@ impl S3NonGenericCollisionSecond {
     pub fn var(&self) -> f64 {
         self.values.iter().product()
     }
+}
+// endregion
+
+// region: S3 operator free functions — #1475 regression fixtures
+
+/// Subsets an integer vector carrying the `mx_s3_vector` class.
+/// @param x An integer vector with class `mx_s3_vector`.
+/// @param i One-based integer indices.
+/// @param ... Additional arguments (unused).
+#[miniextendr(s3(generic = "[", class = "mx_s3_vector"))]
+pub fn s3_operator_subset(x: Vec<i32>, i: Vec<i32>, _dots: ...) -> Vec<i32> {
+    i.into_iter()
+        .map(|index| x[usize::try_from(index - 1).expect("index must be positive")])
+        .collect()
+}
+
+/// Extracts one integer from an `mx_s3_vector` object without a wrapper prelude.
+/// @param x An integer vector with class `mx_s3_vector`.
+/// @param i A one-based integer index.
+/// @param ... Additional arguments (unused).
+#[miniextendr(no_preconditions, s3(generic = "[[", class = "mx_s3_vector"))]
+pub fn s3_operator_extract(x: Vec<i32>, i: i32, _dots: ...) -> i32 {
+    x[usize::try_from(i - 1).expect("index must be positive")]
 }
 // endregion

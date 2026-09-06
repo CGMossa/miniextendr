@@ -1035,3 +1035,35 @@ fn test_trait_method_rdname_override_all_systems() {
         }
     }
 }
+
+#[test]
+fn s3_operator_names_are_quoted_in_trait_wrappers() {
+    for generic in ["[", "[[", "$", "==", "+", "%custom%"] {
+        let mut method = make_test_method("operator", true);
+        method.r_name = Some(generic.to_string());
+        let wrapper = generate_trait_r_wrapper(
+            &format_ident!("Foo"),
+            &format_ident!("Operators"),
+            &[method],
+            &[],
+            opts(ClassSystem::S3, false, false, false),
+        )
+        .unwrap();
+        assert!(
+            wrapper.contains(&format!("`{generic}.Foo` <- function(x, ...)")),
+            "{wrapper}"
+        );
+        assert!(
+            wrapper.contains(&format!(
+                "`{generic}` <- function(x, ...) UseMethod(\"{generic}\")"
+            )),
+            "{wrapper}"
+        );
+        assert!(
+            wrapper.contains(&format!(
+                "S7::method(`{generic}`, S7::new_S3_class(\"Foo\")) <- `{generic}.Foo`"
+            )),
+            "{wrapper}"
+        );
+    }
+}

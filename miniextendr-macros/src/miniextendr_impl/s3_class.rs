@@ -187,7 +187,8 @@ pub fn generate_s3_r_wrapper(parsed_impl: &ParsedImpl) -> String {
         }
         lines.push(format!(
             "{} <- function({}) {{",
-            s3_method_name, full_params
+            crate::naming::r_symbol(&s3_method_name),
+            full_params
         ));
 
         let what = format!("{}.{}", generic_name, class_name);
@@ -226,7 +227,11 @@ pub fn generate_s3_r_wrapper(parsed_impl: &ParsedImpl) -> String {
             lines.push("#' @export".to_string());
         }
 
-        lines.push(format!("{} <- function({}) {{", fn_name, ctx.params));
+        lines.push(format!(
+            "{} <- function({}) {{",
+            crate::naming::r_symbol(&fn_name),
+            ctx.params
+        ));
 
         ctx.emit_method_prelude(&mut lines, "  ", &fn_name);
 

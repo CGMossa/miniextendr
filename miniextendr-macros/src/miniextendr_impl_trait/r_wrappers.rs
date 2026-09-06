@@ -336,6 +336,8 @@ fn generate_trait_s3_r_wrapper(
     for method in &instance_methods {
         let generic_name = method.r_method_name();
         let s3_method_name = format!("{}.{}", generic_name, type_str);
+        let generic_symbol = crate::naming::r_symbol(&generic_name);
+        let method_symbol = crate::naming::r_symbol(&s3_method_name);
         let ctx = TraitMethodContext::new(method, type_ident, trait_name);
 
         // S3 generic roxygen (only create if doesn't exist). The type-qualified
@@ -394,10 +396,7 @@ fn generate_trait_s3_r_wrapper(
         let call = ctx.instance_call("x");
 
         // Always define the S3 method (roxygen expects it for NAMESPACE export)
-        lines.push(format!(
-            "{} <- function({}) {{",
-            s3_method_name, full_params
-        ));
+        lines.push(format!("{} <- function({}) {{", method_symbol, full_params));
         ctx.emit_method_prelude(&mut lines, "  ", &generic_name);
         lines.extend(ctx.method_body_lines(&call, ClassSystem::S3));
         // Void instance methods return invisible(x) for pipe-friendly chaining
@@ -412,7 +411,7 @@ fn generate_trait_s3_r_wrapper(
             "if (inherits(get0(\"{generic_name}\", mode = \"function\"), \"S7_generic\")) {{"
         ));
         lines.push(format!(
-            "  S7::method({generic_name}, S7::new_S3_class(\"{type_str}\")) <- {s3_method_name}"
+            "  S7::method({generic_symbol}, S7::new_S3_class(\"{type_str}\")) <- {method_symbol}"
         ));
         lines.push("}".to_string());
         lines.push(String::new());

@@ -1476,6 +1476,7 @@ pub fn miniextendr(
         }
     };
 
+    let r_wrapper_symbol = crate::naming::r_symbol(&r_wrapper_ident_str);
     let r_wrapper_string = if let Some(prelude) = combined_prelude {
         format!(
             "{}{}{}{}{}{}{} <- function({}) {{\n  {}\n  {}\n}}",
@@ -1485,7 +1486,7 @@ pub fn miniextendr(
             internal_comment,
             no_rd_comment,
             export_comment,
-            r_wrapper_ident_str,
+            r_wrapper_symbol,
             formals_joined,
             prelude,
             r_wrapper_return_str
@@ -1499,7 +1500,7 @@ pub fn miniextendr(
             internal_comment,
             no_rd_comment,
             export_comment,
-            r_wrapper_ident_str,
+            r_wrapper_symbol,
             formals_joined,
             r_wrapper_return_str
         )
