@@ -747,7 +747,7 @@ Traits with impls: 219
 | `Sortedness` | `` | concrete | 1 | miniextendr-api/src/altrep_data/core.rs:182 |
 | `i32` | `` | concrete | 1 | miniextendr-api/src/altrep_data/core.rs:85 |
 | `Logical` | `` | concrete | 1 | miniextendr-api/src/altrep_data/core.rs:96 |
-| `AsRError<E>` | `<E>` | concrete | 1 | miniextendr-api/src/condition.rs:1331 |
+| `AsRError<E>` | `<E>` | concrete | 1 | miniextendr-api/src/condition.rs:1403 |
 | `RError` | `<E>` | concrete | 1 | miniextendr-api/src/condition.rs:963 |
 | `AsList<T>` | `<T>` | concrete | 1 | miniextendr-api/src/convert.rs:103 |
 | `AsExternalPtr<T>` | `<T>` | concrete | 1 | miniextendr-api/src/convert.rs:365 |
@@ -1646,7 +1646,7 @@ Traits with impls: 219
 | `LogicalCoerceError` | `` | concrete | 1 | miniextendr-api/src/coerce.rs:481 |
 | `CoerceError` | `` | concrete | 1 | miniextendr-api/src/coerce.rs:85 |
 | `Coerced<T, R>` | `<T, R>` | concrete | 1 | miniextendr-api/src/coerce.rs:919 |
-| `AsRError<E>` | `<E>` | concrete | 1 | miniextendr-api/src/condition.rs:1354 |
+| `AsRError<E>` | `<E>` | concrete | 1 | miniextendr-api/src/condition.rs:1426 |
 | `RError` | `` | concrete | 1 | miniextendr-api/src/condition.rs:915 |
 | `RStdin` | `` | concrete | 1 | miniextendr-api/src/connection.rs:1197 |
 | `RStdout` | `` | concrete | 1 | miniextendr-api/src/connection.rs:1215 |
@@ -2613,7 +2613,7 @@ Traits with impls: 219
 |---|---|---|---|---|
 | `LogicalCoerceError` | `` | concrete | 1 | miniextendr-api/src/coerce.rs:489 |
 | `CoerceError` | `` | concrete | 1 | miniextendr-api/src/coerce.rs:97 |
-| `AsRError<E>` | `<E>` | concrete | 1 | miniextendr-api/src/condition.rs:1338 |
+| `AsRError<E>` | `<E>` | concrete | 1 | miniextendr-api/src/condition.rs:1410 |
 | `RError` | `` | concrete | 1 | miniextendr-api/src/condition.rs:978 |
 | `DataFrameError` | `` | concrete | 1 | miniextendr-api/src/dataframe.rs:115 |
 | `GroupKey` | `` | concrete | 1 | miniextendr-api/src/dataframe/group.rs:124 |
